@@ -1,0 +1,7 @@
+.env
+build
+dist
+__pycache__
+inactive
+*.egg-info
+SAM-Batcher.code-workspace
