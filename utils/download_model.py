@@ -8,6 +8,14 @@ import ssl
 from typing import Optional, Union, Callable
 import time
 
+# Expose model options, mapping them to a simpler alias
+MODEL_FILES = {
+    'tiny': 'sam2.1_hiera_tiny.pt',
+    'small': 'sam2.1_hiera_small.pt',
+    'base_plus': 'sam2.1_hiera_base_plus.pt',
+    'large': 'sam2.1_hiera_large.pt'
+}
+
 try:
     from tqdm import tqdm
     TQDM_AVAILABLE = True
@@ -38,19 +46,23 @@ def download_checkpoint(
     base_url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824"
     
     # Map model names to their file names
-    model_files = {
+    MODEL_FILES = {
         'tiny': 'sam2.1_hiera_tiny.pt',
         'small': 'sam2.1_hiera_small.pt',
         'base_plus': 'sam2.1_hiera_base_plus.pt',
         'large': 'sam2.1_hiera_large.pt'
     }
     
-    if model_size not in model_files:
-        print(f"Error: Invalid model size '{model_size}'. Choose from: {', '.join(model_files.keys())}")
-        return False
-    
-    # Get the file name for the selected model
-    file_name = model_files[model_size]
+    if model_size not in MODEL_FILES:
+        # If real filename given directly as model_size
+        if model_size in MODEL_FILES.values():
+            file_name = model_size
+        else:
+            print(f"Error: Invalid model size '{model_size}'. Choose from: {', '.join(MODEL_FILES.keys())}")
+            return False
+    else:
+        # Get the file name for the selected model
+        file_name = MODEL_FILES[model_size]
     
     # Construct the URL and output path
     url = f"{base_url}/{file_name}"
