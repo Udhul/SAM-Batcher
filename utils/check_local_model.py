@@ -26,6 +26,11 @@ def check_local_model(
     Returns:
         Path to the model if found, None otherwise
     """
+
+    # If model_size is "base", treat it as "base_plus"
+    if isinstance(model_size, str) and model_size.lower() == "base":
+        model_size = "base_plus"
+    
     # Define base patterns for each model size
     base_patterns = {
         'tiny': ['*tiny*'],
@@ -133,7 +138,7 @@ def check_local_model(
 def main():
     parser = argparse.ArgumentParser(description='Check for locally available SAM2.1 model checkpoints')
     parser.add_argument('model', choices=['tiny', 'small', 'base_plus', 'large'], 
-                        help='Model size to look for (tiny, small, base_plus, or large)')
+                        help='Model size to look for (tiny, small, base, base_plus, or large)')
     parser.add_argument('--search-dir', default=None,
                         help='Directory to search for the model (default: Modules/sam2/checkpoints)')
     parser.add_argument('--expanded-search', action='store_true',
