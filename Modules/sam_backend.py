@@ -36,7 +36,9 @@ class SAMInference:
         self.model_path = model_path
         self.config_path = config_path
         self.predictor = None
-        self.mask_generator = None
+        self.predictor_args = {}  # Store args used to create predictor
+        self.automatic_mask_generator = None
+        self.automatic_mask_generator_args = {}  # Store args used to create mask generator
         self.device = self._get_device() if device is None else device
         
         # Storage for current state
@@ -75,9 +77,15 @@ class SAMInference:
             model_path: Direct path to model file (overrides model_size)
             config_path: Direct path to config file
             apply_postprocessing: Whether to apply postprocessing to masks
+            
         Returns:
             True if model loaded successfully, False otherwise
         """
+        # Store the current model state in case loading fails
+        previous_model = self.model
+        previous_model_path = self.model_path
+        previous_config_path = self.config_path
+        
         try:
             # Determine model path
             if model_path:
@@ -95,15 +103,28 @@ class SAMInference:
                 self.config_path = get_config(model_size or self.model_path)
             
             if not self.model_path or not self.config_path:
+                # Revert to previous state
+                self.model_path = previous_model_path
+                self.config_path = previous_config_path
                 return False
             
             # Build the model
-            self.model = build_sam2(self.config_path, self.model_path, device=self.device, apply_postprocessing=apply_postprocessing)
+            new_model = build_sam2(self.config_path, self.model_path, device=self.device, apply_postprocessing=apply_postprocessing)
             
-            # Create predictor
-            self.predictor = SAM2ImagePredictor(self.model)
+            # If we got here, loading succeeded - update the model
+            self.model = new_model
             
-            # Reset current state
+            # Rebuild predictor with new model
+            if self.predictor_args:
+                self.create_predictor(**self.predictor_args)
+            else:
+                self.predictor = SAM2ImagePredictor(self.model)
+            
+            # Rebuild mask generator if it was previously created
+            if self.automatic_mask_generator_args:
+                self.create_automatic_mask_generator(**self.automatic_mask_generator_args)
+            
+            # Reset current prediction state
             self.masks = None
             self.scores = None
             self.logits = None
@@ -111,11 +132,59 @@ class SAMInference:
             return True
         except Exception as e:
             print(f"Error loading model: {e}")
-            self.model = None
-            self.predictor = None
+            # Revert to previous state if there was one
+            if previous_model is not None:
+                self.model = previous_model
+                self.model_path = previous_model_path
+                self.config_path = previous_config_path
+                # Keep predictor and automatic_mask_generator as they are since we're reverting
+            return False
+
+    def create_predictor(self, mask_threshold: float = 0, max_hole_area: float = 0, 
+                        max_sprinkle_area: float = 0, **kwargs) -> bool:
+        """
+        Create/update image predictor with custom parameters.
+        
+        Args:
+            mask_threshold: Threshold for converting mask logits to binary masks
+            max_hole_area: Maximum area for hole filling in low-res masks
+            max_sprinkle_area: Maximum area for removing small sprinkles in low-res masks
+            **kwargs: Additional arguments for SAM2ImagePredictor
+            
+        Returns:
+            True if predictor created successfully, False otherwise
+        """
+        if self.model is None:
+            return False
+        
+        try:
+            # Store the arguments for future rebuilds
+            self.predictor_args = {
+                'mask_threshold': mask_threshold,
+                'max_hole_area': max_hole_area,
+                'max_sprinkle_area': max_sprinkle_area,
+                **kwargs
+            }
+            
+            # Create the predictor
+            self.predictor = SAM2ImagePredictor(
+                self.model,
+                mask_threshold=mask_threshold,
+                max_hole_area=max_hole_area,
+                max_sprinkle_area=max_sprinkle_area,
+                **kwargs
+            )
+            
+            # Reset current state if image was set
+            if self.image is not None:
+                self.predictor.set_image(self.image)
+            
+            return True
+        except Exception as e:
+            print(f"Error creating predictor: {e}")
             return False
     
-    def create_mask_generator(self, **kwargs) -> bool:
+    def create_automatic_mask_generator(self, **kwargs) -> bool:
         """
         Create an automatic mask generator with optional parameters.
         
@@ -139,7 +208,11 @@ class SAMInference:
             return False
         
         try:
-            self.mask_generator = SAM2AutomaticMaskGenerator(self.model, **kwargs)
+            # Store the arguments for future rebuilds
+            self.automatic_mask_generator_args = kwargs
+            
+            # Create the mask generator
+            self.automatic_mask_generator = SAM2AutomaticMaskGenerator(self.model, **kwargs)
             return True
         except Exception as e:
             print(f"Error creating mask generator: {e}")
@@ -261,9 +334,10 @@ class SAMInference:
         if self.model is None:
             raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
         
-        # Create mask generator if not exists
-        if self.mask_generator is None and not self.create_mask_generator(**kwargs):
-            return []
+        # Create mask generator if not exists or if new kwargs are provided
+        if self.automatic_mask_generator is None or (kwargs and kwargs != self.automatic_mask_generator_args):
+            if not self.create_automatic_mask_generator(**(kwargs or {})):
+                return []
         
         # Use provided image or current image
         target_image = image if image is not None else self.image
@@ -272,7 +346,7 @@ class SAMInference:
             raise ImageNotSetError("Image not set. Call set_image() first or provide an image.")
         
         try:
-            masks = self.mask_generator.generate(target_image)
+            masks = self.automatic_mask_generator.generate(target_image)
             return masks
         except Exception as e:
             print(f"Error generating masks: {e}")
@@ -295,7 +369,7 @@ class SAMInference:
         """Release resources and clean up"""
         self.model = None
         self.predictor = None
-        self.mask_generator = None
+        self.automatic_mask_generator = None
         self.image = None
         self.masks = None
         self.scores = None
