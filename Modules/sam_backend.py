@@ -1,79 +1,306 @@
-# Modules/sam_inference_backend.py
+# Modules/sam_backend.py
 
 import os
 import torch
+import numpy as np
+from typing import Optional, List, Tuple, Dict, Any, Union
+
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
+from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 
+# Import helper functions
 from utils.get_model import get_model, get_config
 
-# checkpoint = get_model("tiny")
-# model_cfg = get_config("tiny")
-# predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
+class ModelNotLoadedError(Exception):
+    """Exception raised when trying to use the model before it's loaded"""
+    pass
 
-# with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-#     predictor.set_image(<your_image>)
-#     masks, _, _ = predictor.predict(<input_prompts>)
-
-def is_local_src(model_src):
-    file_name, file_extension = os.path.splitext(model_src)
-    if file_extension == ".pt":
-        return True
-    return False
-
-def is_hf_src(model_src):
-    return not(is_local_src(model_src))
+class ImageNotSetError(Exception):
+    """Exception raised when trying to predict without setting an image first"""
+    pass
 
 class SAMInference:
-    def __init__(self, model_src="checkpoints/sam2.1_hiera_large.pt", config_src="configs/sam2.1/sam2.1_hiera_l.yaml"):
-        self.model_src = model_src
-        self.config_src = config_src
+    def __init__(self, model_size: Optional[str] = None, model_path: Optional[str] = None, 
+                 config_path: Optional[str] = None, device: str = None):
+        """
+        Initialize SAM inference backend.
+        
+        Args:
+            model_size: Size of the model (tiny, small, base, large)
+            model_path: Direct path to model file (overrides model_size)
+            config_path: Direct path to config file (if None, will be auto-detected)
+            device: Device to run inference on (cuda, mps, cpu). If None, will be auto-detected.
+        """
+        self.model = None
+        self.model_path = model_path
+        self.config_path = config_path
         self.predictor = None
+        self.mask_generator = None
+        self.device = self._get_device() if device is None else device
+        
+        # Storage for current state
+        self.image = None
         self.image_path = None
-        self.points = None
         self.masks = None
-
-    def _load_model(self, model_src:str, config_src:str = ""):
-        if not self.model_src: # if self.model_src == None or self.model_src == "" or self.model_src == False
-            return False
-
+        self.scores = None
+        self.logits = None
+        
+        # Try to load model if specified during initialization
+        if model_size or model_path:
+            self.load_model(model_size, model_path, config_path)
+    
+    def _get_device(self) -> str:
+        """Determine the best available device for computation"""
+        if torch.cuda.is_available():
+            device = "cuda"
+            # Enable optimizations for CUDA
+            torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
+            if torch.cuda.get_device_properties(0).major >= 8:
+                torch.backends.cuda.matmul.allow_tf32 = True
+                torch.backends.cudnn.allow_tf32 = True
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+        return device
+    
+    def load_model(self, model_size: Optional[str] = None, model_path: Optional[str] = None, 
+                  config_path: Optional[str] = None, apply_postprocessing: bool = True) -> bool:
+        """
+        Load a SAM2 model.
+        
+        Args:
+            model_size: Size of the model (tiny, small, base, large)
+            model_path: Direct path to model file (overrides model_size)
+            config_path: Direct path to config file
+            apply_postprocessing: Whether to apply postprocessing to masks
+        Returns:
+            True if model loaded successfully, False otherwise
+        """
         try:
-            if is_hf_src(model_src):
-                self.predictor = SAM2ImagePredictor.from_pretrained(self.model_src)
+            # Determine model path
+            if model_path:
+                self.model_path = model_path
+            elif model_size:
+                self.model_path = get_model(model_size)
             else:
-                self.predictor = SAM2ImagePredictor(build_sam2(self.config_src, self.model_src))
+                return False
+            
+            # Determine config path
+            if config_path:
+                self.config_path = config_path
+            else:
+                # Auto-detect config from model path or size
+                self.config_path = get_config(model_size or self.model_path)
+            
+            if not self.model_path or not self.config_path:
+                return False
+            
+            # Build the model
+            self.model = build_sam2(self.config_path, self.model_path, device=self.device, apply_postprocessing=apply_postprocessing)
+            
+            # Create predictor
+            self.predictor = SAM2ImagePredictor(self.model)
+            
+            # Reset current state
+            self.masks = None
+            self.scores = None
+            self.logits = None
+            
             return True
-        except:
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            self.model = None
+            self.predictor = None
             return False
-
-    def set_model(self, model_src:str, config_src:str = ""):
-        if model_src == self.model_src or not model_src:
+    
+    def create_mask_generator(self, **kwargs) -> bool:
+        """
+        Create an automatic mask generator with optional parameters.
+        
+        Args:
+            **kwargs: Parameters for SAM2AutomaticMaskGenerator
+                - points_per_side: Number of points to sample along each side of the image
+                - points_per_batch: Number of points to process in each batch
+                - pred_iou_thresh: Threshold for predicted mask quality
+                - stability_score_thresh: Threshold for mask stability score
+                - stability_score_offset: Offset for mask stability score
+                - crop_n_layers: Number of layers to use for crop
+                - box_nms_thresh: Threshold for box NMS
+                - crop_n_points_downscale_factor: Factor to downsample points for crops
+                - min_mask_region_area: Minimum area for a mask region
+                - use_m2m: Whether to use mask-to-mask refinement
+        
+        Returns:
+            True if mask generator created successfully, False otherwise
+        """
+        if self.model is None:
             return False
-
-        # # Store current values
-        # old_model_src = self.model_src
-        # old_config_src = self.config_src
-
-        # # Update values with the ones given
-        # self.model_src = model_src
-        # self.config_src = config_src
         
-        # Try loading the model with the given model (and config if not hf src)
-        if not self._load_model(model_src, config_src):
-            #  self.model_src = old_model_src
-            #  self.config_src = old_config_src
-             return False
+        try:
+            self.mask_generator = SAM2AutomaticMaskGenerator(self.model, **kwargs)
+            return True
+        except Exception as e:
+            print(f"Error creating mask generator: {e}")
+            return False
+    
+    def set_image(self, image: Union[str, np.ndarray]) -> bool:
+        """
+        Set the image for prediction.
         
-        self.points = None
+        Args:
+            image: Image path or numpy array
+            
+        Returns:
+            True if image set successfully, False otherwise
+        """
+        if self.predictor is None:
+            return False
+            
+        try:
+            # Handle both file paths and numpy arrays
+            if isinstance(image, str):
+                self.image_path = image
+                
+                # Check if file exists
+                if not os.path.exists(image):
+                    return False
+                
+                # Load image if it's a file path - let SAM2ImagePredictor handle this
+                self.predictor.set_image(image)
+                self.image = self.predictor._orig_img  # Store the image
+            else:
+                # Assume it's already a numpy array
+                self.image = image
+                self.image_path = None
+                self.predictor.set_image(image)
+            
+            # Reset prediction results
+            self.masks = None
+            self.scores = None
+            self.logits = None
+            
+            return True
+        except Exception as e:
+            print(f"Error setting image: {e}")
+            self.image = None
+            return False
+    
+    def predict(self, point_coords=None, point_labels=None, box=None, 
+                multimask_output=True, return_logits=True, sort_results=True) -> Tuple:
+        """
+        Run SAM2 prediction with the current image and provided prompts.
+        
+        Args:
+            point_coords: Numpy array of point coordinates
+            point_labels: Numpy array of point labels (1 for foreground, 0 for background)
+            box: Bounding box in XYXY format
+            multimask_output: Whether to return multiple mask predictions
+            return_logits: Whether to return logits
+            sort_results: Whether to sort results by score
+            
+        Returns:
+            Tuple of (masks, scores, logits) if return_logits=True else (masks, scores)
+        
+        Raises:
+            ModelNotLoadedError: If model is not loaded
+            ImageNotSetError: If image is not set
+        """
+        if self.predictor is None:
+            raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
+        
+        if self.image is None:
+            raise ImageNotSetError("Image not set. Call set_image() first.")
+        
+        try:
+            masks, scores, logits = self.predictor.predict(
+                point_coords=point_coords,
+                point_labels=point_labels,
+                box=box,
+                multimask_output=multimask_output,
+            )
+            
+            # Sort results by score if requested
+            if sort_results and scores is not None and len(scores) > 0:
+                sorted_ind = np.argsort(scores)[::-1]
+                masks = masks[sorted_ind]
+                scores = scores[sorted_ind]
+                logits = logits[sorted_ind] if logits is not None else None
+            
+            # Store results as attributes
+            self.masks = masks
+            self.scores = scores
+            self.logits = logits
+            
+            return (masks, scores, logits) if return_logits else (masks, scores)
+        except Exception as e:
+            print(f"Error during prediction: {e}")
+            raise
+    
+    def generate_masks(self, image=None, **kwargs) -> List[Dict[str, Any]]:
+        """
+        Generate masks automatically without prompts.
+        
+        Args:
+            image: Image to generate masks for (if None, uses current image)
+            **kwargs: Parameters for SAM2AutomaticMaskGenerator if not created yet
+            
+        Returns:
+            List of mask dictionaries with keys:
+                - segmentation: Binary mask
+                - area: Area of the mask
+                - bbox: Bounding box in XYWH format
+                - predicted_iou: Predicted IoU score
+                - stability_score: Stability score
+                - crop_box: Box used for cropping
+            
+        Raises:
+            ModelNotLoadedError: If model is not loaded
+        """
+        if self.model is None:
+            raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
+        
+        # Create mask generator if not exists
+        if self.mask_generator is None and not self.create_mask_generator(**kwargs):
+            return []
+        
+        # Use provided image or current image
+        target_image = image if image is not None else self.image
+        
+        if target_image is None:
+            raise ImageNotSetError("Image not set. Call set_image() first or provide an image.")
+        
+        try:
+            masks = self.mask_generator.generate(target_image)
+            return masks
+        except Exception as e:
+            print(f"Error generating masks: {e}")
+            return []
+    
+    def get_recent_results(self) -> Dict[str, Any]:
+        """
+        Get the most recent prediction results.
+        
+        Returns:
+            Dictionary with masks, scores, and logits
+        """
+        return {
+            "masks": self.masks,
+            "scores": self.scores,
+            "logits": self.logits
+        }
+    
+    def cleanup(self) -> None:
+        """Release resources and clean up"""
+        self.model = None
+        self.predictor = None
+        self.mask_generator = None
+        self.image = None
         self.masks = None
-        return True
-
-    def set_image(self, new_path:str):
-        self.image_path = new_path
-        self.points = None
-        self.masks = None
-
-
-
-
-
+        self.scores = None
+        self.logits = None
+        
+        # Try to free CUDA memory
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
