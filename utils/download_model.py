@@ -12,6 +12,7 @@ import time
 MODEL_FILES = {
     'tiny': 'sam2.1_hiera_tiny.pt',
     'small': 'sam2.1_hiera_small.pt',
+    'base': 'sam2.1_hiera_base_plus.pt',  # Same as base_plus
     'base_plus': 'sam2.1_hiera_base_plus.pt',
     'large': 'sam2.1_hiera_large.pt'
 }
@@ -24,7 +25,7 @@ except ImportError:
 
 def download_checkpoint(
     model_size: str, 
-    output_dir: str = "Modules/sam2/checkpoints",
+    output_dir: Optional[str] = None,
     progress_callback: Optional[Callable[[float, int, int], None]] = None
 ) -> Union[bool, str]:
     """
@@ -32,26 +33,22 @@ def download_checkpoint(
     
     Args:
         model_size: Size of the model ('tiny', 'small', 'base_plus', or 'large')
-        output_dir: Directory to save the checkpoint
+        output_dir: Directory to save the checkpoint (default: Modules/sam2/checkpoints)
         progress_callback: Optional callback function for progress updates
                           Args: (progress_percentage, downloaded_bytes, total_bytes)
     
     Returns:
         True if download successful, False if failed, or path to downloaded file if successful
     """
+    # Set default output directory if not provided
+    if output_dir is None:
+        output_dir = os.path.join("Modules", "sam2", "checkpoints")
+    
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
     # Base URL for SAM 2.1 checkpoints
     base_url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824"
-    
-    # Map model names to their file names
-    MODEL_FILES = {
-        'tiny': 'sam2.1_hiera_tiny.pt',
-        'small': 'sam2.1_hiera_small.pt',
-        'base_plus': 'sam2.1_hiera_base_plus.pt',
-        'large': 'sam2.1_hiera_large.pt'
-    }
     
     if model_size not in MODEL_FILES:
         # If real filename given directly as model_size
@@ -121,9 +118,9 @@ def download_checkpoint(
 
 def main():
     parser = argparse.ArgumentParser(description='Download SAM2.1 model checkpoints')
-    parser.add_argument('model', choices=['tiny', 'small', 'base_plus', 'large'], 
-                        help='Model size to download (tiny, small, base_plus, or large)')
-    parser.add_argument('--output-dir', default="Modules/sam2/checkpoints",
+    parser.add_argument('model', choices=MODEL_FILES.keys(),
+                        help='Model size to download (' + ', '.join(MODEL_FILES.keys()) + ')')
+    parser.add_argument('--output-dir', default=None,
                         help='Directory to save the checkpoint (default: Modules/sam2/checkpoints)')
     
     args = parser.parse_args()
@@ -134,4 +131,7 @@ def main():
     sys.exit(0)
 
 if __name__ == "__main__":
+    # If run from utils project subdir, change to project root
+    if os.path.basename(os.getcwd()) == "utils":
+        os.chdir("..")
     main()
