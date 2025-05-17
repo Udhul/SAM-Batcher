@@ -9,10 +9,12 @@ try:
     # Try to import from utils package
     from utils.check_local_model import check_local_model
     from utils.download_model import download_checkpoint, MODEL_FILES
+    from utils.get_model_config import get_config # Make get_config available
 except ImportError:
     # If that fails, try to import from local files
     from check_local_model import check_local_model
     from download_model import download_checkpoint, MODEL_FILES
+    from get_model_config import get_config # Make get_config available
 
 def get_model(
     model_size: str,
