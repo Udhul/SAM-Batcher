@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modules/get_model.py
 
 import os
 import argparse
@@ -35,7 +36,7 @@ def get_model(
                            Args: (progress_percentage, downloaded_bytes, total_bytes)
     
     Returns:
-        Path to the model if found or successfully downloaded, None otherwise
+        Absolute path to the model if found or successfully downloaded, None otherwise
     """
     # If model_size is "base", treat it as "base_plus"
     if isinstance(model_size, str) and model_size.lower() == "base":
@@ -56,8 +57,8 @@ def get_model(
     
     # If the model was found locally
     if model_path and not force_download:
-        print(f"Using existing model at: {model_path}")
-        return model_path
+        # print(f"Using existing model at: {model_path}")
+        return os.path.abspath(model_path)
     
     # If the model wasn't found locally or force_download is True, download it
     print(f"Downloading {model_size} model...")
@@ -71,7 +72,7 @@ def get_model(
     if download_result:
         # If download_result is a string (path), return it
         if isinstance(download_result, str):
-            return download_result
+            return os.path.abspath(download_result)
         
         # If download_result is True, we need to construct the path
         elif download_result is True:
@@ -82,7 +83,7 @@ def get_model(
                 # If model_size was a direct filename
                 filename = model_size
             
-            return os.path.join(output_dir, filename)
+            return os.path.abspath(os.path.join(output_dir, filename))
     
     # If download failed, return None
     return None
@@ -109,7 +110,7 @@ def main():
     )
     
     if model_path:
-        # print(f"Model path: {model_path}")
+        print(f"Model path: {model_path}")
         sys.exit(0)
     else:
         print(f"Failed to get model '{args.model}'")

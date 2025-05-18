@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# utils/get_model_config.py
 
 import os
 import re
@@ -13,7 +14,7 @@ def get_config(model: str) -> Optional[str]:
                model filename, or full path to model file
     
     Returns:
-        Path to the corresponding config file, or None if not found
+        Absolute path to the corresponding config file, or None if not found
     """
     # Base config directory
     config_dir = os.path.join("Modules", "sam2", "sam2", "configs", "sam2.1")
@@ -38,7 +39,7 @@ def get_config(model: str) -> Optional[str]:
     # Check if the input is a direct model size or code
     if model in config_map:
         config_file = config_map[model]
-        return os.path.join(config_dir, config_file)
+        return os.path.abspath(os.path.join(config_dir, config_file))
     
     # Extract model size from filename or path if given
     model_basename = os.path.basename(model).lower()
@@ -70,7 +71,7 @@ def get_config(model: str) -> Optional[str]:
         else:
             return None
     
-    return os.path.join(config_dir, config_file)
+    return os.path.abspath(os.path.join(config_dir, config_file))
 
 # Test:
 if __name__ == "__main__":
