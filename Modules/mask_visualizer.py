@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # utils/mask_visualizer.py
 """Helpers for sam image and mask visualization and compositing"""
 
