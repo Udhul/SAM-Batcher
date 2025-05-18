@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# utils/check_local_model.py
 
 import os
 import glob
