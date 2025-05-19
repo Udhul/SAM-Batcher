@@ -356,7 +356,10 @@ class SAMInference:
 
     def get_available_model_keys(self) -> List[str]:
         """Returns model size keys like 'large', 'base_plus', 'small', 'tiny'."""
-        return list(MODEL_FILES.keys()) # MODEL_FILES from utils.download_model
+        model_sizes = list(MODEL_FILES.keys())
+        if "base" in model_sizes and "base_plus" in model_sizes:
+            model_sizes.remove("base")
+            return model_sizes
 
     def cleanup(self) -> None:
         self.model = None
