@@ -50,7 +50,7 @@ class SAMInference:
         self.predictor_args = {}  # Store args used to create predictor
         self.automatic_mask_generator = None
         self.automatic_mask_generator_args = {}  # Store args used to create mask generator
-        self.device = self._get_device() if device is None else device
+        self.device = self._get_device() if device is None else torch.device(device)
         
         # Storage for current state
         self.image = None
@@ -63,19 +63,26 @@ class SAMInference:
         if model_size or model_path:
             self.load_model(model_size, model_path, config_path)
     
-    def _get_device(self) -> str:
+    # TODO: set optim and tf32 etc. torch setups, even if device is set from the init as cuda.
+    def _get_device(self) -> torch.device:
         """Determine the best available device for computation"""
         if torch.cuda.is_available():
-            device = "cuda"
-            # Enable optimizations for CUDA
+            device = torch.device("cuda")
+            # Enable optimizations for CUDA (use bfloat16)
             torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
+            # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
             if torch.cuda.get_device_properties(0).major >= 8:
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            device = "mps"
+            device = torch.device("mps")
+            print(
+                "\nSupport for MPS devices is preliminary. SAM 2 is trained with CUDA and might "
+                "give numerically different outputs and sometimes degraded performance on MPS. "
+                "See e.g. https://github.com/pytorch/pytorch/issues/84936 for a discussion."
+            )
         else:
-            device = "cpu"
+            device = torch.device("cpu")
         return device
     
     def load_model(self, model_size: Optional[str] = None, model_path: Optional[str] = None, 
