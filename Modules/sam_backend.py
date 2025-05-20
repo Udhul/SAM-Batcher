@@ -5,9 +5,20 @@ import torch
 import numpy as np
 from typing import Optional, List, Tuple, Dict, Any, Union
 
-from sam2.build_sam import build_sam2
-from sam2.sam2_image_predictor import SAM2ImagePredictor
-from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+# Attempt to import SAM2 components. Ensure 'sam2' is in PYTHONPATH or installed.
+try:
+    from sam2.build_sam import build_sam2
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+    from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+except ImportError:
+    raise ImportError(
+        "SAM2 library not found. To install SAM2:\n"
+        "If submodule is missing, run these commands:\n"
+        "git submodule add https://github.com/facebookresearch/sam2.git Modules/sam2\n"
+        "git submodule update --init --recursive\n"
+        "When submodule is in place, run:\n"
+        "pip install -e Modules/sam2\n"
+    )
 
 # Import helper functions
 from utils.get_model import get_model, get_config
