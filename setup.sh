@@ -56,7 +56,19 @@ if [ $in_venv -eq 1 ] || [ $in_conda -eq 1 ]; then
             
             # Activate the virtual environment
             source "$venv_path/bin/activate"
+            
+            # Verify activation
+            if [ -z "$VIRTUAL_ENV" ]; then
+                echo "Failed to activate virtual environment."
+                echo "Please manually activate it with:"
+                echo "  source $venv_path/bin/activate"
+                echo "Then run:"
+                echo "  python setup.py"
+                exit 1
+            fi
+            
             echo "Activated virtual environment at $venv_path"
+            
         elif [ "$env_type" = "conda" ]; then
             if ! command_exists conda; then
                 echo "Conda not found. Please install Conda first."
@@ -79,9 +91,27 @@ if [ $in_venv -eq 1 ] || [ $in_conda -eq 1 ]; then
                 conda create -y -n "$conda_env" python=3.10
             fi
             
-            # Activate the conda environment
-            conda activate "$conda_env"
-            echo "Activated conda environment $conda_env"
+            # Try to activate the conda environment
+            echo "Attempting to activate conda environment $conda_env..."
+            
+            # Try different activation methods
+            if command_exists conda; then
+                # Try to initialize conda for the shell
+                eval "$(conda shell.bash hook 2>/dev/null)" || true
+                conda activate "$conda_env" 2>/dev/null || true
+            fi
+            
+            # Verify activation
+            if [ -z "$CONDA_PREFIX" ]; then
+                echo "Failed to activate conda environment."
+                echo "Please manually activate it with:"
+                echo "  conda activate $conda_env"
+                echo "Then run:"
+                echo "  python setup.py"
+                exit 1
+            fi
+            
+            echo "Activated conda environment: $CONDA_PREFIX"
         else
             echo "Invalid environment type. Exiting."
             exit 1
@@ -110,7 +140,19 @@ else
         
         # Activate the virtual environment
         source "$venv_path/bin/activate"
+        
+        # Verify activation
+        if [ -z "$VIRTUAL_ENV" ]; then
+            echo "Failed to activate virtual environment."
+            echo "Please manually activate it with:"
+            echo "  source $venv_path/bin/activate"
+            echo "Then run:"
+            echo "  python setup.py"
+            exit 1
+        fi
+        
         echo "Activated virtual environment at $venv_path"
+        
     elif [ "$env_type" = "conda" ]; then
         if ! command_exists conda; then
             echo "Conda not found. Please install Conda first."
@@ -133,9 +175,27 @@ else
             conda create -y -n "$conda_env" python=3.10
         fi
         
-        # Activate the conda environment
-        conda activate "$conda_env"
-        echo "Activated conda environment $conda_env"
+        # Try to activate the conda environment
+        echo "Attempting to activate conda environment $conda_env..."
+        
+        # Try different activation methods
+        if command_exists conda; then
+            # Try to initialize conda for the shell
+            eval "$(conda shell.bash hook 2>/dev/null)" || true
+            conda activate "$conda_env" 2>/dev/null || true
+        fi
+        
+        # Verify activation
+        if [ -z "$CONDA_PREFIX" ]; then
+            echo "Failed to activate conda environment."
+            echo "Please manually activate it with:"
+            echo "  conda activate $conda_env"
+            echo "Then run:"
+            echo "  python setup.py"
+            exit 1
+        fi
+        
+        echo "Activated conda environment: $CONDA_PREFIX"
     elif [ "$env_type" != "none" ]; then
         echo "Invalid environment type. Proceeding without an environment."
     fi

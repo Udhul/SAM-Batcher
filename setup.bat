@@ -64,6 +64,17 @@ if /i "%env_type%" equ "venv" (
     REM Activate the virtual environment
     call "%venv_path%\Scripts\activate.bat"
     echo Activated virtual environment at %venv_path%
+    
+    REM Verify activation
+    if not defined VIRTUAL_ENV (
+        echo Failed to activate virtual environment.
+        echo Please manually activate it with:
+        echo   call "%venv_path%\Scripts\activate.bat"
+        echo Then run:
+        echo   python setup.py
+        exit /b 1
+    )
+    
 ) else if /i "%env_type%" equ "conda" (
     conda --version >nul 2>&1
     if %errorlevel% neq 0 (
@@ -87,9 +98,23 @@ if /i "%env_type%" equ "venv" (
         echo Creating new conda environment %conda_env%...
         conda create -y -n "%conda_env%" python=3.10
     )
-    REM Activate the conda environment
+    
+    REM Try to activate the conda environment
+    echo Attempting to activate conda environment %conda_env%...
     call conda activate "%conda_env%"
+    
+    REM Verify activation
+    if not defined CONDA_PREFIX (
+        echo Failed to activate conda environment.
+        echo Please manually activate it with:
+        echo   conda activate %conda_env%
+        echo Then run:
+        echo   python setup.py
+        exit /b 1
+    )
+    
     echo Activated conda environment %conda_env%
+    
 ) else if /i "%env_type%" neq "none" (
     echo Invalid environment type. Proceeding without an environment.
 )
