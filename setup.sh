@@ -141,18 +141,13 @@ else
     fi
 fi
 
-# Check if SAM2 is already a submodule
-if grep -q "Modules/sam2" .gitmodules 2>/dev/null; then
-    echo "SAM2 submodule already exists, updating..."
-    git submodule update --init --recursive Modules/sam2
-else
-    # Add SAM2 as a git submodule
-    echo "Adding SAM2 as a git submodule..."
-    git submodule add https://github.com/facebookresearch/sam2.git Modules/sam2
-    git submodule update --init --recursive Modules/sam2
+# Check if git is available
+if ! command_exists git; then
+    echo "Git not found! Please install Git to use the setup script."
+    exit 1
 fi
 
-# Run the setup.py script
+# Run the setup.py script which will handle submodule cloning and installation
 python setup.py
 
 echo "Setup completed successfully!"

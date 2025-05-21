@@ -102,19 +102,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Check if SAM2 is already a submodule
-findstr "Modules/sam2" .gitmodules >nul 2>&1
-if %errorlevel% equ 0 (
-    echo SAM2 submodule already exists, updating...
-    git submodule update --init --recursive Modules/sam2
-) else (
-    REM Add SAM2 as a git submodule
-    echo Adding SAM2 as a git submodule...
-    git submodule add https://github.com/facebookresearch/sam2.git Modules/sam2
-    git submodule update --init --recursive Modules/sam2
-)
-
-REM Run the setup.py script
+REM Run the setup.py script which will handle submodule cloning and installation
 python setup.py
 
 echo Setup completed successfully!
