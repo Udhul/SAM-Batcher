@@ -55,6 +55,50 @@ def check_pytorch_cuda_status():
     except ImportError:
         return False, False, None
 
+def ensure_submodules_exist():
+    """Ensure all required submodules exist by cloning them if necessary"""
+    # Check if git is available
+    try:
+        subprocess.run(["git", "--version"], check=True, capture_output=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Git not found! Please install Git to use the setup script.")
+        return False
+    
+    # Create Modules directory if it doesn't exist
+    modules_dir = Path("Modules")
+    if not modules_dir.exists():
+        print("Creating Modules directory...")
+        modules_dir.mkdir(exist_ok=True)
+    
+    # Handle SAM2 submodule
+    sam2_dir = modules_dir / "sam2"
+    sam2_git_dir = sam2_dir / ".git"
+    
+    if sam2_git_dir.exists():
+        print("SAM2 repository already exists, updating...")
+        # Change to the directory and pull the latest changes
+        cwd = os.getcwd()
+        os.chdir(str(sam2_dir))
+        success = run_command("git pull")
+        os.chdir(cwd)
+        if not success:
+            print("Failed to update SAM2 repository.")
+            return False
+    else:
+        # Remove the directory if it exists but is not a git repository
+        if sam2_dir.exists():
+            print("Removing empty SAM2 directory...")
+            import shutil
+            shutil.rmtree(str(sam2_dir))
+        
+        print("Cloning SAM2 repository...")
+        success = run_command(f"git clone https://github.com/facebookresearch/sam2.git {str(sam2_dir)}")
+        if not success:
+            print("Failed to clone SAM2 repository.")
+            return False
+    
+    return True
+
 def install_dependencies():
     """Install all required dependencies"""
     if not is_environment_valid():
@@ -128,21 +172,13 @@ def install_dependencies():
         print("Failed to install common dependencies.")
         return False
     
-    # Check SAM2 submodule
-    modules_dir = Path("Modules")
-    sam2_dir = modules_dir / "sam2"
-    
-    if not modules_dir.exists():
-        print("Creating Modules directory...")
-        modules_dir.mkdir(exist_ok=True)
-    
-    if not sam2_dir.exists():
-        print("SAM2 submodule not found. Please add it with:")
-        print("git submodule add https://github.com/facebookresearch/sam2.git Modules/sam2")
-        print("git submodule update --init --recursive")
+    # Ensure SAM2 submodule exists
+    if not ensure_submodules_exist():
+        print("Failed to set up required submodules.")
         return False
     
     # Install SAM2 in development mode
+    sam2_dir = Path("Modules") / "sam2"
     print("Installing SAM2 submodule in development mode...")
     if not run_command(f"pip install -e {str(sam2_dir)}"):
         print("Failed to install SAM2 submodule.")
