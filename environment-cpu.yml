@@ -1,4 +1,4 @@
-name: sam-batcher-env
+name: sam-batcher
 channels:
   - defaults
   - conda-forge
