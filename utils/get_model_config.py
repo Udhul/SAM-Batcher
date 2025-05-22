@@ -3,21 +3,26 @@
 
 import os
 import re
-from typing import Optional
+from typing import Optional, Union
+from pathlib import Path
 
-def get_config(model: str) -> Optional[str]:
+def get_config(model: str, return_str: bool = True, return_abs_path: bool = False) -> Optional[Union[str, Path]]:
     """
     Get the path to the config file for a SAM2.1 model.
     
     Args:
         model: Model size ('tiny', 'small', 'base_plus', 'large'), short code ('t', 's', 'b+', 'l'),
                model filename, or full path to model file
+        return_str: If True, return the config file as a string.
+        return_abs_path: If True, return the absolute path to the config file.
     
     Returns:
-        Absolute path to the corresponding config file, or None if not found
+        Path to the config file, or None if not found
     """
     # Base config directory
-    config_dir = os.path.join("Modules", "sam2", "sam2", "configs", "sam2.1")
+    config_dir = os.path.join("configs", "sam2.1")
+    if return_abs_path:
+        config_dir = Path(config_dir).resolve()
     
     # Map of model sizes/codes to config filenames
     config_map = {
@@ -39,7 +44,9 @@ def get_config(model: str) -> Optional[str]:
     # Check if the input is a direct model size or code
     if model in config_map:
         config_file = config_map[model]
-        return os.path.abspath(os.path.join(config_dir, config_file))
+        # return os.path.abspath(os.path.join(config_dir, config_file))
+        config_path = config_dir / Path(config_file)
+        return config_path.as_posix() if return_str else config_path
     
     # Extract model size from filename or path if given
     model_basename = os.path.basename(model).lower()
@@ -71,7 +78,9 @@ def get_config(model: str) -> Optional[str]:
         else:
             return None
     
-    return os.path.abspath(os.path.join(config_dir, config_file))
+    # return os.path.abspath(os.path.join(config_dir, config_file))
+    config_path = config_dir / Path(config_file)
+    return config_path.as_posix() if return_str else config_path
 
 # Test:
 if __name__ == "__main__":
@@ -84,4 +93,4 @@ if __name__ == "__main__":
     
     for input_str in test_inputs:
         config_path = get_config(input_str)
-        print(f"Input: {input_str} → Config: {config_path}")
+        print(f"Input: {input_str} → Config: {config_path} - type: {type(config_path)} - exists: {config_path.exists()}")
