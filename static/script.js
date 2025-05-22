@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const imageUpload = document.getElementById('image-upload');
     const imageUploadProgressEl = document.getElementById('image-upload-progress');
     const imageUploadBarEl = document.getElementById('image-upload-bar');
+    const customModelInputs = document.getElementById('custom-model-inputs');
+    const customModelPath = document.getElementById('custom-model-path');
+    const customConfigPath = document.getElementById('custom-config-path');
 
     const clearInputsBtn = document.getElementById('clear-inputs-btn');
 
@@ -292,6 +295,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.success) {
                 modelSelect.innerHTML = '';
+                
+                // Add custom model path option at the top
+                const customOption = document.createElement('option');
+                customOption.value = 'custom';
+                customOption.textContent = 'Custom Model Path';
+                modelSelect.appendChild(customOption);
+                
+                // Add separator
+                const separator = document.createElement('option');
+                separator.disabled = true;
+                separator.textContent = '──────────────';
+                modelSelect.appendChild(separator);
+                
+                // Add predefined models
                 data.models.forEach(key => { 
                     const option = document.createElement('option');
                     option.value = key;
@@ -301,7 +318,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     modelSelect.appendChild(option);
                 });
+                
                 modelStatusEl.textContent = data.current_model ? `Current: ${data.current_model}` : "Status: No model loaded.";
+                
+                // Set up change handler for model select
+                modelSelect.addEventListener('change', function() {
+                    if (this.value === 'custom') {
+                        customModelInputs.style.display = 'block';
+                    } else {
+                        customModelInputs.style.display = 'none';
+                    }
+                });
+                
+                // Initialize visibility based on current selection
+                if (modelSelect.value === 'custom') {
+                    customModelInputs.style.display = 'block';
+                }
             } else {
                 showStatus('Failed to fetch models: ' + (data.error || "Unknown error"), true);
             }
@@ -316,24 +348,47 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('Please select a model size.', true);
             return;
         }
+        
         const postProcessing = applyPostprocessingCb.checked;
+        let payload = {
+            apply_postprocessing: postProcessing
+        };
+        
+        // Handle custom model path
+        if (modelSizeKey === 'custom') {
+            const modelPath = customModelPath.value.trim();
+            const configPath = customConfigPath.value.trim();
+            
+            if (!modelPath) {
+                showStatus('Please enter a model path.', true);
+                return;
+            }
+            
+            if (!configPath) {
+                showStatus('Please enter a config path.', true);
+                return;
+            }
+            
+            payload.model_path = modelPath;
+            payload.config_path = configPath;
+        } else {
+            payload.model_size_key = modelSizeKey;
+        }
 
-        lockCanvas(`Loading ${modelSizeKey} model...`);
-        modelStatusEl.textContent = `Loading ${modelSizeKey}...`;
+        lockCanvas(`Loading ${modelSizeKey === 'custom' ? 'custom' : modelSizeKey} model...`);
+        modelStatusEl.textContent = `Loading ${modelSizeKey === 'custom' ? 'custom model' : modelSizeKey}...`;
+        
         try {
             const response = await fetch('/api/load_model', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    model_size_key: modelSizeKey,
-                    apply_postprocessing: postProcessing
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await response.json();
             if (data.success) {
                 showStatus(data.message);
                 const loadedKeyMsg = data.message.match(/'([^']+)'/); // Extract model name from message
-                modelStatusEl.textContent = `Current: ${loadedKeyMsg ? loadedKeyMsg[1] : modelSizeKey} (PostProc: ${postProcessing})`; 
+                modelStatusEl.textContent = `Current: ${loadedKeyMsg ? loadedKeyMsg[1] : (modelSizeKey === 'custom' ? 'Custom model' : modelSizeKey)} (PostProc: ${postProcessing})`; 
                 if (currentImage) { 
                     showStatus("Model changed. Re-running prediction...", false, 0); // Keep status until prediction done
                     triggerPrediction(); 

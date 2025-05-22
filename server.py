@@ -43,10 +43,32 @@ def serve_static(filename):
 def load_model_endpoint():
     data = request.json
     model_size_key = data.get('model_size_key')
+    model_path = data.get('model_path')
+    config_path = data.get('config_path')
     apply_postprocessing = data.get('apply_postprocessing', True) # Get from client
 
+    # Handle custom model path
+    if model_path and config_path:
+        success = sam_inference_instance.load_model(
+            model_path_override=model_path,
+            config_path_override=config_path,
+            apply_postprocessing=apply_postprocessing
+        )
+        if success:
+            model_name = os.path.basename(model_path)
+            return jsonify({
+                "success": True, 
+                "message": f"Custom model '{model_name}' loaded. Post-processing: {apply_postprocessing}"
+            })
+        else:
+            return jsonify({
+                "success": False, 
+                "error": f"Failed to load custom model from path '{model_path}'."
+            }), 500
+    
+    # Handle predefined model
     if not model_size_key:
-        return jsonify({"success": False, "error": "model_size_key not provided."}), 400
+        return jsonify({"success": False, "error": "Neither model_size_key nor model_path provided."}), 400
     
     available_keys = sam_inference_instance.get_available_model_keys()
     

@@ -16,6 +16,13 @@
                 <select id="model-select"></select>
                 <button id="load-model-btn">Load/Reload Selected</button>
                 <br>
+                <div id="custom-model-inputs" style="display: none; margin-top: 10px;">
+                    <label for="custom-model-path">Model Path:</label>
+                    <input type="text" id="custom-model-path" placeholder="/path/to/model.pt">
+                    <br>
+                    <label for="custom-config-path">Config Path:</label>
+                    <input type="text" id="custom-config-path" placeholder="/path/to/config.yaml">
+                </div>
                 <input type="checkbox" id="apply-postprocessing-cb" checked>
                 <label for="apply-postprocessing-cb" class="checkbox-label">Apply Model Post-processing</label>
                 <p id="model-status">Status: No model loaded.</p>
