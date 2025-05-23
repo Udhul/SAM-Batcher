@@ -164,7 +164,9 @@ def install_dependencies():
         "pillow",
         "matplotlib",
         "opencv-python",
-        "tqdm"
+        "tqdm",
+        "flask",
+        "requests",
     ]
     
     print("Installing common dependencies...")

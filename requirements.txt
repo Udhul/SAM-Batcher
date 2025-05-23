@@ -1,0 +1,6 @@
+jupyter
+matplotlib
+gradio
+opencv-python
+flask
+requests
