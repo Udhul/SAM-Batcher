@@ -268,16 +268,47 @@ class SAMInference:
                 return_logits_to_caller: bool = True,
                 sort_results: bool = True
                ) -> Optional[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]]:
+        """
+        Predict masks using SAM2ImagePredictor.
+        
+        Args:
+            point_coords: Point coordinates as numpy array. Can be single point [x, y] or multiple points [[x1, y1], [x2, y2], ...]
+            point_labels: Point labels (1 for foreground, 0 for background)
+            box: Bounding box(es) in xyxy format. Can be:
+                - Single box: [x1, y1, x2, y2]
+                - Multiple boxes: [[x1, y1, x2, y2], [x1, y1, x2, y2], ...]
+            mask_input: Previous mask prediction to refine
+            multimask_output: Whether to return multiple masks
+            normalize_coords: Whether to normalize coordinates
+            return_logits_to_caller: Whether to return logits
+            sort_results: Whether to sort results by score
+            
+        Returns:
+            Tuple of (masks, scores, logits) or None if prediction fails
+        """
         if self.predictor is None:
             raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
         if self.image_np is None:
             raise ImageNotSetError("Image not set. Call set_image() first.")
         
         try:
-            if point_coords is not None: point_coords = np.asarray(point_coords)
-            if point_labels is not None: point_labels = np.asarray(point_labels)
-            if box is not None: box = np.asarray(box)
-            if mask_input is not None: mask_input = np.asarray(mask_input)
+            if point_coords is not None: 
+                point_coords = np.asarray(point_coords)
+            if point_labels is not None: 
+                point_labels = np.asarray(point_labels)
+            if box is not None: 
+                box = np.asarray(box)
+                # Handle both single box and multiple boxes
+                if box.ndim == 1:
+                    # Single box: [x1, y1, x2, y2] -> [[x1, y1, x2, y2]]
+                    box = box[None, :]
+                elif box.ndim == 2 and box.shape[1] == 4:
+                    # Multiple boxes: already in correct format [[x1, y1, x2, y2], ...]
+                    pass
+                else:
+                    raise ValueError(f"Invalid box format. Expected shape (4,) or (N, 4), got {box.shape}")
+            if mask_input is not None: 
+                mask_input = np.asarray(mask_input)
             
             if self.device.type == "cuda":
                 with torch.autocast(self.device.type, dtype=torch.bfloat16):
