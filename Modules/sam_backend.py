@@ -329,7 +329,7 @@ class SAMInference:
             print(f"Error during prediction: {e}")
             raise
     
-    def generate_masks(self, image=None, **kwargs) -> List[Dict[str, Any]]:
+    def generate_auto_masks(self, image=None, **kwargs) -> List[Dict[str, Any]]:
         """
         Generate masks automatically without prompts.
         

@@ -340,7 +340,7 @@ class SAMInference:
             print(f"Error during prediction: {e}")
             return None
     
-    def generate_masks(self, image_data: Optional[Union[str, np.ndarray, Image.Image]] = None, 
+    def generate_auto_masks(self, image_data: Optional[Union[str, np.ndarray, Image.Image]] = None, 
                        **kwargs) -> Optional[List[Dict[str, Any]]]:
         if self.model is None:
             raise ModelNotLoadedError("Model not loaded. Call load_model() first.")

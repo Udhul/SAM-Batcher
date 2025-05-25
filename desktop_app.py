@@ -170,7 +170,7 @@ class ProcessingWorker(QObject):
         self._execute_local("predict", [], kwargs, request_type)
 
     def generate_automask_local(self, request_type, amg_params):
-        self._execute_local("generate_masks", [], amg_params, request_type)
+        self._execute_local("generate_auto_masks", [], amg_params, request_type)
 
 # --- ImageDisplayWidget (mostly same, paintEvent for predictions adjusted) ---
 class ImageDisplayWidget(QLabel):
@@ -867,7 +867,7 @@ class MainWindow(QMainWindow):
             # Add other AMG params from UI if you create more input fields
         }
         if self.operation_mode == "local":
-             # For local, generate_masks expects the image data.
+             # For local, generate_auto_masks expects the image data.
              # If it's already set in self.local_sam_instance.image_np, pass None.
              # Otherwise, pass self.current_image_pil converted to np.array
             if self.local_sam_instance.image_np is None and self.current_image_pil:

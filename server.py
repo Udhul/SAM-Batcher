@@ -231,7 +231,7 @@ def generate_auto_masks_endpoint():
     try:
         params = request.json if request.is_json else {}
         
-        auto_masks_anns = sam_inference_instance.generate_masks(**params) # This is blocking
+        auto_masks_anns = sam_inference_instance.generate_auto_masks(**params) # This is blocking
 
         if auto_masks_anns is not None:
             composite_image_base64 = composite_masks_on_image_to_base64(
