@@ -1,212 +1,604 @@
 /* static/style.css */
-body {
-    font-family: sans-serif;
+/* Global Styles */
+* {
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-}
-
-.container {
-    display: flex;
-    flex-direction: row;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    margin-top: 20px;
-    width: 95%;
-    max-width: 1800px;
-}
-
-.controls-panel {
-    width: 380px; /* Slightly wider */
-    padding-right: 20px;
-    border-right: 1px solid #eee;
-    overflow-y: auto;
-    max-height: calc(100vh - 60px);
-    flex-shrink: 0; /* Prevent panel from shrinking */
-}
-
-.controls-panel h2, .controls-panel h3 {
-    margin-top: 0;
-    color: #333;
-}
-
-.control-group {
-    margin-bottom: 20px;
-}
-
-.control-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    font-size: 0.95em;
-}
-.control-group label.checkbox-label {
-    display: inline; /* For checkbox label */
-    font-weight: normal;
-    margin-left: 5px;
-}
-
-
-.control-group input[type="file"],
-.control-group select,
-.control-group input[type="number"],
-.control-group input[type="range"] {
-    width: calc(100% - 16px); /* Account for padding */
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
     box-sizing: border-box;
 }
 
-.control-group input[type="checkbox"] {
-    margin-bottom: 10px;
-    vertical-align: middle;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f8f9fa;
 }
 
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
 
-.control-group button {
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 300;
+}
+
+header p {
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+/* Main Content */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Section Styles */
+.config-section,
+.image-section,
+.results-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.config-section h2,
+.image-section h2,
+.results-section h2 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 10px;
+}
+
+/* Model Controls */
+.model-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.model-selection {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.model-selection label {
+    font-weight: 500;
+}
+
+.model-selection select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.model-selection button {
+    padding: 8px 16px;
     background-color: #007bff;
     color: white;
-    padding: 10px 15px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    margin-right: 5px;
-    margin-bottom: 5px;
-    font-size: 0.9em;
+    font-size: 14px;
+    transition: background-color 0.2s;
 }
 
-.control-group button:hover {
+.model-selection button:hover {
     background-color: #0056b3;
 }
-.control-group button:disabled {
-    background-color: #cccccc;
+
+.model-selection button:disabled {
+    background-color: #6c757d;
     cursor: not-allowed;
 }
 
-
-.control-group p {
-    font-size: 0.85em; /* Smaller help text */
-    color: #555;
-    margin-top: 5px;
-    line-height: 1.3;
+/* Custom Model Inputs */
+#custom-model-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
 }
 
+.custom-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.custom-input-group label {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.custom-input-group input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Model Options */
+.model-options {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    transform: scale(1.1);
+}
+
+/* Status Text */
+.status-text {
+    font-size: 14px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Canvas Toolbar */
+.canvas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    align-items: center;
+    border: 1px solid #e9ecef;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.opacity-controls {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.opacity-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.opacity-control label {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #495057;
+}
+
+.opacity-control input[type="range"] {
+    width: 80px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.opacity-control input[type="range"]::-webkit-slider-thumb:hover {
+    background: #0056b3;
+}
+
+.opacity-control input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.opacity-control input[type="range"]::-moz-range-thumb:hover {
+    background: #0056b3;
+}
+
+.file-upload-btn {
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.file-upload-btn:hover {
+    background-color: #218838;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 10px;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    transition: width 0.3s ease;
+    min-width: 40px;
+}
+
+/* Image Display Area */
 .image-display-area {
-    flex-grow: 1; 
-    position: relative; 
-    display: flex; 
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.canvas-container {
+    position: relative;
+    display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 500px; /* Larger default area */
-    background-color: #e0e0e0; 
-    margin-left: 20px;
-    overflow: hidden; /* Important for containing absolutely positioned canvases */
+    min-height: 400px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-#image-canvas, #prediction-mask-canvas, #user-input-canvas {
+.canvas-container canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#image-canvas {
+    z-index: 1;
+}
+
+#prediction-mask-canvas {
+    z-index: 2;
+}
+
+#user-input-canvas {
+    z-index: 3;
+    cursor: crosshair;
+}
+
+/* Canvas Lock Overlay */
+.canvas-lock-overlay {
     position: absolute;
     top: 0;
     left: 0;
-    /* These will be set by JS, but max-width/height can be a fallback or CSS control */
-    /* max-width: 100%; 
-    max-height: 100%; */
-    object-fit: contain; 
-    border: 1px solid #bbb;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 8px;
 }
 
-.status-message {
+.canvas-lock-content {
+    text-align: center;
+    color: white;
+}
+
+.canvas-lock-message {
     margin-top: 15px;
-    padding: 10px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Instructions */
+.instructions {
+    background-color: #e9ecef;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.instructions p {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.instructions ul {
+    margin-left: 20px;
+}
+
+.instructions li {
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+/* Expandable Section */
+.expandable-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.expandable-header {
+    background-color: #6c757d;
+    color: white;
+    padding: 15px 20px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    user-select: none;
+}
+
+.expandable-header:hover {
+    background-color: #5a6268;
+}
+
+.expandable-content {
+    padding: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Auto Mask Controls */
+.auto-mask-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.amg-parameters h3 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.parameter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.parameter-group label {
+    min-width: 180px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.parameter-group input {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 0.9em;
-    line-height: 1.4;
+    width: 100px;
+    font-size: 14px;
 }
-.status-message.small { /* For auto-mask status */
-    font-size: 0.8em;
-    padding: 5px;
-    margin-top: 5px;
+
+.amg-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
+
+.amg-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#auto-mask-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+#auto-mask-btn:hover:not(:disabled) {
+    background-color: #138496;
+}
+
+#auto-mask-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#cancel-auto-mask-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+#cancel-auto-mask-btn:hover {
+    background-color: #c82333;
+}
+
+#recover-auto-mask-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+#recover-auto-mask-btn:hover {
+    background-color: #e0a800;
+}
+
+/* Export Controls */
+.export-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.export-controls button {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.export-controls button:hover {
+    background-color: #218838;
+}
+
+/* Status Messages */
+.status-message {
+    padding: 12px 20px;
+    border-radius: 6px;
+    margin-top: 20px;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
 .status-message.success {
     background-color: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
 }
+
 .status-message.error {
     background-color: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
-.status-message.info { /* For neutral info messages */
+
+.status-message.info {
     background-color: #d1ecf1;
     color: #0c5460;
     border: 1px solid #bee5eb;
 }
 
-
-.progress-bar-container {
-    width: 100%;
-    background-color: #f0f0f0;
-    border-radius: 4px;
-    margin-top: 5px;
-    height: 20px;
-    overflow: hidden; /* Ensures inner bar respects border radius */
-}
-.progress-bar-fill {
-    width: 0%;
-    height: 100%;
-    background-color: #4CAF50;
-    text-align: center;
-    line-height: 20px; /* Vertically center text */
-    color: white;
-    font-size: 0.8em;
-    transition: width 0.3s ease-in-out;
+.status-message.small {
+    padding: 8px 15px;
+    font-size: 14px;
+    margin-top: 10px;
 }
 
-.expandable-section .expandable-header {
-    cursor: pointer;
-    padding: 8px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    margin-bottom: 0px; /* Remove bottom margin if content follows directly */
-    user-select: none; /* Prevent text selection on header */
-}
-.expandable-section .expandable-header:hover {
-    background-color: #e0e0e0;
-}
-.expandable-content {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-top: none;
-    border-radius: 0 0 3px 3px;
-    background-color: #fdfdfd;
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    .canvas-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .opacity-controls {
+        margin-left: 0;
+        justify-content: space-around;
+    }
+    
+    .model-selection {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .parameter-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .parameter-group label {
+        min-width: auto;
+    }
+    
+    .amg-actions {
+        flex-direction: column;
+    }
 }
 
-.canvas-lock-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(128, 128, 128, 0.6); 
-    z-index: 10000; /* High z-index */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 1.5em;
-    text-align: center;
-}
-.canvas-lock-message {
-    padding: 20px;
-    background-color: rgba(0,0,0,0.7);
-    border-radius: 5px;
+@media (max-width: 480px) {
+    .opacity-controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .canvas-container {
+        min-height: 300px;
+    }
 }

@@ -1,107 +1,177 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive SAM2 Segmentation</title>
+    <title>SAM-Batcher</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
-        <div class="controls-panel">
-            <h2>Controls</h2>
-            
-            <div class="control-group">
-                <label for="model-select">Load Model:</label>
-                <select id="model-select"></select>
-                <button id="load-model-btn">Load/Reload Selected</button>
-                <br>
-                <div id="custom-model-inputs" style="display: none; margin-top: 10px;">
-                    <label for="custom-model-path">Model Path:</label>
-                    <input type="text" id="custom-model-path" placeholder="/path/to/model.pt">
-                    <br>
-                    <label for="custom-config-path">Config Path:</label>
-                    <input type="text" id="custom-config-path" placeholder="/path/to/config.yaml">
-                </div>
-                <input type="checkbox" id="apply-postprocessing-cb" checked>
-                <label for="apply-postprocessing-cb" class="checkbox-label">Apply Model Post-processing</label>
-                <p id="model-status">Status: No model loaded.</p>
-            </div>
+        <header>
+            <h1>SAM-Batcher</h1>
+            <p>Interactive Segment Anything Model Interface</p>
+        </header>
 
-            <div class="control-group">
-                <label for="image-upload">Load Image:</label>
-                <input type="file" id="image-upload" accept="image/*">
-                <div id="image-upload-progress" class="progress-bar-container" style="display:none;">
-                    <div id="image-upload-bar" class="progress-bar-fill">0%</div>
-                </div>
-            </div>
-            
-            <div class="control-group">
-                <p>Interaction:
-                    Left-click: Add Positive Point | 
-                    Right-click: Add Negative Point | 
-                    Shift + Drag: Draw Box |
-                    Ctrl + Drag: Draw Mask (Lasso)
-                </p>
-                 <p>Click existing point/mask. Shift+Click existing box to remove.</p>
-            </div>
-
-            <div class="control-group">
-                <button id="clear-inputs-btn">Clear Inputs & Predictions</button>
-                <!-- Run Prediction button removed -->
-            </div>
-
-            <div class="control-group">
-                <label for="mask-display-mode">Show Predicted Masks:</label>
-                <select id="mask-display-mode">
-                    <option value="best" selected>Best (Highest Score)</option>
-                    <option value="all">All</option>
-                </select>
-            </div>
-            
-            <div class="control-group expandable-section">
-                <h3 class="expandable-header">Automatic Mask Generation ▼</h3> <!-- Down arrow -->
-                <div class="expandable-content" style="display: none;">
-                    <button id="auto-mask-btn">Run AutoMask</button>
-                    <button id="cancel-auto-mask-btn" style="display:none; background-color: #dc3545;">Cancel AutoMask</button>
-                    <p id="auto-mask-status" class="status-message small"></p>
-                    <label for="amg-points-per-side">Points per side:</label>
-                    <input type="number" id="amg-points-per-side" value="32" min="8" max="96" step="1">
-                    <label for="amg-pred-iou-thresh">Pred IoU Thresh:</label>
-                    <input type="number" id="amg-pred-iou-thresh" value="0.88" min="0.1" max="1.0" step="0.01">
-                    <label for="amg-stability-score-thresh">Stability Score Thresh:</label>
-                    <input type="number" id="amg-stability-score-thresh" value="0.95" min="0.1" max="1.0" step="0.01">
-                    <!-- Add more AMG params here if needed -->
-                    <button id="recover-auto-mask-btn" style="margin-top: 10px;">Recover Last AutoMask</button>
+        <div class="main-content">
+            <!-- Model Configuration Section -->
+            <div class="config-section">
+                <h2>Model Configuration</h2>
+                <div class="model-controls">
+                    <div class="model-selection">
+                        <label for="model-select">Model:</label>
+                        <select id="model-select">
+                            <option value="">Loading...</option>
+                        </select>
+                        
+                        <!-- Custom model inputs (hidden by default) -->
+                        <div id="custom-model-inputs" style="display: none;">
+                            <div class="custom-input-group">
+                                <label for="custom-model-path">Model Path:</label>
+                                <input type="text" id="custom-model-path" placeholder="Path to .pth model file">
+                            </div>
+                            <div class="custom-input-group">
+                                <label for="custom-config-path">Config Path:</label>
+                                <input type="text" id="custom-config-path" placeholder="Path to .yaml config file">
+                            </div>
+                        </div>
+                        
+                        <button id="load-model-btn">Load Model</button>
+                    </div>
+                    
+                    <div class="model-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="apply-postprocessing-cb" checked>
+                            Apply Post-processing
+                        </label>
+                    </div>
+                    
+                    <div id="model-status" class="status-text">Status: No model loaded.</div>
                 </div>
             </div>
 
-            <div class="control-group">
-                <h3>Overlay Opacity</h3>
-                <label for="prediction-opacity">Prediction Mask Opacity:</label>
-                <input type="range" id="prediction-opacity" min="0" max="1" step="0.05" value="0.6">
-                <br>
-                <label for="user-input-opacity">User Input Opacity:</label>
-                <input type="range" id="user-input-opacity" min="0" max="1" step="0.05" value="0.7">
+            <!-- Canvas and Image Section -->
+            <div class="image-section">
+                <h2>Image & Canvas</h2>
+                
+                <!-- Canvas Toolbar -->
+                <div class="canvas-toolbar">
+                    <div class="toolbar-section">
+                        <label for="image-upload" class="file-upload-btn">Load Image</label>
+                        <input type="file" id="image-upload" accept="image/*" style="display: none;">
+                        <div id="image-upload-progress" style="display: none;">
+                            <div class="progress-bar">
+                                <div id="image-upload-bar" class="progress-fill">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-section">
+                        <button id="clear-inputs-btn">Clear Inputs</button>
+                    </div>
+
+                    <div class="toolbar-section">
+                        <label for="mask-display-mode">Display Mode:</label>
+                        <select id="mask-display-mode">
+                            <option value="best">Best Mask</option>
+                            <option value="all">All Masks</option>
+                        </select>
+                    </div>
+
+                    <div class="toolbar-section opacity-controls">
+                        <div class="opacity-control">
+                            <label for="image-opacity">Image: <span id="image-opacity-value">100%</span></label>
+                            <input type="range" id="image-opacity" min="0" max="1" step="0.2" value="1">
+                        </div>
+                        <div class="opacity-control">
+                            <label for="prediction-opacity">Predictions: <span id="prediction-opacity-value">60%</span></label>
+                            <input type="range" id="prediction-opacity" min="0" max="1" step="0.2" value="0.6">
+                        </div>
+                        <div class="opacity-control">
+                            <label for="user-input-opacity">Drawings: <span id="user-input-opacity-value">40%</span></label>
+                            <input type="range" id="user-input-opacity" min="0" max="1" step="0.2" value="0.4">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Display Area -->
+                <div class="image-display-area">
+                    <div class="canvas-container">
+                        <!-- Canvas stack (bottom to top: image, predictions, user input) -->
+                        <canvas id="image-canvas"></canvas>
+                        <canvas id="prediction-mask-canvas"></canvas>
+                        <canvas id="user-input-canvas"></canvas>
+                        
+                        <!-- Canvas lock overlay -->
+                        <div id="canvas-lock" class="canvas-lock-overlay">
+                            <div class="canvas-lock-content">
+                                <div class="spinner"></div>
+                                <div class="canvas-lock-message">Processing... Please Wait.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Instructions -->
+                    <div class="instructions">
+                        <p><strong>Instructions:</strong></p>
+                        <ul>
+                            <li><strong>Points:</strong> Left-click for positive points (green), right-click for negative points (red)</li>
+                            <li><strong>Box:</strong> Hold Shift + drag to draw bounding box (blue)</li>
+                            <li><strong>Lasso:</strong> Hold Ctrl/Cmd + drag to draw freeform mask (yellow)</li>
+                            <li><strong>Remove:</strong> Click on existing points, boxes, or lasso areas to remove them</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
 
-            <div class="control-group">
-                 <button id="save-masks-btn">Save Current View</button>
-                 <p>(Saves displayed canvas with overlays)</p>
+            <!-- Automatic Mask Generation Section -->
+            <div class="expandable-section">
+                <div class="expandable-header">Automatic Mask Generation ▲</div>
+                <div class="expandable-content">
+                    <div class="auto-mask-controls">
+                        <div class="amg-parameters">
+                            <h3>AMG Parameters</h3>
+                            <div class="parameter-group">
+                                <label for="amg-points-per-side">Points per side:</label>
+                                <input type="number" id="amg-points-per-side" value="32" min="1" max="128">
+                            </div>
+                            <div class="parameter-group">
+                                <label for="amg-pred-iou-thresh">Prediction IoU threshold:</label>
+                                <input type="number" id="amg-pred-iou-thresh" value="0.88" min="0" max="1" step="0.01">
+                            </div>
+                            <div class="parameter-group">
+                                <label for="amg-stability-score-thresh">Stability score threshold:</label>
+                                <input type="number" id="amg-stability-score-thresh" value="0.95" min="0" max="1" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="amg-actions">
+                            <button id="auto-mask-btn">Run AutoMask</button>
+                            <button id="cancel-auto-mask-btn" style="display: none;">Cancel</button>
+                            <button id="recover-auto-mask-btn">Recover AutoMask</button>
+                        </div>
+                        
+                        <div id="auto-mask-status" class="status-message small"></div>
+                    </div>
+                </div>
             </div>
-            <div id="status-message" class="status-message"></div> <!-- Main status -->
+
+            <!-- Results and Export Section -->
+            <div class="results-section">
+                <h2>Results & Export</h2>
+                <div class="export-controls">
+                    <button id="save-masks-btn">Save Image with Overlays</button>
+                </div>
+            </div>
         </div>
 
-        <div class="image-display-area">
-            <div id="canvas-lock" class="canvas-lock-overlay" style="display:none;">
-                <div class="canvas-lock-message">Processing... Please Wait.</div>
-            </div>
-            <canvas id="image-canvas"></canvas>
-            <canvas id="prediction-mask-canvas"></canvas> <!-- For SAM predictions -->
-            <canvas id="user-input-canvas"></canvas>    <!-- For user points, boxes, drawn masks -->
-        </div>
+        <!-- Status Messages -->
+        <div id="status-message" class="status-message"></div>
     </div>
 
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='canvas.js') }}"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
