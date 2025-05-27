@@ -284,6 +284,45 @@ header p {
     min-width: 40px;
 }
 
+#clear-inputs-btn {
+    background: linear-gradient(135deg, #ff7300, #ffa500);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
+    text-transform: none;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    user-select: none;
+    min-width: 100px;
+}
+
+#clear-inputs-btn:hover {
+    background: linear-gradient(135deg, #e67e00, #cb7600);
+    box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+#clear-inputs-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
+}
+
+#clear-inputs-btn:disabled {
+    background: linear-gradient(135deg, #cccccc, #dddddd);
+    color: #888888;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
 /* Image Display Area */
 .image-display-area {
     display: flex;
