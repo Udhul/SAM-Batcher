@@ -366,26 +366,91 @@ header p {
     100% { transform: rotate(360deg); }
 }
 
-/* Instructions */
-.instructions {
-    background-color: #e9ecef;
-    padding: 15px;
-    border-radius: 6px;
-    border-left: 4px solid #007bff;
+/* Help icon and tooltip styles for usage instructions */
+.help-section {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
-.instructions p {
-    margin-bottom: 10px;
-    font-weight: 500;
-}
-
-.instructions ul {
-    margin-left: 20px;
-}
-
-.instructions li {
-    margin-bottom: 5px;
+.help-icon {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
     font-size: 14px;
+    font-weight: bold;
+    cursor: help;
+    user-select: none;
+}
+
+.help-icon:hover {
+    background-color: #0056b3;
+}
+
+.help-tooltip {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    background-color: #333;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    min-width: 350px;
+}
+
+.help-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 12px;
+    border: 6px solid transparent;
+    border-top-color: #333;
+}
+
+.help-icon:hover .help-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.tooltip-content {
+    white-space: normal;
+}
+
+.tooltip-content p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+}
+
+.tooltip-content ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style-type: disc;
+}
+
+.tooltip-content li {
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.tooltip-content strong {
+    color: #fff;
 }
 
 /* Expandable Section */
