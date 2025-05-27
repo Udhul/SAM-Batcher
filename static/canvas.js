@@ -83,13 +83,13 @@ class CanvasManager {
         opacitySliders.forEach(slider => {
             slider.min = '0';
             slider.max = '1';
-            slider.step = '0.2';
+            slider.step = '0.125';
         });
 
         // Set default values
         this.imageOpacitySlider.value = '1.0'; // 100%
-        this.predictionOpacitySlider.value = '0.6'; // 60%
-        this.userInputOpacitySlider.value = '0.4'; // 40%
+        this.predictionOpacitySlider.value = '1.0'; // 100%
+        this.userInputOpacitySlider.value = '0.6'; // 60%
 
         // Add event listeners
         this.imageOpacitySlider.addEventListener('input', () => this.drawImage());

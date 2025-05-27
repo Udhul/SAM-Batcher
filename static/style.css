@@ -209,7 +209,7 @@ header p {
 }
 
 .opacity-control input[type="range"] {
-    width: 80px;
+    width: 100px;
     height: 4px;
     background: #ddd;
     border-radius: 2px;
@@ -296,7 +296,7 @@ header p {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 400px;
+    min-height: 800px;
     background-color: #f8f9fa;
     border: 2px dashed #dee2e6;
     border-radius: 8px;
