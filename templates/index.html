@@ -16,39 +16,38 @@
         </header> -->
 
         <div class="main-content">
-            <!-- Model Configuration Section -->
-            <div class="config-section">
-                <h2>Model Configuration</h2>
-                <div class="model-controls">
-                    <div class="model-selection">
-                        <label for="model-select">Model:</label>
-                        <select id="model-select">
-                            <option value="">Loading...</option>
-                        </select>
-                        
-                        <!-- Custom model inputs (hidden by default) -->
-                        <div id="custom-model-inputs" style="display: none;">
-                            <div class="custom-input-group">
-                                <label for="custom-model-path">Model Path:</label>
-                                <input type="text" id="custom-model-path" placeholder="Path to .pth model file">
+            <div class="expandable-section" id="model-loader-expandable">
+                <div class="expandable-header">
+                    <span>Model Configuration</span>
+                    <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
+                    <span class="expand-indicator">▲</span>
+                </div>
+                <div class="expandable-content">
+                    <div class="model-controls">
+                        <div class="model-selection">
+                            <label for="model-select">Model:</label>
+                            <select id="model-select">
+                                <option value="">Loading...</option>
+                            </select>
+                            <div id="custom-model-inputs" style="display: none;">
+                                <div class="custom-input-group">
+                                    <label for="custom-model-path">Model Path:</label>
+                                    <input type="text" id="custom-model-path" placeholder="Path to .pth model file">
+                                </div>
+                                <div class="custom-input-group">
+                                    <label for="custom-config-path">Config Path:</label>
+                                    <input type="text" id="custom-config-path" placeholder="Path to .yaml config file">
+                                </div>
                             </div>
-                            <div class="custom-input-group">
-                                <label for="custom-config-path">Config Path:</label>
-                                <input type="text" id="custom-config-path" placeholder="Path to .yaml config file">
-                            </div>
+                            <button id="load-model-btn">Load Model</button>
                         </div>
-                        
-                        <button id="load-model-btn">Load Model</button>
+                        <div class="model-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="apply-postprocessing-cb" checked>
+                                Apply Post-processing
+                            </label>
+                        </div>
                     </div>
-                    
-                    <div class="model-options">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="apply-postprocessing-cb" checked>
-                            Apply Post-processing
-                        </label>
-                    </div>
-                    
-                    <div id="model-status" class="status-text">Status: No model loaded.</div>
                 </div>
             </div>
 
@@ -134,7 +133,7 @@
             </div>
 
             <!-- Automatic Mask Generation Section -->
-            <div class="expandable-section">
+            <div class="expandable-section auto-mask-section">
                 <div class="expandable-header">Automatic Mask Generation ▲</div>
                 <div class="expandable-content">
                     <div class="auto-mask-controls">
@@ -180,6 +179,7 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='canvas.js') }}"></script>
+    <script src="{{ url_for('static', filename='modelLoader.js') }}"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

@@ -494,29 +494,78 @@ header p {
 
 /* Expandable Section */
 .expandable-section {
-    background: white;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    background-color: #fff;
 }
 
 .expandable-header {
-    background-color: #6c757d;
-    color: white;
-    padding: 15px 20px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    padding: 12px 16px;
     cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
     user-select: none;
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    transition: background-color 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .expandable-header:hover {
-    background-color: #5a6268;
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
+}
+
+.expandable-header.collapsed {
+    border-bottom: none;
+}
+
+.expand-indicator {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+    color: #666;
+}
+
+.expandable-header.collapsed .expand-indicator {
+    transform: rotate(180deg);
 }
 
 .expandable-content {
     padding: 20px;
-    border-top: 1px solid #e9ecef;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+}
+
+.expandable-content.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+}
+
+/* Model status inline styling */
+.model-status-inline {
+    font-size: 14px;
+    font-weight: 400;
+    color: #666;
+    font-style: italic;
+}
+
+.model-status-inline.loaded {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.model-status-inline.loading {
+    color: #ffc107;
+}
+
+.model-status-inline.error {
+    color: #dc3545;
 }
 
 /* Auto Mask Controls */
