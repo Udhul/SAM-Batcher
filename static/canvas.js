@@ -218,8 +218,8 @@ class CanvasManager {
         
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
 
-        const pointDisplayRadius = 5;
-        const lineDisplayWidth = 2;
+        const pointDisplayRadius = 2;
+        const lineDisplayWidth = 1;
 
         // Draw user drawn masks
         this.userDrawnMasks.forEach(mask => {
