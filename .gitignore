@@ -5,3 +5,5 @@ __pycache__
 inactive
 *.egg-info
 SAM-Batcher.code-workspace
+images
+uploads
