@@ -387,17 +387,18 @@ class SAMInference:
 
     def get_available_model_keys(self) -> List[str]:
         """
-        Returns the model-size keys that can be passed back to
-        `load_model()`.  The previous version sometimes returned None,
-        which broke the UI synchronisation.
+        Returns the model-size keys that can be passed back to `load_model()`
         """
-        model_sizes = list(MODEL_FILES.keys())
+        try:
+            model_sizes = list(MODEL_FILES.keys())
 
-        # hide the alias “base” if both “base” and “base_plus” exist
-        if "base" in model_sizes and "base_plus" in model_sizes:
-            model_sizes.remove("base")
-
-        return model_sizes
+            # hide the alias "base" if both "base" and "base_plus" exist
+            if "base" in model_sizes and "base_plus" in model_sizes:
+                model_sizes.remove("base")
+            return model_sizes
+        except Exception as e:
+            print(f"Error getting available model keys: {e}")
+            return []  # Return empty list instead of None to prevent UI errors
 
     def cleanup(self) -> None:
         self.model = None
