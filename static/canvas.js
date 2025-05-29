@@ -40,6 +40,10 @@ class CanvasManager {
         this.offscreenPredictionCtx = this.offscreenPredictionCanvas.getContext('2d');
         this.offscreenUserCanvas = document.createElement('canvas');
         this.offscreenUserCtx = this.offscreenUserCanvas.getContext('2d');
+
+        // Temporary canvas for rendering individual automasks at full resolution
+        this.tempAutomaskRenderCanvas = document.createElement('canvas');
+        this.tempAutomaskRenderCtx = this.tempAutomaskRenderCanvas.getContext('2d');
     }
 
     initializeState() {
@@ -58,8 +62,8 @@ class CanvasManager {
         this.combinedUserMaskInput256 = null;
 
         // Prediction state
-        this.allPredictedMasksData = [];
-        this.autoMaskComposite = null;
+        this.allPredictedMasksData = []; // For manual predictions (base64 strings + scores)
+        this.autoMasksRawData = null;    // For automask (list of {segmentation, color_rgba_str})
 
         // Interaction state
         this.interactionState = {
@@ -77,7 +81,6 @@ class CanvasManager {
     }
 
     setupOpacitySliders() {
-        // Configure opacity sliders as 5-step sliders (0%, 20%, 40%, 60%, 80%, 100%)
         const opacitySliders = [this.imageOpacitySlider, this.predictionOpacitySlider, this.userInputOpacitySlider];
         
         opacitySliders.forEach(slider => {
@@ -86,40 +89,29 @@ class CanvasManager {
             slider.step = '0.125';
         });
 
-        // Set default values
-        this.imageOpacitySlider.value = '1.0'; // 100%
-        this.predictionOpacitySlider.value = '1.0'; // 100%
-        this.userInputOpacitySlider.value = '0.6'; // 60%
+        this.imageOpacitySlider.value = '1.0'; 
+        this.predictionOpacitySlider.value = '1.0'; 
+        this.userInputOpacitySlider.value = '0.6';
 
-        // Add event listeners
         this.imageOpacitySlider.addEventListener('input', () => this.drawImage());
         this.predictionOpacitySlider.addEventListener('input', () => this.filterAndDrawPredictionMasks());
         this.userInputOpacitySlider.addEventListener('input', () => this.drawUserInput());
     }
 
     setupEventListeners() {
-        // Image upload
         this.imageUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
                 this.uploadImage(file);
             }
         });
-
-        // Clear inputs
         this.clearInputsBtn.addEventListener('click', () => {
-            this.clearAllInputs(false, true); // Clear inputs & preds, not image
+            this.clearAllInputs(false, true); 
         });
-
-        // Mask display mode
         this.maskDisplayModeSelect.addEventListener('change', () => {
             this.filterAndDrawPredictionMasks();
         });
-
-        // Canvas interactions
         this.setupCanvasInteractions();
-
-        // Window resize
         window.addEventListener('resize', () => this.drawImage());
     }
 
@@ -131,7 +123,6 @@ class CanvasManager {
         this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
-    // --- Utility Functions ---
     resizeCanvases(width, height) {
         [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas, 
          this.offscreenPredictionCanvas, this.offscreenUserCanvas].forEach(canvas => {
@@ -143,7 +134,6 @@ class CanvasManager {
     displayToOriginalCoords(clientX, clientY) {
         if (!this.originalImageWidth || !this.originalImageHeight || 
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) {
-            console.warn("displayToOriginalCoords called before canvas/image fully initialized.");
             return { x: 0, y: 0 };
         }
         const rect = this.userInputCanvas.getBoundingClientRect();
@@ -158,7 +148,6 @@ class CanvasManager {
     originalToDisplayCoords(originalX, originalY) {
         if (!this.originalImageWidth || !this.originalImageHeight || 
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) {
-            console.warn("originalToDisplayCoords called before canvas/image fully initialized.");
             return { x: 0, y: 0 };
         }
         return {
@@ -183,7 +172,6 @@ class CanvasManager {
         this.canvasLockEl.style.display = 'none';
     }
 
-    // --- Drawing Functions ---
     drawImage() {
         if (!this.currentImage) return;
 
@@ -204,13 +192,12 @@ class CanvasManager {
         this.resizeCanvases(displayWidth, displayHeight);
         this.imageCtx.clearRect(0, 0, displayWidth, displayHeight);
         
-        // Apply image opacity
         this.imageCtx.globalAlpha = parseFloat(this.imageOpacitySlider.value);
         this.imageCtx.drawImage(this.currentImage, 0, 0, displayWidth, displayHeight);
         this.imageCtx.globalAlpha = 1.0;
 
         this.drawUserInput();
-        this.filterAndDrawPredictionMasks();
+        this.filterAndDrawPredictionMasks(); // This is async but drawImage doesn't need to wait for it
     }
 
     drawUserInput() {
@@ -221,7 +208,6 @@ class CanvasManager {
         const pointDisplayRadius = 2;
         const lineDisplayWidth = 1;
 
-        // Draw user drawn masks
         this.userDrawnMasks.forEach(mask => {
             if (mask.points.length < 3) return;
             this.offscreenUserCtx.beginPath();
@@ -239,7 +225,6 @@ class CanvasManager {
             this.offscreenUserCtx.stroke();
         });
 
-        // Draw current lasso being drawn
         if (this.isDrawingLasso && this.currentLassoPoints.length > 0) {
             this.offscreenUserCtx.beginPath();
             const firstP_disp = this.originalToDisplayCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
@@ -256,7 +241,6 @@ class CanvasManager {
             this.offscreenUserCtx.stroke();
         }
 
-        // Draw points
         this.userPoints.forEach(p_orig => {
             const dp = this.originalToDisplayCoords(p_orig.x, p_orig.y);
             this.offscreenUserCtx.beginPath();
@@ -268,7 +252,6 @@ class CanvasManager {
             this.offscreenUserCtx.stroke();
         });
 
-        // Draw box
         if (this.userBox) {
             const db1 = this.originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
             const db2 = this.originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
@@ -277,63 +260,109 @@ class CanvasManager {
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
         }
 
-        // Copy to visible canvas with opacity
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
         this.userCtx.globalAlpha = parseFloat(this.userInputOpacitySlider.value);
         this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
         this.userCtx.globalAlpha = 1.0;
     }
 
-    filterAndDrawPredictionMasks() {
-        if (!this.currentImage || this.offscreenPredictionCanvas.width === 0 || this.offscreenPredictionCanvas.height === 0) return;
+    async filterAndDrawPredictionMasks() { // Make it async
+        if (!this.currentImage || this.offscreenPredictionCanvas.width === 0 || this.offscreenPredictionCanvas.height === 0) {
+            this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
+            this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+            return;
+        }
         
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
-        let masksToDrawBase64 = [];
+        if (this.autoMasksRawData && this.autoMasksRawData.length > 0) {
+            // Render raw automasks (synchronous drawing to offscreen canvas for this part)
+            this.tempAutomaskRenderCanvas.width = this.originalImageWidth;
+            this.tempAutomaskRenderCanvas.height = this.originalImageHeight;
 
-        if (this.autoMaskComposite) {
-            masksToDrawBase64.push(this.autoMaskComposite);
-        } else if (this.allPredictedMasksData.length > 0) {
+            this.autoMasksRawData.forEach(maskDef => {
+                const { segmentation, color_rgba_str } = maskDef;
+                if (!segmentation || segmentation.length === 0 || segmentation[0].length === 0) return;
+
+                const maskHeight = segmentation.length;    
+                const maskWidth = segmentation[0].length; 
+
+                const imageData = this.tempAutomaskRenderCtx.createImageData(maskWidth, maskHeight);
+                const pixelData = imageData.data;
+
+                const colorParts = color_rgba_str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                if (!colorParts) {
+                    console.error("Could not parse color string for automask:", color_rgba_str);
+                    return; 
+                }
+                const r = parseInt(colorParts[1]);
+                const g = parseInt(colorParts[2]);
+                const b = parseInt(colorParts[3]);
+                const a = colorParts[4] ? Math.round(parseFloat(colorParts[4]) * 255) : 255;
+
+                for (let y = 0; y < maskHeight; y++) {
+                    for (let x = 0; x < maskWidth; x++) {
+                        if (segmentation[y][x]) { 
+                            const index = (y * maskWidth + x) * 4;
+                            pixelData[index] = r;
+                            pixelData[index + 1] = g;
+                            pixelData[index + 2] = b;
+                            pixelData[index + 3] = a;
+                        }
+                    }
+                }
+                this.tempAutomaskRenderCtx.putImageData(imageData, 0, 0);
+                this.offscreenPredictionCtx.drawImage(this.tempAutomaskRenderCanvas, 0, 0, 
+                                                      this.offscreenPredictionCanvas.width, 
+                                                      this.offscreenPredictionCanvas.height);
+            });
+        } else if (this.allPredictedMasksData && this.allPredictedMasksData.length > 0) {
+            // Render manual predictions (base64 images)
+            let masksToDrawBase64 = [];
             const mode = this.maskDisplayModeSelect.value;
+
             if (mode === 'best' && this.allPredictedMasksData[0]) {
                 masksToDrawBase64.push(this.allPredictedMasksData[0].maskBase64);
             } else if (mode === 'all') {
                 masksToDrawBase64 = this.allPredictedMasksData.map(m => m.maskBase64);
             }
-        }
 
-        if (masksToDrawBase64.length > 0) {
-            let imagesLoaded = 0;
-            masksToDrawBase64.forEach(maskBase64 => {
-                const img = new Image();
-                img.onload = () => {
-                    this.offscreenPredictionCtx.drawImage(img, 0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
-                    imagesLoaded++;
-                    if (imagesLoaded === masksToDrawBase64.length) {
-                        this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
-                        this.predictionCtx.globalAlpha = parseFloat(this.predictionOpacitySlider.value);
-                        this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
-                        this.predictionCtx.globalAlpha = 1.0;
-                    }
-                };
-                img.onerror = () => {
-                    imagesLoaded++;
-                    if (imagesLoaded === masksToDrawBase64.length) {
-                        this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
-                        this.predictionCtx.globalAlpha = parseFloat(this.predictionOpacitySlider.value);
-                        this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
-                        this.predictionCtx.globalAlpha = 1.0;
-                    }
-                    console.error("Error loading a prediction mask image from base64");
-                };
-                img.src = maskBase64;
-            });
-        } else {
-            this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
+            if (masksToDrawBase64.length > 0) {
+                const imageLoadPromises = masksToDrawBase64.map(maskBase64 => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            this.offscreenPredictionCtx.drawImage(img, 0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+                            resolve();
+                        };
+                        img.onerror = (err) => {
+                            console.error("Error loading a prediction mask image from base64:", maskBase64.substring(0,100) + "..."); // Log part of string
+                            // Resolve even on error to not block other images, but log it.
+                            // The canvas will just miss this one mask.
+                            resolve(); 
+                        };
+                        img.src = maskBase64;
+                    });
+                });
+
+                try {
+                    await Promise.all(imageLoadPromises); // Wait for all images to be loaded and drawn
+                } catch (error) {
+                    // This catch might not be strictly necessary if individual promises resolve on error
+                    console.error("Error processing one or more manual prediction masks:", error);
+                }
+            }
         }
+        // Else: No masks to draw, offscreenPredictionCtx is already clear.
+
+        // After all masks (either automask or manual) are drawn to offscreenPredictionCtx,
+        // or if there were no masks, draw it to the visible prediction canvas with opacity.
+        this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
+        this.predictionCtx.globalAlpha = parseFloat(this.predictionOpacitySlider.value);
+        this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
+        this.predictionCtx.globalAlpha = 1.0;
     }
 
-    // --- Image Upload ---
     async uploadImage(file) {
         const formData = new FormData();
         formData.append('image', file);
@@ -363,13 +392,13 @@ class CanvasManager {
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
                     if (data.success) {
-                        this.clearAllInputs(false, true);
+                        this.clearAllInputs(false, true); 
                         
                         this.currentImage = new Image();
                         this.currentImage.onload = () => {
                             this.originalImageWidth = data.width;
                             this.originalImageHeight = data.height;
-                            this.drawImage();
+                            this.drawImage(); 
                             this.dispatchEvent('imageLoaded', { filename: this.currentImageFilename });
                         };
                         this.currentImage.onerror = () => {
@@ -397,7 +426,6 @@ class CanvasManager {
         }
     }
 
-    // --- Mouse Event Handlers ---
     handleMouseDown(e) {
         if (!this.currentImage || this.canvasLockEl.style.display !== 'none') return;
         
@@ -508,7 +536,6 @@ class CanvasManager {
             }
         }
 
-        // Reset drawing states
         this.isDrawingLasso = false;
         this.currentLassoPoints = [];
         this.interactionState.isDrawingBox = false;
@@ -557,7 +584,6 @@ class CanvasManager {
         }
     }
 
-    // --- Helper Functions ---
     isPointInPolygon(point, polygonPoints) {
         if (!polygonPoints || polygonPoints.length < 3) return false;
         let x = point.x, y = point.y;
@@ -627,10 +653,12 @@ class CanvasManager {
             this.currentLassoPoints = [];
             this.isDrawingLasso = false;
             this.combinedUserMaskInput256 = null;
-            this.allPredictedMasksData = [];
-            this.autoMaskComposite = null;
-            this.drawUserInput();
-            this.filterAndDrawPredictionMasks();
+            
+            this.allPredictedMasksData = []; 
+            this.autoMasksRawData = null;    
+
+            this.drawUserInput(); 
+            this.filterAndDrawPredictionMasks(); 
         }
 
         if (clearImage) {
@@ -639,7 +667,8 @@ class CanvasManager {
             this.originalImageWidth = 0;
             this.originalImageHeight = 0;
             [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas, 
-             this.offscreenPredictionCanvas, this.offscreenUserCanvas].forEach(canvas => {
+             this.offscreenPredictionCanvas, this.offscreenUserCanvas, 
+             this.tempAutomaskRenderCanvas].forEach(canvas => {
                 canvas.width = 300;
                 canvas.height = 150;
                 const ctx = canvas.getContext('2d');
@@ -655,15 +684,16 @@ class CanvasManager {
         });
     }
 
-    // --- Public API ---
-    setPredictedMasks(masksData) {
+    setPredictedMasks(masksData) { 
         this.allPredictedMasksData = masksData;
-        this.filterAndDrawPredictionMasks();
+        this.autoMasksRawData = null; 
+        this.filterAndDrawPredictionMasks(); // This is async
     }
 
-    setAutoMaskComposite(composite) {
-        this.autoMaskComposite = composite;
-        this.filterAndDrawPredictionMasks();
+    setAutoMasksData(masksDataArray) { 
+        this.autoMasksRawData = masksDataArray;
+        this.allPredictedMasksData = []; 
+        this.filterAndDrawPredictionMasks(); // This is async
     }
 
     getCurrentInputs() {
@@ -676,7 +706,6 @@ class CanvasManager {
         };
     }
 
-    // --- Event System ---
     dispatchEvent(eventType, data) {
         const event = new CustomEvent(`canvas-${eventType}`, { detail: data });
         document.dispatchEvent(event);
