@@ -15,22 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveMasksBtn = document.getElementById('save-masks-btn');
     const statusMessageEl = document.getElementById('status-message');
 
-    // Opacity value display elements
     const imageOpacityValueEl = document.getElementById('image-opacity-value');
     const predictionOpacityValueEl = document.getElementById('prediction-opacity-value');
     const userInputOpacityValueEl = document.getElementById('user-input-opacity-value');
 
-    // --- State Variables ---
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
 
-    // --- Utility Functions ---
     function showStatus(message, isError = false, duration = null) {
         statusMessageEl.textContent = message;
         statusMessageEl.className = 'status-message ' +
-            (isError
-                ? 'error'
-                : (message.includes("Loading") || message.includes("Running")) ? 'info' : 'success');
+            (isError ? 'error' : (message.includes("Loading") || message.includes("Running")) ? 'info' : 'success');
         if (duration !== 0) {
             setTimeout(() => {
                 if (statusMessageEl.textContent === message) {
@@ -41,57 +36,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Canvas Event Handlers ---
     document.addEventListener('canvas-imageLoaded', (event) => {
         showStatus('Image loaded. Ready for interaction.');
-        // Clear any previous automask status related to a different image
         autoMaskStatusEl.textContent = "AutoMask parameters.";
         autoMaskStatusEl.className = 'status-message info small';
     });
-
-    document.addEventListener('canvas-error', (event) => {
-        showStatus(event.detail.message, true);
-    });
-    document.addEventListener('canvas-userInteraction', () => {
-        triggerPrediction();
-    });
-
+    document.addEventListener('canvas-error', (event) => showStatus(event.detail.message, true));
+    document.addEventListener('canvas-userInteraction', () => triggerPrediction());
     document.addEventListener('canvas-inputsCleared', (event) => {
-        if (event.detail.clearedInputs) {
-            showStatus('Inputs and predictions cleared.');
-        }
+        if (event.detail.clearedInputs) showStatus('Inputs and predictions cleared.');
         if (event.detail.clearedImage) {
             showStatus('Image, inputs and predictions cleared.');
-             // Clear automask status if image is cleared
             autoMaskStatusEl.textContent = "AutoMask parameters.";
             autoMaskStatusEl.className = 'status-message info small';
         }
     });
 
-    // --- Opacity Value Display Updates ---
     function updateOpacityDisplay() {
         if (window.canvasManager) {
             const imageOpacity = Math.round(window.canvasManager.imageOpacitySlider.value * 100);
             const predictionOpacity = Math.round(window.canvasManager.predictionOpacitySlider.value * 100);
             const userInputOpacity = Math.round(window.canvasManager.userInputOpacitySlider.value * 100);
-            
             if (imageOpacityValueEl) imageOpacityValueEl.textContent = `${imageOpacity}%`;
             if (predictionOpacityValueEl) predictionOpacityValueEl.textContent = `${predictionOpacity}%`;
             if (userInputOpacityValueEl) userInputOpacityValueEl.textContent = `${userInputOpacity}%`;
         }
     }
 
-    // Set up opacity display updates
     setTimeout(() => {
         if (window.canvasManager) {
             window.canvasManager.imageOpacitySlider.addEventListener('input', updateOpacityDisplay);
             window.canvasManager.predictionOpacitySlider.addEventListener('input', updateOpacityDisplay);
             window.canvasManager.userInputOpacitySlider.addEventListener('input', updateOpacityDisplay);
-            updateOpacityDisplay(); // Initial update
+            updateOpacityDisplay();
         }
     }, 100);
 
-    // --- API Calls & Prediction Logic ---
     function triggerPrediction() {
         clearTimeout(predictionDebounceTimer);
         predictionDebounceTimer = setTimeout(() => {
@@ -99,9 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (inputs?.image && (inputs.points.length > 0 || inputs.box || inputs.maskInput)) {
                 runPredictionInternal();
             } else if (inputs?.image) {
-                // No inputs, clear previous manual predictions
-                window.canvasManager.setPredictedMasks([]); 
-                // Do not clear automasks here, user might want to interact on top of them or clear them explicitly
+                window.canvasManager.setManualPredictions(null); 
             }
         }, 300);
     }
@@ -111,8 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!inputs?.image) return;
 
         window.canvasManager.lockCanvas("Predicting...");
-        // Clear any previous automask results when making a manual prediction
-        window.canvasManager.setAutoMasksData(null); 
+        window.canvasManager.setAutomaskPredictions(null); 
 
         const payload = {
             points: inputs.points.map(p => [p.x, p.y]),
@@ -128,30 +105,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            
             if (!res.ok) {
-                const errData = await res.json().catch(() => ({ error: res.statusText }));
-                showStatus(`Prediction failed: ${res.status} ${errData.error || 'Server error'}`, true);
-                window.canvasManager.setPredictedMasks([]);
+                let errorMsg = `Prediction failed: ${res.status}`;
+                try {
+                    const errData = await res.json();
+                    errorMsg += ` - ${errData.error || 'Server error'}`;
+                } catch (e) { /* response was not json */ }
+                showStatus(errorMsg, true);
+                window.canvasManager.setManualPredictions(null);
                 return;
             }
+
             const data = await res.json();
-            if (data.success) {
-                const masks = data.masks.map((m, i) => ({ maskBase64: m, score: data.scores[i] || 0 }));
-                masks.sort((a, b) => b.score - a.score);
-                window.canvasManager.setPredictedMasks(masks); // This now also clears automasks
+            if (data && data.success) {
+                // Pass the raw mask data and scores directly as received from server
+                window.canvasManager.setManualPredictions({
+                    masks_data: data.masks_data, // This is the list of 2D arrays
+                    scores: data.scores
+                });
             } else {
-                showStatus('Prediction API error: ' + (data.error || "Unknown error"), true);
-                window.canvasManager.setPredictedMasks([]);
+                showStatus('Prediction API error: ' + (data ? data.error : "Unknown error or malformed response"), true);
+                window.canvasManager.setManualPredictions(null);
             }
         } catch (error) {
-            showStatus('Network error during prediction: ' + error, true);
-            window.canvasManager.setPredictedMasks([]);
+            showStatus('Network error during prediction: ' + error.message, true);
+            window.canvasManager.setManualPredictions(null);
         } finally {
             window.canvasManager.unlockCanvas();
         }
     }
 
-    // --- AutoMask Logic ---
     async function runAutoMask() {
         const inputs = window.canvasManager?.getCurrentInputs();
         if (!inputs?.image) {
@@ -159,9 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Clear previous manual predictions and user inputs, but not the image
         window.canvasManager.clearAllInputs(false, true); 
-        // setAutoMasksData(null) will be called by clearAllInputs via canvasManager.autoMasksRawData = null
 
         const start = Date.now();
         autoMaskStatusEl.className = 'status-message info small';
@@ -169,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.canvasManager.lockCanvas("AutoMask running...");
         autoMaskBtn.disabled = true;
         cancelAutoMaskBtn.style.display = 'inline-block';
-        recoverAutoMaskBtn.disabled = true; // Disable recover while running
+        recoverAutoMaskBtn.disabled = true;
 
         currentAutoMaskAbortController = new AbortController();
         const signal = currentAutoMaskAbortController.signal;
@@ -194,35 +176,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            const data = await res.json();
-            if (data.success) {
-                window.canvasManager.setAutoMasksData(data.masks_data); // Use new method with raw data
+            if (!res.ok) {
+                let errorMsg = `AutoMask generation failed: ${res.status}`;
+                try {
+                    const errData = await res.json();
+                    errorMsg += ` - ${errData.error || 'Server error'}`;
+                } catch (e) { /* response was not json */ }
+                showStatus(errorMsg, true);
+                autoMaskStatusEl.className = 'status-message error small';
+                autoMaskStatusEl.textContent = errorMsg;
+                window.canvasManager.setAutomaskPredictions(null);
+                return;
+            }
+
+            const data = await res.json(); 
+            if (data && data.success) { 
+                // data is { masks_data: [{segmentation, area, ...}], count: ... }
+                // Pass the whole data object to setAutomaskPredictions
+                window.canvasManager.setAutomaskPredictions(data); 
                 const duration = ((Date.now() - start) / 1000).toFixed(1);
-                const statusText = `AutoMask complete (${data.count} masks) in ${duration}s.`;
+                const statusText = `AutoMask complete (${data.count || 0} masks) in ${duration}s.`;
                 autoMaskStatusEl.className = 'status-message success small';
                 autoMaskStatusEl.textContent = statusText;
                 try {
-                    // Store raw masks_data and the status text
-                    localStorage.setItem(`automask_raw_${inputs.filename}`, JSON.stringify(data.masks_data));
+                    // Compress the data before saving
+                    const compressedData = data.masks_data.map(mask => ({
+                        segmentation: mask.segmentation, // Keep only the essential segmentation data
+                        area: mask.area
+                    }));
+                    localStorage.setItem(`automask_data_${inputs.filename}`, JSON.stringify(compressedData));
                     localStorage.setItem(`automask_info_${inputs.filename}`, statusText);
                 } catch (e) {
-                    console.warn("localStorage unavailable for automask recovery.", e);
-                    showStatus("Could not save automask to local storage. It might be full or disabled.", true);
+                    console.warn("localStorage error on automask save.", e);
+                    // Try to save just the first few masks if the full dataset is too large
+                    try {
+                        const limitedData = data.masks_data.slice(0, 10).map(mask => ({
+                            segmentation: mask.segmentation,
+                            area: mask.area
+                        }));
+                        localStorage.setItem(`automask_data_${inputs.filename}`, JSON.stringify(limitedData));
+                        localStorage.setItem(`automask_info_${inputs.filename}`, statusText + " (limited to 10 masks)");
+                    } catch (e2) {
+                        showStatus("Could not save automask to local storage (data too large).", true, 5000);
+                    }
                 }
             } else {
+                const errorDetail = data ? data.error : "Unknown server error or malformed response.";
                 autoMaskStatusEl.className = 'status-message error small';
-                autoMaskStatusEl.textContent = 'AutoMask failed: ' + (data.error || "Unknown");
-                showStatus('AutoMask failed: ' + (data.error || "Unknown"), true);
-                window.canvasManager.setAutoMasksData(null);
+                autoMaskStatusEl.textContent = 'AutoMask failed: ' + errorDetail;
+                showStatus('AutoMask failed: ' + errorDetail, true);
+                window.canvasManager.setAutomaskPredictions(null);
             }
         } catch (e) {
-            const msg = e.name === 'AbortError'
-                ? "AutoMask cancelled."
-                : 'Error during AutoMask: ' + e;
+            const msg = e.name === 'AbortError' ? "AutoMask cancelled." : `Error during AutoMask: ${e.message}`;
             autoMaskStatusEl.className = 'status-message error small';
             autoMaskStatusEl.textContent = msg;
             showStatus(msg, true);
-            window.canvasManager.setAutoMasksData(null);
+            window.canvasManager.setAutomaskPredictions(null);
         } finally {
             window.canvasManager.unlockCanvas();
             autoMaskBtn.disabled = false;
@@ -232,29 +242,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- AutoMask Event Handlers ---
     autoMaskBtn.addEventListener('click', runAutoMask);
-    
     cancelAutoMaskBtn.addEventListener('click', () => {
         if (currentAutoMaskAbortController) currentAutoMaskAbortController.abort();
     });
 
     recoverAutoMaskBtn.addEventListener('click', () => {
         const inputs = window.canvasManager?.getCurrentInputs();
-        if (!inputs?.image || !inputs?.filename) { // Ensure image is loaded
+        if (!inputs?.image || !inputs?.filename) {
             showStatus("No image loaded to recover automask for.", true);
             autoMaskStatusEl.textContent = "No image loaded.";
             autoMaskStatusEl.className = 'status-message error small';
             return;
         }
         try {
-            const recoveredRawMasksString = localStorage.getItem(`automask_raw_${inputs.filename}`);
+            const recoveredMasksDataString = localStorage.getItem(`automask_data_${inputs.filename}`);
             const recoveredInfo = localStorage.getItem(`automask_info_${inputs.filename}`);
 
-            if (recoveredRawMasksString) {
-                const recoveredMasksData = JSON.parse(recoveredRawMasksString);
-                window.canvasManager.setAutoMasksData(recoveredMasksData); 
-                // setAutoMasksData in canvas.js now also clears manual predictions (allPredictedMasksData)
+            if (recoveredMasksDataString) {
+                const recoveredMasks = JSON.parse(recoveredMasksDataString);
+                window.canvasManager.setAutomaskPredictions({ masks_data: recoveredMasks, count: recoveredMasks.length }); 
                 
                 autoMaskStatusEl.textContent = "Recovered: " + (recoveredInfo || "Previously generated AutoMask.");
                 autoMaskStatusEl.className = 'status-message success small';
@@ -265,55 +272,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 autoMaskStatusEl.className = 'status-message info small';
             }
         } catch (e) {
-            showStatus("Could not recover AutoMask from local storage. Storage might be full, disabled, or data corrupted.", true);
+            showStatus("Could not recover AutoMask. Storage might be full, disabled, or data corrupted.", true);
             autoMaskStatusEl.textContent = "Error recovering AutoMask.";
             autoMaskStatusEl.className = 'status-message error small';
             console.error("localStorage error on automask recovery.", e);
         }
     });
 
-    // --- Save Masks ---
     saveMasksBtn.addEventListener('click', () => {
         const currentInputs = window.canvasManager?.getCurrentInputs();
         if (!currentInputs?.image) {
             showStatus("No image or prediction to save.", true);
             return;
         }
-
         const compositeCanvas = document.createElement('canvas');
-        const imageCanvas = window.canvasManager.imageCanvas; // Visible image canvas
-
-        if (imageCanvas.width === 0 || imageCanvas.height === 0 || imageCanvas.width === 300 && imageCanvas.height === 150 && !window.canvasManager.currentImage) {
-             // Check for placeholder size if no image actually loaded
+        const imageCanvas = window.canvasManager.imageCanvas; 
+        if (imageCanvas.width === 0 || imageCanvas.height === 0 || (imageCanvas.width === 300 && imageCanvas.height === 150 && !window.canvasManager.currentImage) ) {
             showStatus("Cannot save, image canvas not ready or no image loaded.", true);
             return;
         }
-        
-        compositeCanvas.width = imageCanvas.width; // Use display dimensions for saved image
+        compositeCanvas.width = imageCanvas.width; 
         compositeCanvas.height = imageCanvas.height;
         const compositeCtx = compositeCanvas.getContext('2d');
-
-        // Draw base image (respecting its current opacity setting on the main canvas)
-        // To get the image with its UI-set opacity, draw the imageCanvas itself.
         compositeCtx.drawImage(imageCanvas, 0, 0);
-
-
-        // Draw predictions (respecting their current opacity)
-        // The predictionMaskCanvas already has masks drawn with their individual alpha
-        // AND the global prediction layer opacity applied.
         const predictionCanvas = window.canvasManager.predictionMaskCanvas;
         if (predictionCanvas.width > 0 && predictionCanvas.height > 0) {
             compositeCtx.drawImage(predictionCanvas, 0, 0);
         }
-
-
-        // Draw user inputs (respecting their current opacity)
-        // The userInputCanvas already has inputs drawn with global user input layer opacity.
         const userInputLayerCanvas = window.canvasManager.userInputCanvas;
         if (userInputLayerCanvas.width > 0 && userInputLayerCanvas.height > 0) {
             compositeCtx.drawImage(userInputLayerCanvas, 0, 0);
         }
-        
         const dataURL = compositeCanvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = dataURL;
@@ -325,22 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus("Image with overlays saved.");
     });
 
-    // --- Expand/Collapse AutoMask ---
     autoMaskExpandableHeader.addEventListener('click', () => {
         const collapsed = autoMaskExpandableContent.style.display === 'none';
-        if (collapsed) {
-            autoMaskExpandableContent.style.display = 'block';
-            autoMaskExpandableHeader.textContent = 'Automatic Mask Generation ▲';
-        } else {
-            autoMaskExpandableContent.style.display = 'none';
-            autoMaskExpandableHeader.textContent = 'Automatic Mask Generation ▼';
-        }
+        autoMaskExpandableContent.style.display = collapsed ? 'block' : 'none';
+        autoMaskExpandableHeader.textContent = `Automatic Mask Generation ${collapsed ? '▲' : '▼'}`;
     });
 
-    // --- Initial State ---
-    autoMaskExpandableContent.style.display = 'block'; // Or 'none' if default collapsed
-    autoMaskExpandableHeader.textContent = 'Automatic Mask Generation ▲'; // Match display
-    autoMaskStatusEl.textContent = "AutoMask parameters."; // Initial message
+    autoMaskExpandableContent.style.display = 'block';
+    autoMaskExpandableHeader.textContent = 'Automatic Mask Generation ▲';
+    autoMaskStatusEl.textContent = "AutoMask parameters.";
     autoMaskStatusEl.className = 'status-message info small';
-
 });

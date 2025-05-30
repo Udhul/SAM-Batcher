@@ -11,10 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const customModelPath = document.getElementById('custom-model-path');
     const customConfigPath = document.getElementById('custom-config-path');
 
+    let isModelLoading = false; // Flag to prevent re-entrant calls
+
     function toggleSection() {
         const isCollapsed = content.classList.toggle('collapsed');
         header.classList.toggle('collapsed', isCollapsed);
-        content.classList.toggle('collapsed', isCollapsed);
         header.querySelector('.expand-indicator').textContent = isCollapsed ? '▼' : '▲';
     }
 
@@ -25,31 +26,45 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/get_available_models');
             const data = await response.json();
             if (data.success) {
-                modelSelect.innerHTML = '';
+                modelSelect.innerHTML = ''; // Clear previous options
                 const customOption = document.createElement('option');
                 customOption.value = 'custom';
                 customOption.textContent = 'Custom Model Path';
                 modelSelect.appendChild(customOption);
+
                 const separator = document.createElement('option');
                 separator.disabled = true;
                 separator.textContent = '──────────────';
                 modelSelect.appendChild(separator);
-                data.models.forEach(key => {
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.textContent = key.charAt(0).toUpperCase() + key.slice(1);
-                    if (key === data.current_model) option.selected = true;
-                    modelSelect.appendChild(option);
-                });
-                updateStatus(data.current_model ? `Current: ${data.current_model}` : 'No model loaded.', 'loaded');
-                modelSelect.dispatchEvent(new Event('change'));
+
+                if (data.models && Array.isArray(data.models)) {
+                    data.models.forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '); // Prettify name
+                        if (key === data.current_model) {
+                            option.selected = true;
+                        }
+                        modelSelect.appendChild(option);
+                    });
+                }
+                
+                if (data.current_model) {
+                    updateStatus(`Current: ${data.current_model.charAt(0).toUpperCase() + data.current_model.slice(1).replace(/_/g, ' ')}`, 'loaded');
+                } else {
+                    updateStatus('No model loaded. Please select one.', 'idle');
+                }
+                modelSelect.dispatchEvent(new Event('change')); // Trigger change to show/hide custom inputs
+            } else {
+                updateStatus('Error fetching models: ' + (data.error || 'Unknown error'), 'error');
             }
-        } catch {
-            updateStatus('Error fetching models', 'error');
+        } catch (err) {
+            updateStatus('Network error fetching models.', 'error');
+            console.error("Error fetching models:", err);
         }
     }
 
-    function updateStatus(text, statusClass) {
+    function updateStatus(text, statusClass) { // statusClass can be 'loading', 'loaded', 'error', 'idle'
         modelStatusInline.textContent = text;
         modelStatusInline.className = `model-status-inline ${statusClass}`;
     }
@@ -59,46 +74,157 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadModel() {
+        console.log('=== loadModel() function called ===');
+        
+        if (isModelLoading) {
+            console.warn("Model loading already in progress.");
+            return;
+        }
+        
+        console.log('Setting isModelLoading to true');
+        isModelLoading = true;
+        loadModelBtn.disabled = true;
+
         const key = modelSelect.value;
         const postProcessing = applyPostprocessingCb.checked;
+        console.log('Selected model key:', key);
+        console.log('Post processing:', postProcessing);
+        
         let payload = { apply_postprocessing: postProcessing };
+
         if (key === 'custom') {
-            const m = customModelPath.value.trim();
-            const c = customConfigPath.value.trim();
-            if (!m || !c) return updateStatus('Please enter model and config paths.', 'error');
-            payload.model_path = m;
-            payload.config_path = c;
+            console.log('Custom model path selected');
+            const mPath = customModelPath.value.trim();
+            const cPath = customConfigPath.value.trim();
+            console.log('Custom model path:', mPath);
+            console.log('Custom config path:', cPath);
+            
+            if (!mPath || !cPath) {
+                console.log('Missing custom paths, returning early');
+                updateStatus('Please enter both custom model and config paths.', 'error');
+                isModelLoading = false;
+                loadModelBtn.disabled = false;
+                return;
+            }
+            payload.model_path = mPath;
+            payload.config_path = cPath;
         } else {
+            console.log('Using predefined model key');
             payload.model_size_key = key;
         }
-        updateStatus(`Loading ${key}...`, 'loading');
-        window.canvasManager?.lockCanvas(`Loading ${key} model...`);
+
+        console.log('Final payload:', payload);
+
+        const modelNameToDisplay = key === 'custom' ? 'Custom Model' : (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '));
+        console.log('Model name to display:', modelNameToDisplay);
+        
+        console.log('Updating status to loading...');
+        updateStatus(`Loading ${modelNameToDisplay}...`, 'loading');
+        
+        console.log('Checking canvasManager methods:', window.canvasManager ? Object.getOwnPropertyNames(window.canvasManager) : 'canvasManager is null');
+        
+        if (window.canvasManager && typeof window.canvasManager.lockCanvas === 'function') {
+            console.log('Locking canvas...');
+            window.canvasManager.lockCanvas(`Loading ${modelNameToDisplay} model...`);
+        } else {
+            console.log('lockCanvas method not available, skipping canvas lock');
+        }
+
+        console.log('About to start fetch request...');
+        
         try {
+            console.log('Making fetch request to /api/load_model...');
+            console.log('Request payload:', JSON.stringify(payload));
+            
             const res = await fetch('/api/load_model', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
+            console.log('Fetch completed, response received');
+
+            if (!res.ok) {
+                console.log('Response not OK:', res.status, res.statusText);
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+
+            console.log('Parsing JSON response...');
             const data = await res.json();
+            console.log('Response data:', data);
+            
             if (data.success) {
-                const loaded = data.message.match(/'([^']+)'/)?.[1] || key;
-                updateStatus(`Current: ${loaded} (PostProc: ${postProcessing})`, 'loaded');
-                if (window.canvasManager?.getCurrentInputs().image) {
-                    window.canvasManager.setPredictedMasks([]);
-                    window.canvasManager.unlockCanvas();
+                console.log('Model loaded successfully');
+                const loadedModelNameMatch = data.message.match(/'([^']+)'/);
+                const loadedModelDisplayName = loadedModelNameMatch ? (loadedModelNameMatch[1].charAt(0).toUpperCase() + loadedModelNameMatch[1].slice(1).replace(/_/g, ' ')) : modelNameToDisplay;
+                
+                updateStatus(`Current: ${loadedModelDisplayName} (PostProc: ${postProcessing})`, 'loaded');
+                
+                if (key !== 'custom' && loadedModelNameMatch && loadedModelNameMatch[1] !== key) {
+                    for(let i=0; i<modelSelect.options.length; i++){
+                        if(modelSelect.options[i].value === loadedModelNameMatch[1]){
+                            modelSelect.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (window.canvasManager && typeof window.canvasManager.setManualPredictions === 'function') {
+                    window.canvasManager.setManualPredictions(null); 
+                    window.canvasManager.setAutomaskPredictions(null);
                 }
             } else {
-                updateStatus(`Failed to load: ${data.error}`, 'error');
+                console.log('Model loading failed:', data.error);
+                updateStatus(`Failed to load: ${data.error || 'Unknown server error'}`, 'error');
             }
-        } catch {
-            updateStatus('Error loading model', 'error');
+        } catch (err) {
+            console.error("Error in loadModel:", err);
+        
+            if (err.name === 'AbortError') {
+                updateStatus('Model loading timed out. Try again.', 'error');
+            } else if (err.message.includes('fetch')) {
+                updateStatus('Network error loading model. Check server connection.', 'error');
+            } else {
+                updateStatus(`Error loading model: ${err.message}`, 'error');
+            }
         } finally {
-            window.canvasManager?.unlockCanvas();
+            console.log('In finally block, cleaning up...');
+            if (window.canvasManager && typeof window.canvasManager.unlockCanvas === 'function') {
+                console.log('Unlocking canvas...');
+                window.canvasManager.unlockCanvas();
+            } else {
+                console.log('unlockCanvas method not available, skipping canvas unlock');
+            }
+            console.log('Setting isModelLoading to false');
+            isModelLoading = false;
+            console.log('Re-enabling load button');
+            loadModelBtn.disabled = false;
+            console.log('=== loadModel() function completed ===');
         }
     }
 
-    loadModelBtn.addEventListener('click', loadModel);
+    loadModelBtn.addEventListener('click', () => {
+        console.log('Load model button clicked!');
+        loadModel();
+    });
+    
+    // To avoid immediate re-load on checkbox change after model selection,
+    // we might make this more explicit, or ensure loadModel handles it gracefully.
+    // For now, keeping the original behavior which reloads on checkbox change.
+    // The `isModelLoading` flag should prevent stacking calls.
     applyPostprocessingCb.addEventListener('change', loadModel);
 
-    fetchAvailableModels();
+    setTimeout(() => {
+        console.log('CanvasManager object:', window.canvasManager);
+        console.log('CanvasManager prototype:', window.canvasManager ? Object.getPrototypeOf(window.canvasManager) : 'null');
+        console.log('CanvasManager methods:', window.canvasManager ? Object.getOwnPropertyNames(Object.getPrototypeOf(window.canvasManager)) : 'null');
+    }, 1000);
+
+    fetchAvailableModels(); // Initial fetch
+
+    console.log('DOM elements check:');
+    console.log('loadModelBtn:', loadModelBtn);
+    console.log('modelSelect:', modelSelect);
+    console.log('applyPostprocessingCb:', applyPostprocessingCb);
+    console.log('modelSelect.value:', modelSelect.value);
 });
