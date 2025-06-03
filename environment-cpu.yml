@@ -5,12 +5,7 @@ channels:
 dependencies:
   - python=3.10
   - pip
-  - jupyter
-  - matplotlib
   - pip:
     - torch==2.5.1
     - torchvision==0.20.1
-    - tqdm
-    - flask
-    - requests
-    - pycocotools>=2.0.8
+    - -r requirements.txt

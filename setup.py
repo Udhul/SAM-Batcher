@@ -158,20 +158,9 @@ def install_dependencies():
             print("Failed to install PyTorch.")
             return False
     
-    # Install other common dependencies
-    common_deps = [
-        "numpy",
-        "pillow",
-        "matplotlib",
-        "opencv-python",
-        "tqdm",
-        "flask",
-        "requests",
-        "pycocotools>=2.0.8",
-    ]
-    
-    print("Installing common dependencies...")
-    if not run_command(f"pip install {' '.join(common_deps)}"):
+    # Install common dependencies from requirements.txt
+    print("Installing common dependencies from requirements.txt...")
+    if not run_command("pip install -r requirements.txt"):
         print("Failed to install common dependencies.")
         return False
     
