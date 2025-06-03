@@ -1,4 +1,4 @@
-# app/backend/sam_backend2.py
+# project_root/app/backend/sam_backend2.py
 
 import os
 import torch
@@ -8,6 +8,22 @@ from typing import Optional, List, Tuple, Dict, Any, Union, Callable
 import hashlib
 import base64
 from io import BytesIO
+import logging
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+
+# Configure logging if not already configured
+if not logger.handlers:
+    # Create console handler with formatting
+    console_handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.INFO)
 
 # Attempt to import SAM2 components. Ensure 'sam2' is in PYTHONPATH or installed.
 try:
@@ -17,20 +33,9 @@ try:
 except ImportError:
     raise ImportError("SAM2 library not found. Make sure it's installed and in your PYTHONPATH.")
 
-# --- Import new utility functions ---
-try:
-    from utils.get_model import get_model, MODEL_FILES # MODEL_FILES for available keys
-    from utils.get_model_config import get_config
-except ImportError:
-    # This fallback might be needed if running sam_backend2.py directly for testing
-    # and the project root isn't in PYTHONPATH. For the server, it should find `utils`.
-    import sys
-    # Assuming utils is one level up from Modules
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from utils.get_model import get_model, MODEL_FILES
-    from utils.get_model_config import get_config
-# --- End new utility imports ---
-
+# Utility functions imports
+from utils.get_model import get_model, MODEL_FILES # MODEL_FILES for available keys
+from utils.get_model_config import get_config
 
 class ModelNotLoadedError(Exception):
     """Exception raised when trying to use the model before it's loaded"""
@@ -83,7 +88,7 @@ class SAMInference:
         
         # Device management
         self.device = self._get_device() if device is None else torch.device(device)
-        print(f"Using device: {self.device}")
+        logger.info(f"Using device: {self.device}")      
 
         # Image state
         self.image_np: Optional[np.ndarray] = None
@@ -108,14 +113,17 @@ class SAMInference:
         """Auto-detect the best available device for inference."""
         if torch.cuda.is_available():
             device = torch.device("cuda")
+            logger.debug(f"CUDA device detected: {torch.cuda.get_device_name(0)}")  
             if torch.cuda.get_device_properties(0).major >= 8: # Ampere and newer
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
+                logger.debug("Enabled TF32 for Ampere+ GPU")
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             device = torch.device("mps")
-            print(
-                "\nSupport for MPS devices is preliminary. SAM 2 is trained with CUDA and might "
-                "give numerically different outputs and sometimes degraded performance on MPS. "
+            logger.debug("MPS device detected")
+            logger.warning(
+                "Support for MPS devices is preliminary. SAM 2 is trained with CUDA and might "
+                "give numerically different outputs and sometimes degraded performance on MPS."
             )
         else:
             device = torch.device("cpu")
@@ -155,13 +163,13 @@ class SAMInference:
         resolved_config_path = None
 
         if model_path_override:
-            print(f"Using model path override: {model_path_override}")
+            logger.debug(f"Using model path override: {model_path_override}")
             resolved_model_path = model_path_override
             # Try to get config from this path, or use override
             resolved_config_path = config_path_override or get_config(resolved_model_path)
             self.current_model_size_key = None # Overridden, so no specific key
         elif model_size_key:
-            print(f"Attempting to load model for size: {model_size_key}")
+            logger.info(f"Attempting to load model for size: {model_size_key}")
             # Create a wrapper progress callback that adds model loading context
             wrapped_progress_callback = None
             if progress_callback:
@@ -180,7 +188,7 @@ class SAMInference:
                         progress_callback(progress_percentage, downloaded_bytes, total_bytes)
                     except Exception as e:
                         # Don't let progress callback errors interrupt model loading
-                        print(f"Progress callback error: {e}")
+                        logger.error(f"Progress callback error: {e}")
             
             # Pass progress callback through to get_model
             resolved_model_path = get_model(
@@ -194,19 +202,19 @@ class SAMInference:
                 resolved_config_path = config_path_override or get_config(resolved_model_path)
             self.current_model_size_key = model_size_key
         else:
-            print("Error: Either model_size_key or model_path_override must be provided.")
+            logger.error("Error: Either model_size_key or model_path_override must be provided.")
             return False
 
         if not resolved_model_path or not os.path.exists(resolved_model_path):
-            print(f"Error: Model path '{resolved_model_path}' could not be resolved or does not exist.")
+            logger.error(f"Error: Model path '{resolved_model_path}' could not be resolved or does not exist.")
             return False
         if not resolved_config_path or not os.path.exists(resolved_config_path):
-            print(f"Error: Config path '{resolved_config_path}' could not be resolved or does not exist.")
+            logger.error(f"Error: Config path '{resolved_config_path}' could not be resolved or does not exist.")
             return False
 
         try:
-            print(f"Loading model from: {resolved_model_path}")
-            print(f"Using config: {resolved_config_path}")
+            logger.debug(f"Loading model from: {resolved_model_path}")
+            logger.debug(f"Using config: {resolved_config_path}")
             
             # Notify progress callback that model building is starting (if callback provided)
             if progress_callback:
@@ -214,7 +222,7 @@ class SAMInference:
                     # Signal that download is complete and model building is starting
                     progress_callback(100.0, 0, 0)  # 100% download, now building model
                 except Exception as e:
-                    print(f"Progress callback error during model building notification: {e}")
+                    logger.error(f"Progress callback error during model building notification: {e}")
             
             # Build the model
             if self.device.type == "cuda":
@@ -254,17 +262,17 @@ class SAMInference:
             
             # Reload image if one was previously set
             if previous_image[0] is not None:
-                print("Reloading image onto new model...")
+                logger.info("Reloading image onto new model...")
                 if previous_image[1]:  # If we have the original path
                     self.set_image(previous_image[1])
                 else:  # If we only have the numpy array
                     self.set_image(previous_image[0])
             
-            print(f"Model '{self.current_model_size_key or os.path.basename(self.current_model_path)}' loaded successfully.")
+            logger.info(f"Model '{self.current_model_size_key or os.path.basename(self.current_model_path)}' loaded successfully.")
             return True
             
         except Exception as e:
-            print(f"Error loading model: {e}")
+            logger.exception(f"Error loading model: {e}")
             # Rollback to previous state
             (self.model, self.current_model_size_key, self.current_model_path, 
              self.current_config_path, self.apply_postprocessing) = previous_model_state
@@ -297,13 +305,14 @@ class SAMInference:
         Returns:
             True if predictor created successfully, False otherwise.
         """
+        logger.debug(f"Creating predictor with args: {self.predictor_args}")
+
         if self.model is None:
-            print("Cannot create predictor: Model not loaded.")
-            return False
-            
+            logger.error("Cannot create predictor: Model not loaded.")
+            return False            
         # Handle exclusive mode
         if self.exclusive_mode and self.automatic_mask_generator is not None:
-            print("Exclusive mode: Unloading automatic mask generator to create predictor.")
+            logger.info("Exclusive mode: Unloading automatic mask generator to create predictor.")
             self._unload_automatic_mask_generator()
             
         try:
@@ -320,10 +329,10 @@ class SAMInference:
             if self.image_np is not None:
                 self.predictor.set_image(self.image_np)
                 
-            print("Predictor created/updated.")
+            logger.info("Predictor created/updated successfully.")
             return True
         except Exception as e:
-            print(f"Error creating predictor: {e}")
+            logger.exception(f"Error creating predictor: {e}")
             return False
     
     def create_automatic_mask_generator(self, 
@@ -379,13 +388,15 @@ class SAMInference:
         Returns:
             True if automatic mask generator created successfully, False otherwise.
         """
+        logger.debug(f"Creating automask generator with args: {self.automatic_mask_generator_args}")
+
         if self.model is None:
-            print("Cannot create automatic mask generator: Model not loaded.")
+            logger.error("Cannot create automatic mask generator: Model not loaded.")
             return False
             
         # Handle exclusive mode
         if self.exclusive_mode and self.predictor is not None:
-            print("Exclusive mode: Unloading predictor to create automatic mask generator.")
+            logger.info("Exclusive mode: Unloading predictor to create automatic mask generator.")
             self._unload_predictor()
             
         try:
@@ -411,10 +422,10 @@ class SAMInference:
             self.automatic_mask_generator = SAM2AutomaticMaskGenerator(self.model, **self.automatic_mask_generator_args)
             self.active_inference_type = 'automask'
             
-            print("Automatic mask generator created/updated.")
+            logger.info("Automatic mask generator created/updated successfully.")
             return True
         except Exception as e:
-            print(f"Error creating automatic mask generator: {e}")
+            logger.exception(f"Error creating automatic mask generator: {e}")
             return False
 
     def _unload_predictor(self) -> None:
@@ -423,7 +434,7 @@ class SAMInference:
             self.predictor = None
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
-            print("Predictor unloaded.")
+            logger.debug("Predictor unloaded successfully.")
 
     def _unload_automatic_mask_generator(self) -> None:
         """Unload the automatic mask generator to free memory."""
@@ -431,7 +442,7 @@ class SAMInference:
             self.automatic_mask_generator = None
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
-            print("Automatic mask generator unloaded.")
+            logger.debug("Automatic mask generator unloaded successfully.")
 
     def set_exclusive_mode(self, exclusive: bool) -> None:
         """
@@ -441,7 +452,7 @@ class SAMInference:
             exclusive: If True, only one inference object can be loaded at a time.
         """
         self.exclusive_mode = exclusive
-        print(f"Exclusive mode set to: {exclusive}")
+        logger.info(f"Exclusive mode set to: {exclusive}")
 
     def get_inference_status(self) -> Dict[str, Any]:
         """
@@ -492,7 +503,7 @@ class SAMInference:
             # Process image data
             if isinstance(image_data, str):
                 if not os.path.exists(image_data):
-                    print(f"Image path does not exist: {image_data}")
+                    logger.error(f"Image path does not exist: {image_data}")
                     return False
                 self.image_path = image_data
                 pil_image = Image.open(image_data).convert("RGB")
@@ -504,7 +515,7 @@ class SAMInference:
                 self.image_np = image_data
                 self.image_path = None
             else:
-                print("Invalid image data type. Must be path, PIL Image, or numpy array.")
+                logger.error("Invalid image data type. Must be path, PIL Image, or numpy array.")
                 return False
 
             # Calculate image hash for identification
@@ -524,10 +535,10 @@ class SAMInference:
             self.scores = None
             self.logits = None
             
-            print(f"Image set successfully. Shape: {self.image_np.shape}, Hash: {self.image_hash[:8]}...")
+            logger.debug(f"Image set successfully. Shape: {self.image_np.shape}, Hash: {self.image_hash[:8]}...")
             return True
         except Exception as e:
-            print(f"Error setting image: {e}")
+            logger.exception(f"Error setting image: {e}")
             self.image_np = None
             self.image_path = None
             self.image_hash = None
@@ -554,7 +565,7 @@ class SAMInference:
             
             return f"data:image/jpeg;base64,{img_base64}"
         except Exception as e:
-            print(f"Error converting image to base64: {e}")
+            logger.exception(f"Error converting image to base64: {e}")
             return None
 
     def predict(self, 
@@ -595,6 +606,8 @@ class SAMInference:
             - logits: Array of shape CxHxW with low resolution logits (can be passed to subsequent iteration as mask input)
             Returns None if prediction fails.
         """
+        logger.debug(f"Prediction inputs - points: {point_coords is not None}, box: {box is not None}, mask_input: {mask_input is not None}")
+
         if self.predictor is None:
             if self.model is None:
                 raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
@@ -608,7 +621,7 @@ class SAMInference:
             # Ensure predictor is active in exclusive mode
             if self.exclusive_mode and self.active_inference_type != 'predictor':
                 if not self.create_predictor(**self.predictor_args):
-                    print("Failed to activate predictor in exclusive mode.")
+                    logger.error("Failed to activate predictor in exclusive mode.")
                     return None
             
             # Convert inputs to numpy arrays if provided
@@ -650,6 +663,7 @@ class SAMInference:
             
             # Sort results by score if multiple masks and scores available
             if scores is not None and len(scores) > 1:
+                logger.debug(f"Sorting {len(scores)} masks by score: {scores}")
                 sorted_ind = np.argsort(scores)[::-1]
                 masks = masks[sorted_ind]
                 scores = scores[sorted_ind]
@@ -663,7 +677,7 @@ class SAMInference:
             
             return (masks, scores, logits)
         except Exception as e:
-            print(f"Error during prediction: {e}")
+            logger.exception(f"Error during prediction: {e}")
             return None
     
     def generate_auto_masks(self, image_data: Optional[Union[str, np.ndarray, Image.Image]] = None, 
@@ -700,7 +714,7 @@ class SAMInference:
         if image_data is not None:
             if isinstance(image_data, str):
                 if not os.path.exists(image_data): 
-                    print(f"Provided image path does not exist: {image_data}")
+                    logger.error(f"Provided image path does not exist: {image_data}")
                     return None
                 target_image_np = np.array(Image.open(image_data).convert("RGB"))
             elif isinstance(image_data, Image.Image):
@@ -708,7 +722,7 @@ class SAMInference:
             elif isinstance(image_data, np.ndarray):
                 target_image_np = image_data
             else:
-                print("Invalid image_data type. Must be path, PIL Image, or numpy array.")
+                logger.error("Invalid image_data type. Must be path, PIL Image, or numpy array.")
                 return None
         else:
             target_image_np = self.image_np
@@ -718,14 +732,14 @@ class SAMInference:
 
         # Handle automask generator creation/updating
         if self.automatic_mask_generator is None:
-            print("Automatic mask generator not found. Creating with default parameters...")
+            logger.info("Automatic mask generator not found. Creating with default parameters...")
             if not self.create_automatic_mask_generator():
-                print("Failed to create automatic mask generator.")
+                logger.error("Failed to create automatic mask generator.")
                 return None
         elif self.exclusive_mode and self.active_inference_type != 'automask':
             # Reactivate automask generator in exclusive mode
             if not self.create_automatic_mask_generator(**self.automatic_mask_generator_args):
-                print("Failed to reactivate automatic mask generator in exclusive mode.")
+                logger.error("Failed to reactivate automatic mask generator in exclusive mode.")
                 return None
         
         # Update generator with temporary kwargs if provided
@@ -737,9 +751,9 @@ class SAMInference:
                 temp_args.update(kwargs)
                 temp_generator = SAM2AutomaticMaskGenerator(self.model, **temp_args)
                 generator_to_use = temp_generator
-                print(f"Using temporary generator with modified parameters: {list(kwargs.keys())}")
+                logger.debug(f"Using temporary generator with modified parameters: {list(kwargs.keys())}")
             except Exception as e:
-                print(f"Failed to create temporary generator with kwargs: {e}")
+                logger.error(f"Failed to create temporary generator with kwargs: {e}")
                 generator_to_use = self.automatic_mask_generator
         else:
             generator_to_use = self.automatic_mask_generator
@@ -753,10 +767,10 @@ class SAMInference:
             else:
                 generated_masks = generator_to_use.generate(target_image_np)
                 
-            print(f"Generated {len(generated_masks)} automatic masks.")
+            logger.debug(f"Generated {len(generated_masks)} automatic masks.")
             return generated_masks
         except Exception as e:
-            print(f"Error generating masks: {e}")
+            logger.exception(f"Error generating masks: {e}")
             return None
         finally:
             # Clean up temporary generator
@@ -825,7 +839,7 @@ class SAMInference:
                 model_sizes.remove("base")
             return sorted(model_sizes)
         except Exception as e:
-            print(f"Error getting available model keys: {e}")
+            logger.exception(f"Error getting available model keys: {e}")
             return []
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -861,7 +875,7 @@ class SAMInference:
             masks = self.masks
             
         if masks is None:
-            print("No masks available for export.")
+            logger.info("No masks available for export.")
             return None
             
         try:
@@ -892,7 +906,7 @@ class SAMInference:
                             "counts": rle["counts"].decode("utf-8") if isinstance(rle["counts"], bytes) else rle["counts"]
                         }
                     except ImportError:
-                        print("pycocotools not available for COCO RLE format. Using regular RLE.")
+                        logger.info("pycocotools not available for COCO RLE format. Using regular RLE.")
                         mask_tensor = torch.from_numpy(mask.astype(bool)).unsqueeze(0)
                         rle = mask_to_rle_pytorch(mask_tensor)[0]
                         mask_dict["segmentation"] = {
@@ -908,7 +922,7 @@ class SAMInference:
                 
             return export_masks
         except Exception as e:
-            print(f"Error preparing masks for export: {e}")
+            logger.exception(f"Error preparing masks for export: {e}")
             return None
 
     def reset_inference_state(self) -> None:
@@ -918,7 +932,7 @@ class SAMInference:
         self.masks = None
         self.scores = None
         self.logits = None
-        print("Inference state reset.")
+        logger.debug("Inference state reset.")
 
     def cleanup(self) -> None:
         """
@@ -943,7 +957,7 @@ class SAMInference:
             if hasattr(torch.mps, 'empty_cache'):
                 torch.mps.empty_cache()
                 
-        print("SAMInference resources cleaned up.")
+        logger.debug("SAMInference resources cleaned up.")
 
     def __del__(self):
         """Destructor to ensure cleanup when object is deleted."""
