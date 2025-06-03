@@ -16,10 +16,9 @@ if __name__ == '__main__':
                              help="Host to bind the server to.")
     parser_main.add_argument('--port', type=int, default=5000,
                              help="Port to run the server on.")
-    parser_main.add_argument('--no-debug', action='store_false', dest='debug',
-                             help="Disable debug mode for the Flask server.")
-    parser_main.set_defaults(debug=True)
-    
+    parser_main.add_argument('--debug', action='store_true', dest='debug',
+                             help="Enable debug mode for the Flask server.")
+    parser_main.set_defaults(debug=False)
     cli_args = parser_main.parse_args()
 
     run_server(
