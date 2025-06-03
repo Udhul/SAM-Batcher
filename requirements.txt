@@ -5,3 +5,4 @@ opencv-python
 flask
 requests
 pycocotools>=2.0.8
+haikunator
