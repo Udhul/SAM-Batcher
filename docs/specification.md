@@ -1,4 +1,4 @@
-## SAM2 Image Masking Web Application: Technical Specification
+# SAM2 Image Masking Web Application: <br> Conceptual Design and Technical Specification
 
 **Version:** 1.0
 **Date:** June 1, 2025
@@ -32,7 +32,7 @@
 
 ---
 
-### 1. Introduction and Goals
+## 1. Introduction and Goals
 
 This document outlines the technical specification for a web-based application enabling users to create image segmentation masks using the SAM2 framework. The application will provide an intuitive interface for managing image datasets, selecting SAM2 models, interactively generating and refining masks, and exporting the results.
 
@@ -45,7 +45,7 @@ This document outlines the technical specification for a web-based application e
 
 ---
 
-### 2. System Architecture
+## 2. System Architecture
 
 The system will employ a client-server architecture.
 
@@ -82,7 +82,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 3. Key Concepts and Terminology
+## 3. Key Concepts and Terminology
 
 *   **Project:** A user-defined collection of image sources, associated masks, and settings. Each project has its own state database.
 *   **Image Source:** A location from which images are drawn (e.g., client upload, server folder, URL, Azure Blob URI).
@@ -95,7 +95,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 4. Detailed Workflow and Feature Breakdown
+## 4. Detailed Workflow and Feature Breakdown
 
 **4.1. Project Management**
 
@@ -281,7 +281,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 5. API Endpoint Specification (Summary - details derived from workflow)
+## 5. API Endpoint Specification (Summary - details derived from workflow)
 
 **Project Management:**
 *   `POST /api/project` (Create)
@@ -325,7 +325,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 6. Data Model and Persistence
+## 6. Data Model and Persistence
 
 **6.1. Project State Database (e.g., SQLite)**
 
@@ -388,7 +388,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 7. Error Handling and Robustness
+## 7. Error Handling and Robustness
 
 *   **Client-Side:**
     *   Display user-friendly error messages from server responses.
@@ -409,7 +409,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 8. Security Considerations
+## 8. Security Considerations
 
 *   **Input Sanitization:**
     *   Server-side paths: Ensure paths provided by users (for server folders) are validated and restricted to prevent directory traversal attacks (e.g., resolve to absolute path and check if it's within an allowed base directory).
@@ -424,7 +424,7 @@ The system will employ a client-server architecture.
 
 ---
 
-### 9. Future Considerations
+## 9. Future Considerations
 
 *   **Multi-user Collaboration:** Locking mechanisms, real-time updates (WebSockets).
 *   **Advanced Credential Management:** Integration with Azure Key Vault or similar.
