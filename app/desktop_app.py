@@ -31,7 +31,7 @@ from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkRe
 # Attempt to import SAMInference for local mode
 SAM_INFERENCE_AVAILABLE = False
 try:
-    from Modules.sam_backend2 import SAMInference
+    from app.backend.sam_backend2 import SAMInference
     SAM_INFERENCE_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: SAMInference module not found, local mode will be disabled. Error: {e}")
@@ -1178,8 +1178,12 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
-if __name__ == "__main__":
+def run_app():
     app = QApplication(sys.argv)
     main_window = MainWindow()
     # main_window.show() # Moved into _select_mode_and_initialize after dialog
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    run_app()
