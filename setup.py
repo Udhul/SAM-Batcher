@@ -167,6 +167,7 @@ def install_dependencies():
         "tqdm",
         "flask",
         "requests",
+        "pycocotools>=2.0.8",
     ]
     
     print("Installing common dependencies...")

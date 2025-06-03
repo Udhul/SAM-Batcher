@@ -13,3 +13,4 @@ dependencies:
     - gradio
     - flask
     - requests
+    - pycocotools>=2.0.8
