@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# server.py
+# app/backend/server.py
 
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import numpy as np
@@ -9,7 +9,7 @@ import io
 import base64
 import argparse # For command-line arguments
 
-from Modules.sam_backend2 import SAMInference 
+from app.backend.sam_backend2 import SAMInference 
 # Visualizer functions are no longer needed here for mask generation
 # from Modules.mask_visualizer import mask_to_base64_png, get_random_color, generate_mask_overlay_colors 
 

@@ -1,4 +1,4 @@
-# Modules/sam_backend2.py
+# app/backend/sam_backend2.py
 
 import os
 import torch
