@@ -10,7 +10,7 @@ dependencies:
   - pip:
     - torch==2.5.1
     - torchvision==0.20.1
-    - gradio
+    - tqdm
     - flask
     - requests
     - pycocotools>=2.0.8
