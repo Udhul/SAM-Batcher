@@ -4,7 +4,7 @@ import os
 import torch
 import numpy as np
 from PIL import Image
-from typing import Optional, List, Tuple, Dict, Any, Union
+from typing import Optional, List, Tuple, Dict, Any, Union, Callable
 import hashlib
 import base64
 from io import BytesIO
@@ -125,7 +125,8 @@ class SAMInference:
                    model_path_override: Optional[str] = None, 
                    config_path_override: Optional[str] = None, 
                    apply_postprocessing: bool = True,
-                   force_download: bool = False) -> bool:
+                   force_download: bool = False,
+                   progress_callback: Optional[Callable[[float, int, int], None]] = None) -> bool:
         """
         Load a SAM2 model using utils/get_model.py and utils/get_model_config.py.
         When a new model is loaded, any existing image will be automatically reloaded onto the new model.
@@ -136,6 +137,9 @@ class SAMInference:
             config_path_override: Direct path to config file.
             apply_postprocessing: Whether to apply postprocessing in build_sam2.
             force_download: Force download if using model_size_key.
+            progress_callback: Optional callback for download progress tracking.
+                            Called with (progress_percentage, downloaded_bytes, total_bytes).
+                            Suitable for frontend progress display integration.
             
         Returns:
             True if model loaded successfully, False otherwise.
@@ -158,9 +162,33 @@ class SAMInference:
             self.current_model_size_key = None # Overridden, so no specific key
         elif model_size_key:
             print(f"Attempting to load model for size: {model_size_key}")
-            # The output_dir for get_model and get_config will be resolved by those functions
-            # based on their internal defaults (e.g., Modules/sam2/checkpoints)
-            resolved_model_path = get_model(model_size=model_size_key, force_download=force_download)
+            # Create a wrapper progress callback that adds model loading context
+            wrapped_progress_callback = None
+            if progress_callback:
+                def wrapped_progress_callback(progress_percentage: float, downloaded_bytes: int, total_bytes: int):
+                    """
+                    Wrapper for progress callback that ensures compatibility with frontend integration.
+                    Provides download progress with model context.
+                    
+                    Args:
+                        progress_percentage: Download progress as percentage (0.0-100.0)
+                        downloaded_bytes: Number of bytes downloaded so far
+                        total_bytes: Total bytes to download
+                    """
+                    try:
+                        # Call the original callback with the exact signature expected by frontend
+                        progress_callback(progress_percentage, downloaded_bytes, total_bytes)
+                    except Exception as e:
+                        # Don't let progress callback errors interrupt model loading
+                        print(f"Progress callback error: {e}")
+            
+            # Pass progress callback through to get_model
+            resolved_model_path = get_model(
+                model_size=model_size_key, 
+                force_download=force_download,
+                progress_callback=wrapped_progress_callback
+            )
+            
             if resolved_model_path:
                 # Try to get config from this path, or use override
                 resolved_config_path = config_path_override or get_config(resolved_model_path)
@@ -180,8 +208,17 @@ class SAMInference:
             print(f"Loading model from: {resolved_model_path}")
             print(f"Using config: {resolved_config_path}")
             
+            # Notify progress callback that model building is starting (if callback provided)
+            if progress_callback:
+                try:
+                    # Signal that download is complete and model building is starting
+                    progress_callback(100.0, 0, 0)  # 100% download, now building model
+                except Exception as e:
+                    print(f"Progress callback error during model building notification: {e}")
+            
             # Build the model
             if self.device.type == "cuda":
+                # TODO: Control precision cast from class attr. depeneding on device
                 with torch.autocast(self.device.type, dtype=torch.bfloat16):
                     new_model = build_sam2(resolved_config_path, resolved_model_path, 
                                            device=self.device, apply_postprocessing=apply_postprocessing)
@@ -474,6 +511,7 @@ class SAMInference:
             self.image_hash = self._calculate_image_hash(image_data)
 
             # Set image on predictor if it exists
+            # TODO: Control precision cast from class attr. depeneding on device
             if self.predictor is not None:
                 if self.device.type == "cuda":
                     with torch.autocast(self.device.type, dtype=torch.bfloat16):
