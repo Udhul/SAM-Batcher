@@ -38,7 +38,7 @@
 /* Opacity Controls within Canvas Toolbar */
 .opacity-controls {
     display: flex;
-    gap: 20px; /* Spacing between individual opacity controls */
+    gap: 15px; /* Spacing between individual opacity controls */
     flex-wrap: wrap;
     margin-left: auto; /* Push to the right side of the toolbar */
 }
@@ -47,7 +47,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px; 
+    gap: 4px;
 }
 
 .opacity-control label {
@@ -189,7 +189,7 @@
 }
 
 /* Canvas Lock Overlay */
-#canvas-lock-overlay {
+#canvas-lock {
     position: absolute;
     top: 0;
     left: 0;
