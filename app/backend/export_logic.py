@@ -1,3 +1,10 @@
+"""Data export helpers for SAM-Batcher projects.
+
+Functions here transform stored mask data into user requested formats such as
+COCO-style JSON or ZIP archives of binary masks.  The module does not touch the
+web layer directly and returns file-like objects to ``server.py`` for delivery.
+"""
+
 # project_root/app/backend/export_logic.py
 import json
 import os
