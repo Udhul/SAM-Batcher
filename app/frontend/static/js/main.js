@@ -32,31 +32,44 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Instantiate Core Modules ---
     // Ensure Utils is available (it's an object with static methods)
-    const utils = window.Utils || Utils; // Assuming utils.js defines a global Utils or exports it
+    const utils = window.Utils; // Assuming utils.js defines a global Utils
 
     const apiClient = new APIClient();
     const stateManager = new StateManager();
-    const uiManager = new UIManager(); // UIManager might use Utils
-    const canvasManager = new CanvasManager(); // CanvasManager might use Utils
-    const modelHandler = new ModelHandler(apiClient, stateManager, uiManager);
-    const projectHandler = new ProjectHandler(apiClient, stateManager, uiManager);
-    const imagePoolHandler = new ImagePoolHandler(apiClient, stateManager, uiManager);
+    const uiManager = new UIManager();
+    const canvasManager = new CanvasManager();
+    
+    // modelHandler.js is a script that self-initializes its DOM listeners.
+    // We don't instantiate it as a class here, but we will need its functions if we were to call them.
+    // For now, it primarily dispatches events that main.js listens to.
+
+    // Instantiate ProjectHandler and ImagePoolHandler if their classes are defined
+    // These might need to be adjusted if they are also self-initializing scripts like modelHandler.
+    // Assuming they are classes as per the plan:
+    const projectHandler = (typeof ProjectHandler === 'function') ? new ProjectHandler(apiClient, stateManager, uiManager, utils) : null;
+    const imagePoolHandler = (typeof ImagePoolHandler === 'function') ? new ImagePoolHandler(apiClient, stateManager, uiManager, utils) : null;
+
 
     // --- (Optional) Make instances globally accessible for debugging ---
-    // window.apiClient = apiClient;
-    // window.stateManager = stateManager;
-    // window.uiManager = uiManager;
-    // window.canvasManager = canvasManager;
-    // window.modelHandler = modelHandler;
-    // window.projectHandler = projectHandler;
-    // window.imagePoolHandler = imagePoolHandler;
+    window.apiClient = apiClient;
+    window.stateManager = stateManager;
+    window.uiManager = uiManager;
+    window.canvasManager = canvasManager;
+    // window.modelHandler = modelHandler; // Not an instance here
+    window.projectHandler = projectHandler;
+    window.imagePoolHandler = imagePoolHandler;
 
-    console.log("All frontend modules instantiated by main.js.");
+    console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
+    if (projectHandler) console.log("Main.js: ProjectHandler instantiated.");
+    if (imagePoolHandler) console.log("Main.js: ImagePoolHandler instantiated.");
 
-    // --- DOM Elements for Global Controls (if any, managed by main.js) ---
+
+    // --- DOM Elements for Global Controls (managed by main.js) ---
+    const imageUploadInput = document.getElementById('image-upload');
+    const imageUploadProgressBar = document.getElementById('image-upload-bar');
+    const imageUploadProgressContainer = document.getElementById('image-upload-progress');
+
     const clearInputsBtn = document.getElementById('clear-inputs-btn');
-    // Automask elements are still here as their handler isn't defined yet.
-    // Ideally, an AutoMaskHandler would manage these.
     const autoMaskBtn = document.getElementById('auto-mask-btn');
     const cancelAutoMaskBtn = document.getElementById('cancel-auto-mask-btn');
     const recoverAutoMaskBtn = document.getElementById('recover-auto-mask-btn');
@@ -67,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl: document.getElementById('auto-mask-status')
     };
     const saveOverlayBtn = document.getElementById('save-masks-btn');
+    const commitMasksBtn = document.getElementById('commit-masks-btn');
+    const exportCocoBtn = document.getElementById('export-coco-btn');
 
 
     // --- Global State Variables for main.js orchestration ---
@@ -78,53 +93,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // == ProjectHandler Events ==
     document.addEventListener('project-created', (event) => {
-        const { projectId, projectName } = event.detail;
-        uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' created.`, 'success');
-        // stateManager.setActiveProject(projectId, projectName); // ProjectHandler should already do this
-        canvasManager.clearAllCanvasInputs(true); // Clear everything for new project
-        imagePoolHandler.clearImagePoolDisplay();
-        modelHandler.fetchAvailableModels(); // Or set to default, ensuring model state is fresh for new project
-        // Any other actions needed when a new project becomes active
+        const { projectId, projectName, projectData } = event.detail;
+        uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' created. ID: ${projectId.substring(0,6)}`, 'success');
+        canvasManager.clearAllCanvasInputs(true);
+        if (imagePoolHandler) imagePoolHandler.clearImagePoolDisplay();
+        // Dispatch event for modelHandler to update based on new (default) project settings
+        utils.dispatchCustomEvent('project-model-settings-update', {
+            modelKey: projectData?.settings?.current_sam_model_key || null,
+            modelPath: projectData?.settings?.current_sam_model_path || null,
+            configPath: projectData?.settings?.current_sam_config_path || null,
+            applyPostprocessing: projectData?.settings?.current_sam_apply_postprocessing === 'true'
+        });
     });
 
     document.addEventListener('project-loaded', (event) => {
         const { projectId, projectName, projectData } = event.detail;
-        // stateManager.setActiveProject(projectId, projectName); // ProjectHandler should already do this
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' loaded.`, 'success');
-        canvasManager.clearAllCanvasInputs(true); // Clear previous project's canvas state
+        canvasManager.clearAllCanvasInputs(true);
 
-        const settings = projectData.settings || {}; // Assuming projectData from backend includes 'settings'
-        modelHandler.setCurrentModelDisplay( // Tell ModelHandler to update based on loaded project's settings
-            settings.current_sam_model_key,
-            settings.current_sam_model_path,
-            settings.current_sam_apply_postprocessing === 'true' // Ensure boolean
-        );
-        imagePoolHandler.loadAndDisplayImagePool(); // Tell ImagePoolHandler to load images for this project
+        const settings = projectData.settings || {};
+        // Dispatch event for modelHandler to update based on loaded project's settings
+        utils.dispatchCustomEvent('project-model-settings-update', {
+            modelKey: settings.current_sam_model_key,
+            modelPath: settings.current_sam_model_path,
+            configPath: settings.current_sam_config_path, // Assuming this exists in settings
+            applyPostprocessing: settings.current_sam_apply_postprocessing === 'true'
+        });
+        if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool();
     });
 
     document.addEventListener('project-load-failed', (event) => {
-        uiManager.showGlobalStatus(`Failed to load project: ${event.detail.error}`, 'error');
+        uiManager.showGlobalStatus(`Failed to load project: ${utils.escapeHTML(event.detail.error)}`, 'error');
     });
 
 
-    // == ModelHandler Events ==
+    // == ModelHandler Events == (modelHandler.js dispatches these)
     document.addEventListener('model-load-initiated', (event) => {
-        const { key } = event.detail;
-        const modelNameToDisplay = key === 'custom' ? 'Custom Model' : (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '));
-        uiManager.showGlobalStatus(`Initiating model load: ${modelNameToDisplay}...`, 'loading', 0);
-        canvasManager.lockCanvas(`Loading ${modelNameToDisplay} model...`);
+        const { name } = event.detail; // Use 'name' from event detail for display
+        uiManager.showGlobalStatus(`Initiating model load: ${utils.escapeHTML(name)}...`, 'loading', 0);
+        canvasManager.lockCanvas(`Loading ${utils.escapeHTML(name)} model...`);
     });
 
     document.addEventListener('model-load-success', (event) => {
         const { model_info, message } = event.detail;
-        uiManager.showGlobalStatus(message || `Model loaded successfully.`, 'success', 5000);
+        uiManager.showGlobalStatus(utils.escapeHTML(message) || `Model loaded successfully.`, 'success', 5000);
         canvasManager.unlockCanvas();
-        canvasManager.clearAllCanvasInputs(false); // New model: clear existing points/masks, but keep image if any
+        // Don't clear canvas inputs here if an image is already loaded. 
+        // Model change might mean user wants to re-predict on current inputs.
+        // canvasManager.clearAllCanvasInputs(false); // Let user decide or clear on new image.
         stateManager.setCurrentLoadedModel(model_info);
     });
 
     document.addEventListener('model-load-error', (event) => {
-        uiManager.showGlobalStatus(`Model load failed: ${event.detail.error}`, 'error');
+        uiManager.showGlobalStatus(`Model load failed: ${utils.escapeHTML(event.detail.error)}`, 'error');
         canvasManager.unlockCanvas();
         stateManager.setCurrentLoadedModel(null);
     });
@@ -132,14 +153,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // == ImagePoolHandler Events ==
     document.addEventListener('active-image-set', (event) => {
         const { imageHash, filename, width, height, imageDataBase64, existingMasks } = event.detail;
-        // stateManager.setActiveImage(imageHash, filename); // ImagePoolHandler should manage this part of state.
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
-            // Process and display existing masks from the loaded image's data
-            processAndDisplayExistingMasks(existingMasks, filename);
+            processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
             uiManager.clearGlobalStatus();
         };
         imageElement.onerror = () => {
@@ -148,26 +167,22 @@ document.addEventListener('DOMContentLoaded', () => {
         imageElement.src = imageDataBase64;
     });
 
-    function processAndDisplayExistingMasks(existingMasks, filename) {
+    function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
         if (existingMasks && existingMasks.length > 0) {
             const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');
             const autoMaskLayers = existingMasks.filter(m => m.layer_type === 'automask');
-
             let loadedMaskMessage = null;
 
             if (finalMasks.length > 0) {
                 const latestFinal = finalMasks.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
                     const maskDataContainer = JSON.parse(latestFinal.mask_data_rle);
-                    // Assuming mask_data_rle for final_edited contains a single mask object that might be
-                    // our placeholder {"type":"raw_list_final","data": binary_array} OR an actual RLE dict
                     let binaryMaskArray = null;
                     if (maskDataContainer && maskDataContainer.type === 'raw_list_final' && maskDataContainer.data) {
                         binaryMaskArray = maskDataContainer.data;
-                    } else if (maskDataContainer && maskDataContainer.counts && maskDataContainer.size) { // Is COCO RLE
-                        // TODO: Implement RLE to Binary conversion here using a utility
-                        // binaryMaskArray = Utils.rleToBinaryMask(maskDataContainer, width, height);
-                        console.warn("RLE to Binary conversion for final_edited masks not yet implemented in main.js.");
+                    } else if (maskDataContainer && maskDataContainer.counts && maskDataContainer.size) {
+                        binaryMaskArray = utils.rleToBinaryMask(maskDataContainer, imgHeight, imgWidth); // Use passed dimensions
+                        if (!binaryMaskArray) console.warn("RLE to Binary conversion for final_edited mask failed.");
                     }
 
                     if (binaryMaskArray) {
@@ -175,18 +190,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         loadedMaskMessage = `Loaded final edited mask for '${utils.escapeHTML(filename)}'.`;
                     }
                 } catch (e) { console.error("Error parsing final_edited mask data:", e); }
-            } else if (autoMaskLayers.length > 0 && !loadedMaskMessage) { // Only load automask if no final_edited was loaded
+            } else if (autoMaskLayers.length > 0 && !loadedMaskMessage) {
                 const latestAuto = autoMaskLayers.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
-                    const allMaskObjectsInLayer = JSON.parse(latestAuto.mask_data_rle); // This is a list of {segmentation_rle, metadata}
+                    const allMaskObjectsInLayer = JSON.parse(latestAuto.mask_data_rle);
                     const binaryMasksForCanvas = allMaskObjectsInLayer.map(item => {
-                        let rleData = item.segmentation_rle;
-                        if (rleData && rleData.type === 'raw_list' && rleData.data) {
-                            return rleData.data; // It's already a binary 2D array
-                        } else if (rleData && rleData.counts && rleData.size) { // Is COCO RLE
-                            // TODO: Implement RLE to Binary conversion here
-                            console.warn("RLE to Binary conversion for automask items not yet implemented in main.js.");
-                            return null;
+                        let rleData = item.segmentation_rle || item; // Backend might send RLE directly or nested
+                        if (rleData && rleData.type === 'raw_list' && rleData.data) { // Already binary
+                            return rleData.data;
+                        } else if (rleData && rleData.counts && rleData.size) { // COCO RLE
+                            const mask = utils.rleToBinaryMask(rleData, imgHeight, imgWidth); // Use passed dimensions
+                            if (!mask) console.warn("RLE to Binary for automask item failed.");
+                            return mask;
                         }
                         return null;
                     }).filter(Boolean);
@@ -203,43 +218,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // == CanvasManager Events ==
-    canvasManager.addEventListener('userInteraction', (event) => {
-        // This event detail contains { points, box, maskInput, imagePresent, filename }
+    canvasManager.addEventListener('canvas-userInteraction', (event) => {
         const canvasInputs = event.detail;
         const currentModel = stateManager.getCurrentLoadedModel();
-        const activeImageHash = stateManager.getActiveImageHash(); // Needed if API uses it
+        const activeImageHash = stateManager.getActiveImageHash();
 
         if (!currentModel || !currentModel.loaded) {
             uiManager.showGlobalStatus("Cannot predict: No model loaded.", "error", 3000);
             return;
         }
-        if (!canvasInputs.imagePresent) return; // No image, nothing to predict on
+        if (!canvasInputs.imagePresent) return;
 
         clearTimeout(predictionDebounceTimer);
         predictionDebounceTimer = setTimeout(() => {
             if (canvasInputs.points.length > 0 || canvasInputs.box || canvasInputs.maskInput) {
                 performInteractivePrediction(canvasInputs, activeImageHash);
             } else {
-                canvasManager.setManualPredictions(null); // No inputs, clear predictions
+                canvasManager.setManualPredictions(null);
             }
-        }, 300); // Debounce for 300ms
+        }, 300);
     });
+
+    canvasManager.addEventListener('canvas-opacityChanged', (event) => {
+        const { layer, value } = event.detail;
+        const valueDisplayId = `${layer}-opacity-value`;
+        const valueDisplayElement = document.getElementById(valueDisplayId);
+        if (valueDisplayElement) {
+            valueDisplayElement.textContent = `${Math.round(value * 100)}%`;
+        }
+    });
+
 
     async function performInteractivePrediction(canvasInputs, imageHashForAPI) {
         canvasManager.lockCanvas("Predicting...");
-        canvasManager.setAutomaskPredictions(null); // Clear automask if doing interactive
+        canvasManager.setAutomaskPredictions(null);
 
         const payload = {
             points: canvasInputs.points.map(p => [p.x, p.y]),
             labels: canvasInputs.points.map(p => p.label),
             box: canvasInputs.box ? [canvasInputs.box.x1, canvasInputs.box.y1, canvasInputs.box.x2, canvasInputs.box.y2] : null,
-            maskInput: canvasInputs.maskInput,
+            maskInput: canvasInputs.maskInput, // This is the 256x256 mask from user-drawn polygons
             multimask_output: true
         };
-        const activeProjectId = stateManager.getActiveProjectId(); // May be null
+        const activeProjectId = stateManager.getActiveProjectId();
 
         try {
-            // Current server /api/predict doesn't use project_id or image_hash
             const data = await apiClient.predictInteractive(activeProjectId, imageHashForAPI, payload);
             if (data.success) {
                 canvasManager.setManualPredictions({ masks_data: data.masks_data, scores: data.scores });
@@ -247,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || "Interactive prediction API error.");
             }
         } catch (error) {
-            uiManager.showGlobalStatus(`Prediction error: ${error.message}`, 'error');
+            uiManager.showGlobalStatus(`Prediction error: ${utils.escapeHTML(error.message)}`, 'error');
             canvasManager.setManualPredictions(null);
         } finally {
             canvasManager.unlockCanvas();
@@ -257,11 +280,69 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global UI Element Listeners (Managed by main.js) ---
     if (clearInputsBtn) {
         clearInputsBtn.addEventListener('click', () => {
-            canvasManager.clearAllCanvasInputs(false); // Clear inputs/predictions, not the image
+            canvasManager.clearAllCanvasInputs(false);
         });
     }
 
-    // == AutoMask Section Logic (To be moved to an AutoMaskHandler eventually) ==
+    if (imageUploadInput) {
+        imageUploadInput.addEventListener('change', handleImageFileUpload);
+    }
+
+    async function handleImageFileUpload(event) {
+        const files = event.target.files;
+        if (!files.length) return;
+
+        const projectId = stateManager.getActiveProjectId();
+        if (!projectId) {
+            uiManager.showGlobalStatus("Please create or load a project before uploading images.", "error");
+            imageUploadInput.value = ''; // Clear the input
+            return;
+        }
+
+        utils.showElement(imageUploadProgressContainer);
+        imageUploadProgressBar.style.width = '0%';
+        imageUploadProgressBar.textContent = '0%';
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        
+        uiManager.showGlobalStatus(`Uploading ${files.length} image(s)...`, 'loading', 0);
+        try {
+            // Simulate progress for now as fetch doesn't support it directly for uploads easily
+            // A more complex XHR solution or server-sent events would be needed for real progress.
+            imageUploadProgressBar.style.width = '50%';
+            imageUploadProgressBar.textContent = '50%';
+
+            const data = await apiClient.addUploadSource(projectId, formData);
+            
+            imageUploadProgressBar.style.width = '100%';
+            imageUploadProgressBar.textContent = '100%';
+
+            if (data.success) {
+                uiManager.showGlobalStatus(`Successfully uploaded ${data.images_added || 0} image(s). Skipped ${data.images_skipped_duplicates || 0}.`, 'success');
+                if (projectHandler) projectHandler.fetchAndDisplayImageSources(); // Notify projectHandler
+                if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool(); // Refresh image pool
+            } else {
+                throw new Error(data.error || "Failed to upload images.");
+            }
+        } catch (error) {
+            uiManager.showGlobalStatus(`Upload error: ${utils.escapeHTML(error.message)}`, 'error');
+            imageUploadProgressBar.style.width = '100%';
+            imageUploadProgressBar.classList.add('error'); // You'd need a CSS class for error state
+            imageUploadProgressBar.textContent = 'Error';
+        } finally {
+            imageUploadInput.value = ''; // Clear the input
+            setTimeout(() => {
+                utils.hideElement(imageUploadProgressContainer);
+                imageUploadProgressBar.classList.remove('error');
+            }, 3000);
+        }
+    }
+
+
+    // == AutoMask Section Logic ==
     if (autoMaskBtn) autoMaskBtn.addEventListener('click', handleRunAutoMask);
     if (cancelAutoMaskBtn) cancelAutoMaskBtn.addEventListener('click', () => {
         if (currentAutoMaskAbortController) currentAutoMaskAbortController.abort();
@@ -278,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             uiManager.showGlobalStatus("Cannot run AutoMask: No model loaded.", "error"); return;
         }
 
-        canvasManager.clearAllCanvasInputs(false); // Clear user inputs/manual predictions
+        canvasManager.clearAllCanvasInputs(false);
 
         const startTime = Date.now();
         if (amgParamsElements.statusEl) {
@@ -291,26 +372,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (recoverAutoMaskBtn) recoverAutoMaskBtn.disabled = true;
 
         currentAutoMaskAbortController = new AbortController();
-
         const amgPayload = {
             points_per_side: amgParamsElements.pointsPerSideEl ? parseInt(amgParamsElements.pointsPerSideEl.value) : 32,
             pred_iou_thresh: amgParamsElements.predIouThreshEl ? parseFloat(amgParamsElements.predIouThreshEl.value) : 0.88,
             stability_score_thresh: amgParamsElements.stabilityScoreThreshEl ? parseFloat(amgParamsElements.stabilityScoreThreshEl.value) : 0.95,
         };
-        const activeProjectId = stateManager.getActiveProjectId(); // Might be null
-        const activeImageHash = stateManager.getActiveImageHash(); // Might be null
+        const activeProjectId = stateManager.getActiveProjectId();
+        const activeImageHash = stateManager.getActiveImageHash();
 
         try {
-            // Current server /api/generate_auto_masks doesn't use project_id or image_hash
             const data = await apiClient.generateAutoMasks(activeProjectId, activeImageHash, amgPayload, currentAutoMaskAbortController.signal);
-
             if (currentAutoMaskAbortController.signal.aborted) {
                 if (amgParamsElements.statusEl) amgParamsElements.statusEl.textContent = "AutoMask cancelled.";
                 uiManager.showGlobalStatus("AutoMask cancelled by user.", "info");
                 return;
             }
             if (data.success) {
-                canvasManager.setAutomaskPredictions(data); // data expected as { masks_data: [...], count: ... }
+                canvasManager.setAutomaskPredictions(data);
                 const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 const statusText = `AutoMask complete (${data.count || 0} masks) in ${duration}s.`;
                 if (amgParamsElements.statusEl) {
@@ -318,8 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     amgParamsElements.statusEl.textContent = statusText;
                 }
                 if (currentCanvasState.filename) {
-                    try {
-                        const storableData = data.masks_data.map(m => ({ segmentation: m.segmentation, area: m.area }));
+                    try { // Store only segmentations for recovery, as other metadata can be large/complex
+                        const storableData = data.masks_data.map(m => ({ segmentation: m.segmentation }));
                         localStorage.setItem(`automask_data_${currentCanvasState.filename}`, JSON.stringify(storableData));
                         localStorage.setItem(`automask_info_${currentCanvasState.filename}`, statusText);
                     } catch (e) {
@@ -333,13 +411,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             if (error.name === 'AbortError') {
                 if (amgParamsElements.statusEl) amgParamsElements.statusEl.textContent = "AutoMask cancelled.";
-                uiManager.showGlobalStatus("AutoMask cancelled by user.", "info");
             } else {
                 if (amgParamsElements.statusEl) {
                     amgParamsElements.statusEl.className = 'status-message error small';
-                    amgParamsElements.statusEl.textContent = `Error: ${error.message}`;
+                    amgParamsElements.statusEl.textContent = `Error: ${utils.escapeHTML(error.message)}`;
                 }
-                uiManager.showGlobalStatus(`AutoMask error: ${error.message}`, 'error');
+                uiManager.showGlobalStatus(`AutoMask error: ${utils.escapeHTML(error.message)}`, 'error');
             }
             canvasManager.setAutomaskPredictions(null);
         } finally {
@@ -362,8 +439,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const recoveredDataString = localStorage.getItem(`automask_data_${currentCanvasState.filename}`);
             const recoveredInfo = localStorage.getItem(`automask_info_${currentCanvasState.filename}`);
             if (recoveredDataString) {
-                const recoveredMasks = JSON.parse(recoveredDataString); // Array of {segmentation, area}
-                canvasManager.setAutomaskPredictions({ masks_data: recoveredMasks, count: recoveredMasks.length });
+                const recoveredMasks = JSON.parse(recoveredDataString);
+                canvasManager.setAutomaskPredictions({ masks_data: recoveredMasks, count: recoveredMasks.length }); // Assuming masks_data structure is compatible
                 if (amgParamsElements.statusEl) {
                     amgParamsElements.statusEl.textContent = "Recovered: " + (recoveredInfo || "Previously generated AutoMask.");
                     amgParamsElements.statusEl.className = 'status-message success small';
@@ -382,8 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveOverlayBtn) {
         saveOverlayBtn.addEventListener('click', () => {
-            // This remains a CanvasManager direct interaction as it's purely visual.
-            // More complex export logic would be in an ExportHandler.
             const currentInputs = canvasManager.getCurrentCanvasInputs();
              if (!currentInputs.imagePresent) {
                 uiManager.showGlobalStatus("No image to save.", "error"); return;
@@ -397,11 +472,11 @@ document.addEventListener('DOMContentLoaded', () => {
             compositeCanvas.width = displayWidth; compositeCanvas.height = displayHeight;
             const compositeCtx = compositeCanvas.getContext('2d');
 
-            compositeCtx.globalAlpha = parseFloat(canvasManager.imageOpacitySlider.value);
+            compositeCtx.globalAlpha = canvasManager.imageOpacitySlider ? parseFloat(canvasManager.imageOpacitySlider.value) : 1.0;
             compositeCtx.drawImage(canvasManager.imageCanvas, 0, 0);
-            compositeCtx.globalAlpha = parseFloat(canvasManager.predictionOpacitySlider.value);
+            compositeCtx.globalAlpha = canvasManager.predictionOpacitySlider ? parseFloat(canvasManager.predictionOpacitySlider.value) : 0.7;
             compositeCtx.drawImage(canvasManager.predictionMaskCanvas, 0, 0);
-            compositeCtx.globalAlpha = parseFloat(canvasManager.userInputOpacitySlider.value);
+            compositeCtx.globalAlpha = canvasManager.userInputOpacitySlider ? parseFloat(canvasManager.userInputOpacitySlider.value) : 0.8;
             compositeCtx.drawImage(canvasManager.userInputCanvas, 0, 0);
             compositeCtx.globalAlpha = 1.0;
 
@@ -417,35 +492,125 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (commitMasksBtn) {
+        commitMasksBtn.addEventListener('click', async () => {
+            const activeProjectId = stateManager.getActiveProjectId();
+            const activeImageHash = stateManager.getActiveImageHash();
+            const canvasState = canvasManager.getCurrentCanvasInputs();
+
+            if (!activeProjectId || !activeImageHash || !canvasState.imagePresent) {
+                uiManager.showGlobalStatus("No active project/image or masks to commit.", "error");
+                return;
+            }
+
+            // Decide which masks to commit:
+            // Option 1: Commit currently displayed predictions (could be manual or auto)
+            // Option 2: Allow user to select from a list (more complex UI needed)
+            // For now, let's assume we commit the "best" manual prediction if available,
+            // or all automasks if those are active.
+            // This logic needs to be refined based on actual UI for mask selection.
+            
+            let masksToCommit = [];
+            if (canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0) {
+                // Example: commit the "best" mask from manual predictions
+                // For a real app, you'd likely have a way for the user to explicitly select THE final mask.
+                const bestMask = canvasManager.manualPredictions[0]; // Assumes sorted by score
+                if (bestMask && bestMask.segmentation) {
+                     masksToCommit.push({ segmentation: bestMask.segmentation, source_layer_ids: ["manual_interactive"], name: "final_mask_0" });
+                }
+            } else if (canvasManager.automaskPredictions && canvasManager.automaskPredictions.length > 0) {
+                // Example: commit all automasks currently displayed
+                masksToCommit = canvasManager.automaskPredictions.map((mask, idx) => ({
+                    segmentation: mask.segmentation,
+                    source_layer_ids: ["automask_generation"],
+                    name: `automask_${idx}`
+                }));
+            }
+
+            if (masksToCommit.length === 0) {
+                uiManager.showGlobalStatus("No masks available on canvas to commit.", "info");
+                return;
+            }
+
+            const payload = {
+                final_masks: masksToCommit, // These should be binary arrays as per current canvasController
+                notes: `Committed on ${new Date().toLocaleString()}`
+            };
+
+            uiManager.showGlobalStatus("Committing masks...", "loading", 0);
+            try {
+                const data = await apiClient.commitMasks(activeProjectId, activeImageHash, payload);
+                if (data.success) {
+                    uiManager.showGlobalStatus(data.message || "Masks committed successfully.", "success");
+                    // Optionally, update image status in the pool
+                    if (imagePoolHandler) imagePoolHandler.handleUpdateImageStatus(activeImageHash, 'completed');
+                } else {
+                    throw new Error(data.error || "Failed to commit masks.");
+                }
+            } catch (error) {
+                uiManager.showGlobalStatus(`Error committing masks: ${utils.escapeHTML(error.message)}`, "error");
+            }
+        });
+    }
+
+    if (exportCocoBtn) {
+        exportCocoBtn.addEventListener('click', async () => {
+            const activeProjectId = stateManager.getActiveProjectId();
+            if (!activeProjectId) {
+                uiManager.showGlobalStatus("No active project to export.", "error");
+                return;
+            }
+
+            // For simplicity, exporting all 'completed' images with 'final_edited' masks
+            // A more complex UI would allow selection of images and mask layers.
+            const payload = {
+                image_hashes: ["all_completed"], // Special keyword for backend
+                format: "coco_rle_json",
+                mask_layers_to_export: ["final_edited"],
+                export_schema: "coco_instance_segmentation"
+            };
+            
+            uiManager.showGlobalStatus("Preparing COCO export...", "loading", 0);
+            try {
+                const data = await apiClient.requestExport(activeProjectId, payload);
+                if (data.success) {
+                    uiManager.showGlobalStatus(data.message || "COCO export initiated.", "success");
+                } else {
+                     throw new Error(data.error || "Failed to initiate COCO export.");
+                }
+            } catch (error) {
+                uiManager.showGlobalStatus(`Export error: ${utils.escapeHTML(error.message)}`, "error");
+            }
+        });
+    }
+
+
     // --- Application Initialization ---
     function initializeApp() {
         uiManager.showGlobalStatus("Application initializing...", 'loading', 0);
 
-        // Initialize expandable sections using UIManager
         document.querySelectorAll('.expandable-section').forEach(section => {
             const header = section.querySelector('.expandable-header');
-            if (header) {
-                const startCollapsed = section.id === 'project-management-expandable' ||
-                                       section.id === 'image-pool-expandable';
-                uiManager.initializeExpandableSection(header, startCollapsed);
+            if (header && uiManager && typeof uiManager.initializeExpandableSection === 'function') {
+                // Determine initial collapsed state. Model loader is expanded by default.
+                const isInitiallyCollapsed = !(section.id === 'model-loader-expandable' || section.id === 'auto-mask-section');
+                uiManager.initializeExpandableSection(header, isInitiallyCollapsed);
             }
         });
+        
+        // Initial opacity setup for sliders if canvasManager handles this
+        // Or, call canvasManager.setupOpacitySliders() if it's not auto-done in constructor
+        // It seems canvasManager.setupOpacitySliders also dispatches initial events, which is good.
 
-        // Sync initial opacity display values
-        const initialImageOpacity = canvasManager.imageOpacitySlider ? parseFloat(canvasManager.imageOpacitySlider.value) : 1.0;
-        const initialPredictionOpacity = canvasManager.predictionOpacitySlider ? parseFloat(canvasManager.predictionOpacitySlider.value) : 0.7;
-        const initialUserInputOpacity = canvasManager.userInputOpacitySlider ? parseFloat(canvasManager.userInputOpacitySlider.value) : 0.8;
+        // Initial calls to handlers to fetch their data
+        // modelHandler.js fetches its own models via DOMContentLoaded.
+        // projectHandler and imagePoolHandler are instantiated above; their constructors might fetch initial data.
+        // If not, call them here:
+        if (projectHandler && typeof projectHandler.fetchAndDisplayProjects === 'function') {
+            projectHandler.fetchAndDisplayProjects();
+        }
+        // Image pool will be loaded when a project becomes active.
 
-        canvasManager.dispatchEvent('opacityChanged', { layer: 'image', value: initialImageOpacity });
-        canvasManager.dispatchEvent('opacityChanged', { layer: 'prediction', value: initialPredictionOpacity });
-        canvasManager.dispatchEvent('opacityChanged', { layer: 'userInput', value: initialUserInputOpacity });
-
-
-        // Initial calls to handlers to fetch their data, or this can be done within their constructors
-        modelHandler.fetchAvailableModels(); // ModelHandler fetches its own list
-        // projectHandler.fetchAndDisplayProjects(); // ProjectHandler would fetch its list
-
-        // For now, show a generic ready message. Project/Image Pool loading will update this.
         uiManager.showGlobalStatus("Ready. Load a model, then an image or project.", 'info', 5000);
     }
 

@@ -9,9 +9,10 @@
  * - Provide methods for each API endpoint defined in specification.md.
  * - Handle request/response formatting (e.g., setting headers, parsing JSON).
  * - Perform basic error handling for network issues or non-OK HTTP statuses.
- * - (Optional) Dispatch events for API request lifecycle (sent, success, error).
+ * - Dispatch events for API request lifecycle (sent, success, error).
  *
- * External Dependencies: None.
+ * External Dependencies:
+ * - utils.js (for dispatchCustomEvent) - Assumed to be globally available as window.Utils
  *
  * Input/Output (I/O):
  * Input:
@@ -19,7 +20,7 @@
  *
  * Output:
  *   - Returns Promises that resolve with the JSON response from the backend or reject with an error.
- *   - (Optional) Custom DOM Events:
+ *   - Custom DOM Events:
  *     - `api-request-sent`: Detail: { endpoint: string, method: string }
  *     - `api-response-received`: Detail: { endpoint: string, data: object }
  *     - `api-error`: Detail: { endpoint: string, error: string, status: number|null }
@@ -27,12 +28,13 @@
 class APIClient {
     constructor(baseUrl = '/api') {
         this.baseUrl = baseUrl;
+        this.Utils = window.Utils || { dispatchCustomEvent: (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail })) };
         console.log("APIClient initialized with baseUrl:", this.baseUrl);
     }
 
     _dispatchEvent(eventType, detail) {
-        const event = new CustomEvent(eventType, { detail });
-        document.dispatchEvent(event);
+        // Use the Utils method for dispatching if available, otherwise direct dispatch
+        this.Utils.dispatchCustomEvent(eventType, detail);
     }
 
     async _request(endpoint, method = 'GET', body = null, signal = null, isFormData = false) {
@@ -61,27 +63,31 @@ class APIClient {
                     errorMsg = errorData.error || errorData.message || errorMsg;
                 } catch (e) { /* Response might not be JSON */ }
                 this._dispatchEvent('api-error', { endpoint, error: errorMsg, status: response.status });
-                throw new Error(errorMsg); // Throw to be caught by calling function
+                // Ensure the error thrown includes the status for better debugging
+                const error = new Error(errorMsg);
+                error.status = response.status;
+                throw error;
             }
 
-            // Handle cases where response might be empty (e.g., 204 No Content)
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
                 const data = await response.json();
                 this._dispatchEvent('api-response-received', { endpoint, data });
-                return data; // Usually { success: true, ... } or { success: false, error: ... }
-            } else {
-                // Handle non-JSON responses if necessary, or assume success if no error was thrown
-                this._dispatchEvent('api-response-received', { endpoint, data: { success: true, message: "Operation successful (no content)" } });
-                return { success: true, message: "Operation successful (no content)" };
+                return data;
+            } else if (response.status === 204) { // No Content
+                 this._dispatchEvent('api-response-received', { endpoint, data: { success: true, message: "Operation successful (No Content)" } });
+                return { success: true, message: "Operation successful (No Content)" };
+            } else { // Handle other non-JSON responses or assume success if no error
+                const textData = await response.text(); // Attempt to get text if not JSON
+                 this._dispatchEvent('api-response-received', { endpoint, data: { success: true, message: "Operation successful (non-JSON response)", raw_response: textData } });
+                return { success: true, message: "Operation successful (non-JSON response)", raw_response: textData };
             }
 
         } catch (error) {
-            // Network errors or errors thrown from !response.ok
-            if (error.name !== 'AbortError') { // Don't dispatch api-error for explicit aborts
-                this._dispatchEvent('api-error', { endpoint, error: error.message, status: null });
+            if (error.name !== 'AbortError') {
+                this._dispatchEvent('api-error', { endpoint, error: error.message, status: error.status || null });
             }
-            throw error; // Re-throw for the calling function to handle UI updates
+            throw error;
         }
     }
 
@@ -95,10 +101,10 @@ class APIClient {
     async loadProject(projectId) {
         return this._request('/project/load', 'POST', { project_id: projectId });
     }
-    async uploadProjectDb(dbFileFormData) { // dbFileFormData is a FormData object
+    async uploadProjectDb(dbFileFormData) {
         return this._request('/project/upload_db', 'POST', dbFileFormData, null, true);
     }
-    async downloadProjectDbUrl(projectId) { // Returns URL string for direct download
+    getDownloadProjectDbUrl(projectId) { // Returns URL string for direct download via <a> tag
         return `${this.baseUrl}/project/download_db?project_id=${projectId}`;
     }
     async getProjectSettings(projectId) {
@@ -122,14 +128,20 @@ class APIClient {
     // async cancelModelLoad(taskId) { ... }
 
     // --- Image Source & Pool Management Endpoints ---
-    async addUploadSource(projectId, filesFormData) { // filesFormData is a FormData object
+    async addUploadSource(projectId, filesFormData) {
         return this._request(`/project/${projectId}/sources/add_upload`, 'POST', filesFormData, null, true);
     }
     async addFolderSource(projectId, folderPath) {
         return this._request(`/project/${projectId}/sources/add_folder`, 'POST', { path: folderPath });
     }
-    // async addUrlSource(projectId, url) { ... }
-    // async addAzureSource(projectId, uri, credentialsAlias) { ... }
+    async addUrlSource(projectId, url) {
+        return this._request(`/project/${projectId}/sources/add_url`, 'POST', { url: url });
+    }
+    async addAzureSource(projectId, uri, credentialsAlias = null) {
+        const payload = { uri: uri };
+        if (credentialsAlias) payload.credentials_alias = credentialsAlias;
+        return this._request(`/project/${projectId}/sources/add_azure`, 'POST', payload);
+    }
     async listImageSources(projectId) {
         return this._request(`/project/${projectId}/sources`);
     }
@@ -147,23 +159,34 @@ class APIClient {
         return this._request(`/project/${projectId}/images/next_unprocessed${query}`);
     }
     async setActiveImage(projectId, imageHash) {
+        // This endpoint returns image data, dimensions, existing masks, etc.
         return this._request(`/project/${projectId}/images/set_active`, 'POST', { image_hash: imageHash });
     }
     async updateImageStatus(projectId, imageHash, status) {
         return this._request(`/project/${projectId}/images/${imageHash}/status`, 'PUT', { status });
     }
-    async getImageThumbnailUrl(projectId, imageHash) { // Returns URL string
-        return `${this.baseUrl}/image/thumbnail/${projectId}/${imageHash}`;
+    getImageThumbnailUrl(projectId, imageHash) { // Returns URL string
+        return `${this.baseUrl}/image/thumbnail/${projectId}/${imageHash}`; // Corrected, assuming endpoint exists
+    }
+    async getImageData(projectId, imageHash) { // If raw image data needed separately
+         return this._request(`/project/${projectId}/images/${imageHash}/data`);
     }
 
 
     // --- Annotation Endpoints ---
     async generateAutoMasks(projectId, imageHash, amgParams = {}, signal = null) {
-        return this._request(`/project/${projectId}/images/${imageHash}/automask`, 'POST', amgParams, signal);
+        // Ensure projectId and imageHash are part of the URL as per spec for consistency
+        const endpoint = (projectId && imageHash)
+            ? `/project/${projectId}/images/${imageHash}/automask`
+            : '/automask'; // Fallback if project context isn't strictly used by backend for this yet
+        return this._request(endpoint, 'POST', amgParams, signal);
     }
     async predictInteractive(projectId, imageHash, payload, signal = null) {
         // payload: { points, labels, box, maskInput, multimask_output }
-        return this._request(`/project/${projectId}/images/${imageHash}/predict_interactive`, 'POST', payload, signal);
+        const endpoint = (projectId && imageHash)
+            ? `/project/${projectId}/images/${imageHash}/predict_interactive`
+            : '/predict_interactive'; // Fallback
+        return this._request(endpoint, 'POST', payload, signal);
     }
     async commitMasks(projectId, imageHash, payload) {
         // payload: { final_masks: [...], notes: "..." }
@@ -178,9 +201,6 @@ class APIClient {
     // --- Export Endpoints ---
     async requestExport(projectId, payload) {
         // payload: { image_hashes, format, mask_layers_to_export, export_schema }
-        // This endpoint on the server might return a direct file or a download URL for async.
-        // The current server.py directly returns the file.
-        // This client method needs to handle a file download response.
         const url = `${this.baseUrl}/project/${projectId}/export`;
         this._dispatchEvent('api-request-sent', { endpoint: `/project/${projectId}/export`, method: 'POST' });
         try {
@@ -194,7 +214,9 @@ class APIClient {
                 let errorMsg = `Export Error: ${response.status} ${response.statusText}`;
                 try { const errorData = await response.json(); errorMsg = errorData.error || errorData.message || errorMsg; } catch (e) {}
                 this._dispatchEvent('api-error', { endpoint: `/project/${projectId}/export`, error: errorMsg, status: response.status });
-                throw new Error(errorMsg);
+                const error = new Error(errorMsg);
+                error.status = response.status;
+                throw error;
             }
 
             // Trigger file download
@@ -221,13 +243,14 @@ class APIClient {
             return { success: true, message: `Export '${filename}' initiated.` };
 
         } catch (error) {
-            this._dispatchEvent('api-error', { endpoint: `/project/${projectId}/export`, error: error.message, status: null });
+            this._dispatchEvent('api-error', { endpoint: `/project/${projectId}/export`, error: error.message, status: error.status || null });
             throw error;
         }
     }
 }
 
-// Instantiate when DOM is ready, typically done by main.js
+// Instantiate when DOM is ready and make it globally accessible
+// This is typically handled by main.js, but for direct use:
 // document.addEventListener('DOMContentLoaded', () => {
 //     if (!window.apiClient) {
 //         window.apiClient = new APIClient();

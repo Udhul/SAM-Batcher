@@ -6,6 +6,7 @@
  *
  * Responsibilities:
  * - Provide helper functions for DOM manipulation, data formatting, debouncing/throttling, etc.
+ * - Offer utility for RLE decoding (placeholder for full implementation).
  *
  * External Dependencies: None.
  */
@@ -29,31 +30,18 @@ const Utils = {
 
     /**
      * Throttles a function, ensuring it's called at most once within a specified time window.
+     * (Leading edge execution, subsequent calls in window are ignored until window passes)
      * @param {Function} func - The function to throttle.
      * @param {number} limit - The throttle time window in milliseconds.
      * @returns {Function} The throttled function.
      */
     throttle: (func, limit) => {
-        let inThrottle;
-        let lastFunc;
-        let lastRan;
+        let inThrottle = false;
         return function(...args) {
-            const context = this;
             if (!inThrottle) {
-                func.apply(context, args);
-                lastRan = Date.now();
+                func.apply(this, args);
                 inThrottle = true;
-                setTimeout(() => {
-                    inThrottle = false;
-                    if (lastFunc) {
-                        lastFunc.apply(context, args); // Run the last stored call
-                        lastRan = Date.now();
-                        lastFunc = null; // Clear it
-                    }
-                }, limit);
-            } else {
-                // Store the latest call to run after throttle period
-                lastFunc = func;
+                setTimeout(() => inThrottle = false, limit);
             }
         };
     },
@@ -64,7 +52,7 @@ const Utils = {
      * @returns {string} A unique ID string.
      */
     generateUniqueId: (prefix = 'id_') => {
-        return prefix + Math.random().toString(36).substr(2, 9);
+        return prefix + Math.random().toString(36).substring(2, 9);
     },
 
     /**
@@ -74,7 +62,7 @@ const Utils = {
      */
     showElement: (elOrSelector, displayStyle = 'block') => {
         const el = typeof elOrSelector === 'string' ? document.querySelector(elOrSelector) : elOrSelector;
-        if (el) el.style.display = displayStyle;
+        if (el && el.style) el.style.display = displayStyle;
     },
 
     /**
@@ -83,7 +71,7 @@ const Utils = {
      */
     hideElement: (elOrSelector) => {
         const el = typeof elOrSelector === 'string' ? document.querySelector(elOrSelector) : elOrSelector;
-        if (el) el.style.display = 'none';
+        if (el && el.style) el.style.display = 'none';
     },
 
     /**
@@ -94,7 +82,7 @@ const Utils = {
      */
     toggleClass: (elOrSelector, className, force) => {
         const el = typeof elOrSelector === 'string' ? document.querySelector(elOrSelector) : elOrSelector;
-        if (el) el.classList.toggle(className, force);
+        if (el && el.classList) el.classList.toggle(className, force);
     },
 
     /**
@@ -104,6 +92,7 @@ const Utils = {
      * @returns {string} Human-readable file size.
      */
     formatFileSize: (bytes, decimals = 2) => {
+        if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return 'N/A';
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
         const dm = decimals < 0 ? 0 : decimals;
@@ -114,18 +103,17 @@ const Utils = {
 
     /**
      * Sanitizes a string to prevent basic XSS by escaping HTML characters.
-     * More robust sanitization should be done server-side or with a dedicated library.
      * @param {string} str - The string to sanitize.
      * @returns {string} The sanitized string.
      */
     escapeHTML: (str) => {
         if (str === null || str === undefined) return '';
         return String(str)
-            .replace(/&/g, '&')
+            .replace(/&/g, '&') // Must be first
             .replace(/</g, '<')
             .replace(/>/g, '>')
             .replace(/"/g, '"')
-            .replace(/'/g, "'");
+            .replace(/'/g, "'"); // Or '
     },
 
     /**
@@ -135,11 +123,78 @@ const Utils = {
      * @param {EventTarget} [target=document] - The target to dispatch the event on.
      */
     dispatchCustomEvent: (eventName, detail, target = document) => {
+        if (!target || typeof target.dispatchEvent !== 'function') {
+            console.warn(`Cannot dispatch event '${eventName}' on invalid target:`, target);
+            return;
+        }
         const event = new CustomEvent(eventName, { detail });
         target.dispatchEvent(event);
+    },
+
+    /**
+     * Decodes a COCO RLE (Run-Length Encoding) object into a 2D binary mask.
+     * THIS IS A PLACEHOLDER and needs a full, correct COCO RLE implementation.
+     * @param {object} rle - The RLE object { counts: number[], size: [height, width] }.
+     * @param {number} height - Expected height of the mask.
+     * @param {number} width - Expected width of the mask.
+     * @returns {Array<Array<number>>|null} A 2D binary mask array (0s and 1s) or null on error.
+     */
+    rleToBinaryMask: (rle, height, width) => {
+        if (!rle || !rle.counts || !rle.size || rle.size.length !== 2) {
+            console.error("Invalid RLE object for decoding:", rle);
+            return null;
+        }
+        if (rle.size[0] !== height || rle.size[1] !== width) {
+            // This check is important but might be too strict if the RLE is for a sub-region.
+            // For SAM, masks are usually full image size.
+            console.warn("RLE size does not match target dimensions. RLE:", rle.size, "Target:", [height, width]);
+            // Proceeding anyway, but be aware of potential issues.
+        }
+
+        const counts = rle.counts;
+        const M = height * width;
+        let out = new Uint8Array(M); // Using Uint8Array for efficiency
+        let p = 0;
+        let value = 0; // RLE typically starts with a count of 0s. If it's uncompressed RLE, first count is for 1s.
+                       // Standard COCO RLE: value is 0, then 1, then 0, ...
+
+        for (let i = 0; i < counts.length; i++) {
+            const count = counts[i];
+            if (p + count > M && i < counts.length -1 ) { // Check for overruns, except for the very last count
+                console.error("RLE count exceeds mask dimensions. Index:", p, "Count:", count, "Max:", M);
+                // Truncate this segment if it overruns significantly or return null
+                for (let k=0; k < (M-p); k++) out[p+k] = value;
+                p = M;
+                break;
+            }
+            for (let j = 0; j < count; j++) {
+                if (p < M) {
+                    out[p++] = value;
+                } else {
+                    // This should ideally not happen if total counts sum to M
+                    break; 
+                }
+            }
+            value = 1 - value; // Alternate 0 and 1
+        }
+
+        if (p !== M && counts.reduce((a,b) => a+b, 0) !== M) {
+            console.warn("RLE decoded length does not match mask dimensions. Decoded:", p, "Expected:", M);
+            // This might indicate a malformed RLE or a different RLE scheme.
+        }
+        
+        // Reshape 'out' (1D array) into a 2D binaryMaskArray
+        const binaryMaskArray = [];
+        for (let r = 0; r < height; r++) {
+            // Slice and convert Uint8Array segment to a regular array
+            binaryMaskArray.push(Array.from(out.slice(r * width, (r + 1) * width)));
+        }
+        return binaryMaskArray;
     }
 };
 
-// Make Utils globally available if not using modules, or export if using ES modules
-// window.Utils = Utils; // For direct script includes
+// Make Utils globally available if not using modules.
+if (typeof window !== 'undefined') {
+    window.Utils = Utils;
+}
 // export default Utils; // For ES module system

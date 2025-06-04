@@ -14,7 +14,8 @@
  * - Expose methods to set image data and prediction data.
  * - Emit events for user interactions and canvas state changes.
  *
- * External Dependencies: None (operates on provided DOM elements).
+ * External Dependencies: 
+ * - utils.js (for Utils.debounce) - Assumed to be globally available as window.Utils
  *
  * Input/Output (I/O):
  * Input:
@@ -45,10 +46,11 @@
  */
 class CanvasManager {
     constructor() {
+        this.Utils = window.Utils || { debounce: (fn, delay) => fn }; // Fallback for Utils.debounce
         this.initializeElements();
         this.initializeState();
         this.initializeCanvases();
-        this.setupEventListeners(); // Basic canvas interaction listeners
+        this.setupEventListeners();
         this.setupOpacitySliders();
         console.log("CanvasManager initialized");
     }
@@ -65,8 +67,7 @@ class CanvasManager {
 
         this.maskDisplayModeSelect = document.getElementById('mask-display-mode');
         if (!this.maskDisplayModeSelect) {
-            // console.warn('mask-display-mode element not found, creating default behavior.');
-            this.maskDisplayModeSelect = { value: 'best', addEventListener: () => {} }; // Mock for headless init
+            this.maskDisplayModeSelect = { value: 'best', addEventListener: () => {} };
         }
 
         this.imageOpacitySlider = document.getElementById('image-opacity');
@@ -129,12 +130,14 @@ class CanvasManager {
             if (item.el) {
                 item.el.min = '0';
                 item.el.max = '1';
-                item.el.step = '0.05'; // Finer control
+                item.el.step = '0.05';
                 item.el.value = item.default;
                 item.el.addEventListener('input', () => {
                     item.action();
                     this._dispatchEvent('opacityChanged', { layer: item.layer, value: parseFloat(item.el.value) });
                 });
+                // Dispatch initial opacity for UI consistency (e.g. value display spans)
+                this._dispatchEvent('opacityChanged', { layer: item.layer, value: parseFloat(item.el.value) });
             }
         });
     }
@@ -145,18 +148,22 @@ class CanvasManager {
             this.userInputCanvas.addEventListener('mousemove', (e) => this._handleMouseMove(e));
             this.userInputCanvas.addEventListener('mouseup', (e) => this._handleMouseUp(e));
             this.userInputCanvas.addEventListener('mouseleave', (e) => this._handleMouseLeave(e));
-            this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
+            this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         if (this.maskDisplayModeSelect) {
             this.maskDisplayModeSelect.addEventListener('change', () => this.drawPredictionMaskLayer());
         }
-        // window.addEventListener('resize', () => this._handleWindowResize()); // More robust resize
+        
+        // Debounce resize for performance
+        this.debouncedResizeHandler = this.Utils.debounce(() => this._handleWindowResize(), 250);
+        window.addEventListener('resize', this.debouncedResizeHandler);
     }
 
     _handleWindowResize() {
         // Debounce resize event if necessary
-        if (this.currentImage) {
-            this.drawImageLayer(); // This will re-calculate sizes and redraw all
+        if (this.currentImage && this.imageCanvas && this.imageCanvas.parentElement) {
+            // Recalculate scale based on new parent dimensions and redraw
+            this.drawImageLayer();
         }
     }
 
@@ -171,7 +178,8 @@ class CanvasManager {
                 canvas.height = height;
             }
         });
-        // tempMaskPixelCanvas is sized based on original image, not display
+        // tempMaskPixelCanvas is sized based on original image, not display canvas size
+        // It will be resized in drawPredictionMaskLayer if needed.
     }
 
     // --- Coordinate Transformation ---
@@ -214,7 +222,7 @@ class CanvasManager {
 
         this.clearAllCanvasInputs(false); // Clear previous inputs/masks, but not the image itself
         this.drawImageLayer(); // This will resize canvases and draw the new image
-        this._dispatchEvent('imageLoaded', { filename: this.currentImageFilename });
+        this._dispatchEvent('imageLoaded', { filename: this.currentImageFilename, width: this.originalImageWidth, height: this.originalImageHeight });
     }
 
     setManualPredictions(predictionData) {
@@ -280,15 +288,16 @@ class CanvasManager {
             box: this.userBox,       // {x1, y1, x2, y2} in original coords or null
             maskInput: this.combinedUserMaskInput256, // 256x256 array or null
             imagePresent: !!this.currentImage,
-            filename: this.currentImageFilename
+            filename: this.currentImageFilename,
+            originalWidth: this.originalImageWidth,
+            originalHeight: this.originalImageHeight
         };
     }
 
-    // --- Drawing Layers ---
     drawImageLayer() {
-        if (!this.currentImage || !this.imageCtx) return;
+        if (!this.currentImage || !this.imageCtx || !this.imageCanvas.parentElement) return;
 
-        const displayArea = this.imageCanvas.parentElement || document.body; // Get parent for sizing
+        const displayArea = this.imageCanvas.parentElement;
         const areaWidth = displayArea.clientWidth;
         const areaHeight = displayArea.clientHeight;
 
@@ -337,10 +346,10 @@ class CanvasManager {
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.closePath();
-            this.offscreenUserCtx.fillStyle = mask.color || 'rgba(255, 255, 0, 0.3)'; // Yellow with some transparency
+            this.offscreenUserCtx.fillStyle = mask.color || 'rgba(255, 255, 0, 0.35)';
             this.offscreenUserCtx.fill();
-            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.7)'; // White outline
-            this.offscreenUserCtx.lineWidth = 1;
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.8)';
+            this.offscreenUserCtx.lineWidth = Math.max(1, 1.5 * this.displayScale);
             this.offscreenUserCtx.stroke();
         });
 
@@ -353,11 +362,7 @@ class CanvasManager {
                 const p_disp = this._originalToDisplayCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
-            // Don't close path while drawing, or draw line back to start for preview
-            // if (this.currentLassoPoints.length > 1) {
-            //     this.offscreenUserCtx.lineTo(firstP_disp.x, firstP_disp.y);
-            // }
-            this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.9)'; // Bright yellow for active drawing
+            this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.95)';
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.stroke();
         }
@@ -367,10 +372,10 @@ class CanvasManager {
             const dp = this._originalToDisplayCoords(p_orig.x, p_orig.y);
             this.offscreenUserCtx.beginPath();
             this.offscreenUserCtx.arc(dp.x, dp.y, pointDisplayRadius, 0, 2 * Math.PI);
-            this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'; // Green/Red
+            this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(50, 205, 50, 0.8)' : 'rgba(255, 69, 0, 0.8)'; // LimeGreen/OrangeRed
             this.offscreenUserCtx.fill();
-            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.9)'; // White outline
-            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.5);
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.95)';
+            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.4);
             this.offscreenUserCtx.stroke();
         });
 
@@ -378,14 +383,13 @@ class CanvasManager {
         if (this.userBox) {
             const db1 = this._originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
             const db2 = this._originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
-            this.offscreenUserCtx.strokeStyle = 'rgba(0, 100, 255, 0.8)'; // Blue
+            this.offscreenUserCtx.strokeStyle = 'rgba(30, 144, 255, 0.85)'; // DodgerBlue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
             // Add white outline for contrast
-            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.7)';
-            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.5);
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.8)';
+            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.4);
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
-
         }
 
         // Composite to visible canvas
@@ -430,26 +434,22 @@ class CanvasManager {
 
             activePredictions.forEach((predictionItem, index) => {
                 // predictionItem is {segmentation: [[0,1,...]], score: 0.9, ...} or from AMG: {segmentation, area, bbox, ...}
-                const segmentation = predictionItem.segmentation; // This is the 2D binary array
-                if (!segmentation || segmentation.length === 0 || !segmentation[0] || segmentation[0].length === 0) {
-                    return; // Skip if no valid segmentation
-                }
+                const segmentation = predictionItem.segmentation;
+                if (!segmentation || segmentation.length === 0 || !segmentation[0] || segmentation[0].length === 0) return; // Skip if no valid segmentation
 
                 const maskHeight = segmentation.length;
                 const maskWidth = segmentation[0].length;
 
                 if (maskHeight !== this.originalImageHeight || maskWidth !== this.originalImageWidth) {
-                    console.warn("Mask dimensions mismatch original image. Skipping a mask.",
-                                 `Mask: ${maskWidth}x${maskHeight}`,
-                                 `Image: ${this.originalImageWidth}x${this.originalImageHeight}`);
+                    console.warn("Mask dimensions mismatch. Mask:", maskWidth+"x"+maskHeight, "Img:", this.originalImageWidth+"x"+this.originalImageHeight);
                     return;
                 }
 
                 this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
                 const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
                 const pixelData = imageData.data;
-                const colorStr = generatedColors[index % generatedColors.length]; // Cycle through colors
-                const [r, g, b, a_int] = this._parseRgbaFromString(colorStr); // a_int is 0-255
+                const colorStr = generatedColors[index % generatedColors.length];
+                const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
 
                 let pixelCount = 0;
                 for (let y = 0; y < maskHeight; y++) {
@@ -459,7 +459,7 @@ class CanvasManager {
                             pixelData[pixelIndex] = r;
                             pixelData[pixelIndex + 1] = g;
                             pixelData[pixelIndex + 2] = b;
-                            pixelData[pixelIndex + 3] = a_int; // Use parsed alpha
+                            pixelData[pixelIndex + 3] = a_int;
                             pixelCount++;
                         }
                     }
@@ -528,15 +528,14 @@ class CanvasManager {
     _handleMouseUp(e) {
         if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
-        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Visual radius on canvas
-        const clickThresholdOrig = pointDisplayRadius / this.displayScale; // Equivalent radius in original image coords
+        const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas
+        const clickThresholdOrig = pointDisplayRadius / this.displayScale * 1.5; // Make click threshold slightly larger than visual radius
 
         const isShift = e.shiftKey;
         const isCtrl = e.ctrlKey || e.metaKey;
         let interactionHandledOnUp = false; // Flag to check if specific tool action (box/lasso finish) was taken
 
         if (this.interactionState.isDrawingBox) {
-            // Finalize box or discard if too small
             if (this.userBox && (this.userBox.x2 - this.userBox.x1 < clickThresholdOrig || this.userBox.y2 - this.userBox.y1 < clickThresholdOrig)) {
                 this.userBox = null; // Discard tiny box (likely a shift-click)
             }
@@ -545,7 +544,7 @@ class CanvasManager {
             if (this.currentLassoPoints.length > 2) { // Need at least 3 points for a polygon
                 this.userDrawnMasks.push({
                     points: [...this.currentLassoPoints],
-                    color: `${this._getRandomHexColor()}66`, // Hex with alpha, e.g. 40%
+                    color: `${this._getRandomHexColor()}7A`, // 40-50% alpha
                     id: Date.now()
                 });
                 this._prepareCombinedUserMaskInput(); // Update the 256x256 mask_input
@@ -597,14 +596,12 @@ class CanvasManager {
         this.interactionState.isMouseDown = false;
         this.interactionState.didMove = false;
 
-        this.drawUserInputLayer(); // Redraw user inputs
-        this._dispatchEvent('userInteraction', this.getCurrentCanvasInputs()); // Notify external listeners
+        this.drawUserInputLayer();
+        this._dispatchEvent('userInteraction', this.getCurrentCanvasInputs());
     }
 
     _handleMouseLeave(e) {
-        // If mouse leaves canvas while drawing, finalize the current operation
         if (this.interactionState.isMouseDown && (this.canvasLockEl && this.canvasLockEl.style.display === 'none')) {
-             // Treat as mouse up to complete any drawing action
             this._handleMouseUp(e);
         }
     }
@@ -615,29 +612,33 @@ class CanvasManager {
         const colors = [];
         if (count === 0) return colors;
         for (let i = 0; i < count; i++) {
-            const hue = (i * (360 / (count < 5 ? count * 1.8 : count * 1.1))) % 360;
-            const saturation = 70 + Math.random() * 20; // Saturation between 70-90%
-            const lightness = 55 + Math.random() * 10;  // Lightness between 55-65%
-            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 0.7)`); // Use HSLA for 70% alpha
+            const hue = (i * (360 / (count < 6 ? count * 1.6 : count * 1.1))) % 360; // Adjusted factor for better spread with few items
+            const saturation = 65 + Math.random() * 25;
+            const lightness = 50 + Math.random() * 15;
+            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 0.65)`); // Slightly less alpha
         }
         return colors;
     }
 
     _parseRgbaFromString(colorStr) { // Handles HSL(A) or RGB(A)
+        if (typeof colorStr !== 'string') return [255,0,0,178]; // Fallback if not string
+
         if (colorStr.startsWith('hsl')) { // Convert HSL(A) to RGB(A)
-            let [h, s, l, a] = colorStr.match(/hsla?\((\d+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/).slice(1).map(parseFloat);
-            if (isNaN(a)) a = 1; // Default alpha for HSL
+            const match = colorStr.match(/hsla?\((\d+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/);
+            if (!match) return [255,0,0,178];
+            let [h, s, l, a] = match.slice(1).map(parseFloat);
+            if (isNaN(a)) a = 1;
             s /= 100; l /= 100;
             const k = n => (n + h / 30) % 12;
-            const calc_a = s * Math.min(l, 1 - l);
-            const f = n => l - calc_a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-            return [255 * f(0), 255 * f(8), 255 * f(4), Math.round(a * 255)];
+            const calc_a_val = s * Math.min(l, 1 - l); // Renamed calc_a to avoid conflict
+            const f = n => l - calc_a_val * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4)), Math.round(a * 255)];
         } else if (colorStr.startsWith('rgb')) {
             const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-            if (!match) return [255, 0, 0, 178]; // Fallback: Red at 70% alpha
+            if (!match) return [255, 0, 0, 178];
             return [
                 parseInt(match[1]), parseInt(match[2]), parseInt(match[3]),
-                match[4] !== undefined ? Math.round(parseFloat(match[4]) * 255) : 255 // Alpha from 0-1 to 0-255
+                match[4] !== undefined ? Math.round(parseFloat(match[4]) * 255) : 255
             ];
         }
         return [255, 0, 0, 178]; // Fallback red if format unknown
@@ -740,8 +741,4 @@ class CanvasManager {
     }
 }
 
-// Instantiate CanvasManager when the DOM is ready, making it globally accessible via window.canvasManager
-// if (!window.canvasManager) { // Ensure only one instance
-//     window.canvasManager = new CanvasManager();
-// }
-// The instantiation will be handled by main.js to ensure DOM is ready.
+// Instantiation handled by main.js

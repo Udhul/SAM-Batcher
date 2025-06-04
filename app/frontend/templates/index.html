@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAM2 Interactive Segmenter</title> <!-- Updated Title -->
+    <title>SAM2 Interactive Segmenter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
 </head>
@@ -22,7 +22,7 @@
                     <div class="expandable-header">
                         <span>Model Configuration</span>
                         <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
-                        <span class="expand-indicator">▲</span> <!-- Initial state: expanded -->
+                        <span class="expand-indicator">▲</span>
                     </div>
                     <div class="expandable-content">
                         <div class="model-controls">
@@ -34,7 +34,7 @@
                                 </select>
                                 <button id="load-model-btn" title="Load the selected model">Load Model</button>
                             </div>
-                            <div id="custom-model-inputs" style="display: none;"> <!-- Hidden by default -->
+                            <div id="custom-model-inputs" style="display: none;">
                                 <div class="custom-input-group">
                                     <label for="custom-model-path">Model Path (.pth):</label>
                                     <input type="text" id="custom-model-path" placeholder="e.g., /path/to/model.pth">
@@ -54,61 +54,123 @@
                     </div>
                 </div>
 
-                <!-- Placeholder for Project Management Section -->
                 <div class="expandable-section" id="project-management-expandable">
                     <div class="expandable-header">
                         <span>Project Management</span>
-                        <span class="expand-indicator">▼</span> <!-- Initial state: collapsed -->
-                    </div>
-                    <div class="expandable-content collapsed">
-                        <p>Project creation, loading, and source management UI will go here.</p>
-                        <!-- To be filled by projectHandler.js -->
-                    </div>
-                </div>
-
-                <!-- Placeholder for Image Pool/Gallery Section -->
-                <div class="expandable-section" id="image-pool-expandable">
-                    <div class="expandable-header">
-                        <span>Image Pool</span>
+                        <span id="active-project-display" class="project-status-inline">No active project</span>
                         <span class="expand-indicator">▼</span>
                     </div>
                     <div class="expandable-content collapsed">
-                        <p>Image gallery and navigation controls will go here.</p>
-                        <!-- To be filled by imagePoolHandler.js -->
+                        <div class="project-controls">
+                            <h4>Create New Project</h4>
+                            <div class="input-group">
+                                <label for="new-project-name">Name:</label>
+                                <input type="text" id="new-project-name" placeholder="Optional project name">
+                                <button id="create-project-btn">Create Project</button>
+                            </div>
+
+                            <h4>Load Project</h4>
+                            <div class="input-group">
+                                <label for="load-project-select">Existing:</label>
+                                <select id="load-project-select">
+                                    <option value="">Fetching projects...</option>
+                                </select>
+                                <button id="load-selected-project-btn">Load Selected</button>
+                            </div>
+                            <div class="input-group">
+                                <label for="upload-project-db-input">Upload DB:</label>
+                                <input type="file" id="upload-project-db-input" accept=".sqlite,.db">
+                                <!-- Upload handled on file selection -->
+                            </div>
+                            <div class="input-group">
+                                <button id="download-project-db-btn" title="Download current project data as SQLite file">Download Project DB</button>
+                            </div>
+                            <hr>
+                            <h4>Image Sources (Current Project)</h4>
+                            <div class="input-group">
+                                <label for="image-source-type-select">Add Type:</label>
+                                <select id="image-source-type-select">
+                                    <option value="upload">Upload Files (via Canvas 'Load Image')</option>
+                                    <option value="folder">Server Folder Path</option>
+                                    <option value="url">Image URL or List URL</option>
+                                    <!-- <option value="azure">Azure Blob URI</option> -->
+                                </select>
+                            </div>
+                            <div id="image-source-folder-inputs" class="source-input-group" style="display:none;">
+                                <label for="image-source-folder-path">Folder Path:</label>
+                                <input type="text" id="image-source-folder-path" placeholder="/path/on/server/to/images">
+                            </div>
+                            <div id="image-source-url-inputs" class="source-input-group" style="display:none;">
+                                <label for="image-source-url-path">Image/List URL:</label>
+                                <input type="text" id="image-source-url-path" placeholder="http://.../img.jpg or .../list.txt">
+                            </div>
+                            <button id="add-image-source-btn">Add Source</button>
+                            <div id="image-sources-list-container">
+                                <p><em>No sources added yet for this project.</em></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                <div class="expandable-section" id="image-pool-expandable">
+                    <div class="expandable-header">
+                        <span>Image Pool</span>
+                        <span id="image-pool-status-inline" class="project-status-inline"></span>
+                        <span class="expand-indicator">▼</span>
+                    </div>
+                    <div class="expandable-content collapsed">
+                        <div class="image-pool-controls">
+                            <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
+                            <span id="current-image-info">No image loaded</span>
+                            <button id="next-image-btn" title="Load next image in pool">Next ></button>
+                            <button id="next-unprocessed-image-btn" title="Load next unprocessed image">Next Unprocessed</button>
+                        </div>
+                        <div class="image-pool-filters">
+                            <label for="image-status-filter">Filter by status:</label>
+                            <select id="image-status-filter">
+                                <option value="">All</option>
+                                <option value="unprocessed">Unprocessed</option>
+                                <option value="in_progress_manual">In Progress (Manual)</option>
+                                <option value="in_progress_auto">In Progress (Auto)</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                            <button id="refresh-image-pool-btn">Refresh Pool</button>
+                        </div>
+                        <div id="image-gallery-container">
+                            <p><em>Load a project to see images.</em></p>
+                            <!-- Thumbnails will be populated here -->
+                        </div>
+                        <div id="image-pool-pagination">
+                            <!-- Pagination controls will go here -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Canvas Column (Right Side) -->
             <div class="canvas-column">
-                <div class="image-section"> <!-- Renamed from "Image & Canvas" to just "Canvas Area" or similar -->
-                    <!-- Canvas Toolbar is now part of canvas.css and its own self-contained block -->
+                <div class="image-section">
                     <div class="canvas-toolbar">
                         <div class="toolbar-section">
                             <div class="file-upload-btn-container">
                                 <label for="image-upload" class="file-upload-styled-btn">Load Image</label>
-                                <input type="file" id="image-upload" accept="image/*">
+                                <input type="file" id="image-upload" accept="image/*" multiple>
                             </div>
                             <div id="image-upload-progress" class="progress-bar-container">
                                 <div id="image-upload-bar" class="progress-bar-fill">0%</div>
                             </div>
                         </div>
-
                         <div class="toolbar-section">
                             <button id="clear-inputs-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
                         </div>
-
                         <div class="toolbar-section">
                             <label for="mask-display-mode">Display Mode:</label>
                             <select id="mask-display-mode" title="Choose how to display multiple predicted masks">
                                 <option value="best">Best Mask Only</option>
                                 <option value="all">All Masks</option>
-                                <!-- Add custom/toggle mode later if needed -->
                             </select>
                         </div>
-
-                        <div class="opacity-controls"> <!-- Grouped opacity controls -->
+                        <div class="opacity-controls">
                             <div class="opacity-control">
                                 <label for="image-opacity">Image</label>
                                 <input type="range" id="image-opacity">
@@ -125,7 +187,6 @@
                                 <span id="user-input-opacity-value" class="opacity-value-display">80%</span>
                             </div>
                         </div>
-
                         <div class="toolbar-section help-section">
                             <div class="help-icon" id="help-icon" title="Show usage instructions">
                                 <span>?</span>
@@ -137,20 +198,13 @@
                                             <li><strong>Negative Point:</strong> Right-click</li>
                                             <li><strong>Bounding Box:</strong> Shift + Drag</li>
                                             <li><strong>Lasso/Polygon:</strong> Ctrl/Cmd + Drag</li>
-                                            <li><strong>Remove Input:</strong>
-                                                <ul>
-                                                    <li>Click on an existing point.</li>
-                                                    <li>Shift-click inside a box.</li>
-                                                    <li>Ctrl/Cmd-click inside a lasso.</li>
-                                                </ul>
-                                            </li>
+                                            <li><strong>Remove Input:</strong> Click existing point, Shift-click box, Ctrl/Cmd-click lasso.</li>
                                         </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                     <div class="image-display-area">
                         <div class="canvas-container">
                             <canvas id="image-canvas"></canvas>
@@ -165,7 +219,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="expandable-section auto-mask-section">
                     <div class="expandable-header">
                         <span>Automatic Mask Generation</span>
@@ -187,7 +240,6 @@
                                     <label for="amg-stability-score-thresh">Stability score threshold:</label>
                                     <input type="number" id="amg-stability-score-thresh" value="0.95" min="0" max="1" step="0.01" title="Filters masks based on stability under binarization cutoff changes (0-1).">
                                 </div>
-                                <!-- Add more AMG parameters here as UI elements if needed -->
                             </div>
                             <div class="amg-actions">
                                 <button id="auto-mask-btn" title="Automatically generate masks for the entire image">Run AutoMask</button>
@@ -198,36 +250,30 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="results-section"> <!-- Placeholder for results/export -->
+                <div class="results-section">
                     <h2>Final Masks & Export</h2>
                     <div class="export-controls">
                         <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
-                        <!-- More export options will go here, e.g., "Commit Final Masks to Project", "Export COCO JSON" -->
-                        <p style="margin-top: 10px; font-size: 14px; color: #666;"><i>Mask list, selection, and structured data export functionalities will be added here.</i></p>
+                         <button id="commit-masks-btn" title="Commit current masks to the project for this image">Commit Current Masks</button>
+                         <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
+                        <p style="margin-top: 10px; font-size: 14px; color: #666;"><i>More export options and mask list will be added.</i></p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="status-message" class="status-message" role="alert" aria-live="polite">
-            <!-- Global status messages will appear here -->
-        </div>
+        <div id="status-message" class="status-message" role="alert" aria-live="polite"></div>
     </div>
 
-    <!-- JavaScript Modules: Order can be important if they have dependencies.
-         Utility and controller classes first, then handlers, then main orchestrator. -->
+    <!-- Ordered JavaScript Modules import -->
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script> <!-- General frontend utilities -->
     <script src="{{ url_for('static', filename='js/apiClient.js') }}"></script> <!-- API communication -->
     <script src="{{ url_for('static', filename='js/stateManager.js') }}"></script> <!-- Global frontend state -->
-
     <script src="{{ url_for('static', filename='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
     <script src="{{ url_for('static', filename='js/uiManager.js') }}"></script> <!-- General UI component management -->
-
     <script src="{{ url_for('static', filename='js/modelHandler.js') }}"></script> <!-- Model loading UI -->
     <script src="{{ url_for('static', filename='js/projectHandler.js') }}"></script> <!-- Project management UI -->
     <script src="{{ url_for('static', filename='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>
