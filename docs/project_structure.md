@@ -29,7 +29,7 @@ project_root/
   │   │       │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
   │   │       │   ├── modelHandler.js     # Handles model selection, loading, status (renamed from modelLoader.js)
   │   │       │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
-  │   │       │   ├── stateManager.js     # (Optional) For more complex global frontend state
+  │   │       │   ├── stateManager.js     # Keeps track of current frontend state
   │   │       │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
   │   │       └── assets/                 # Static assets like icons, placeholder images
   │   │
