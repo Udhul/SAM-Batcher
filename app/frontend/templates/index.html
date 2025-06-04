@@ -1,185 +1,233 @@
-<!-- templates/index.html -->
+<!-- project_root/app/frontend/templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAM-Batcher</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>SAM2 Interactive Segmenter</title> <!-- Updated Title -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
 </head>
 <body>
     <div class="container">
-        <!-- Disable header for now, since we want to give the canvas more space -->
-        <!-- <header>
-            <h1>SAM-Batcher</h1>
-            <p>Interactive Segment Anything Model Interface</p>
-        </header> -->
+        <header>
+            <h1>SAM2 Interactive Segmenter</h1>
+            <p>Segment Anything Model v2 - Web Interface</p>
+        </header>
 
-        <div class="main-content">
-            <div class="expandable-section" id="model-loader-expandable">
-                <div class="expandable-header">
-                    <span>Model Configuration</span>
-                    <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
-                    <span class="expand-indicator">▲</span>
+        <div class="main-layout">
+            <!-- Controls Column (Left Side) -->
+            <div class="controls-column">
+                <div class="expandable-section" id="model-loader-expandable">
+                    <div class="expandable-header">
+                        <span>Model Configuration</span>
+                        <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
+                        <span class="expand-indicator">▲</span> <!-- Initial state: expanded -->
+                    </div>
+                    <div class="expandable-content">
+                        <div class="model-controls">
+                            <div class="model-selection">
+                                <label for="model-select">Model:</label>
+                                <select id="model-select">
+                                    <option value="">Loading available models...</option>
+                                    <!-- Options will be populated by modelHandler.js -->
+                                </select>
+                                <button id="load-model-btn" title="Load the selected model">Load Model</button>
+                            </div>
+                            <div id="custom-model-inputs" style="display: none;"> <!-- Hidden by default -->
+                                <div class="custom-input-group">
+                                    <label for="custom-model-path">Model Path (.pth):</label>
+                                    <input type="text" id="custom-model-path" placeholder="e.g., /path/to/model.pth">
+                                </div>
+                                <div class="custom-input-group">
+                                    <label for="custom-config-path">Config Path (.yaml):</label>
+                                    <input type="text" id="custom-config-path" placeholder="e.g., /path/to/config.yaml">
+                                </div>
+                            </div>
+                            <div class="model-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="apply-postprocessing-cb" checked>
+                                    Apply SAM Post-processing
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="expandable-content">
-                    <div class="model-controls">
-                        <div class="model-selection">
-                            <label for="model-select">Model:</label>
-                            <select id="model-select">
-                                <option value="">Loading...</option>
+
+                <!-- Placeholder for Project Management Section -->
+                <div class="expandable-section" id="project-management-expandable">
+                    <div class="expandable-header">
+                        <span>Project Management</span>
+                        <span class="expand-indicator">▼</span> <!-- Initial state: collapsed -->
+                    </div>
+                    <div class="expandable-content collapsed">
+                        <p>Project creation, loading, and source management UI will go here.</p>
+                        <!-- To be filled by projectHandler.js -->
+                    </div>
+                </div>
+
+                <!-- Placeholder for Image Pool/Gallery Section -->
+                <div class="expandable-section" id="image-pool-expandable">
+                    <div class="expandable-header">
+                        <span>Image Pool</span>
+                        <span class="expand-indicator">▼</span>
+                    </div>
+                    <div class="expandable-content collapsed">
+                        <p>Image gallery and navigation controls will go here.</p>
+                        <!-- To be filled by imagePoolHandler.js -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Canvas Column (Right Side) -->
+            <div class="canvas-column">
+                <div class="image-section"> <!-- Renamed from "Image & Canvas" to just "Canvas Area" or similar -->
+                    <!-- Canvas Toolbar is now part of canvas.css and its own self-contained block -->
+                    <div class="canvas-toolbar">
+                        <div class="toolbar-section">
+                            <div class="file-upload-btn-container">
+                                <label for="image-upload" class="file-upload-styled-btn">Load Image</label>
+                                <input type="file" id="image-upload" accept="image/*">
+                            </div>
+                            <div id="image-upload-progress" class="progress-bar-container">
+                                <div id="image-upload-bar" class="progress-bar-fill">0%</div>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-section">
+                            <button id="clear-inputs-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
+                        </div>
+
+                        <div class="toolbar-section">
+                            <label for="mask-display-mode">Display Mode:</label>
+                            <select id="mask-display-mode" title="Choose how to display multiple predicted masks">
+                                <option value="best">Best Mask Only</option>
+                                <option value="all">All Masks</option>
+                                <!-- Add custom/toggle mode later if needed -->
                             </select>
-                            <div id="custom-model-inputs" style="display: none;">
-                                <div class="custom-input-group">
-                                    <label for="custom-model-path">Model Path:</label>
-                                    <input type="text" id="custom-model-path" placeholder="Path to .pth model file">
-                                </div>
-                                <div class="custom-input-group">
-                                    <label for="custom-config-path">Config Path:</label>
-                                    <input type="text" id="custom-config-path" placeholder="Path to .yaml config file">
-                                </div>
-                            </div>
-                            <button id="load-model-btn">Load Model</button>
                         </div>
-                        <div class="model-options">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="apply-postprocessing-cb" checked>
-                                Apply Post-processing
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Canvas and Image Section -->
-            <div class="image-section">
-                <h2>Image & Canvas</h2>
-                
-                <!-- Canvas Toolbar -->
-                <div class="canvas-toolbar">
-                    <div class="toolbar-section">
-                        <label for="image-upload" class="file-upload-btn">Load Image</label>
-                        <input type="file" id="image-upload" accept="image/*" style="display: none;">
-                        <div id="image-upload-progress" style="display: none;">
-                            <div class="progress-bar">
-                                <div id="image-upload-bar" class="progress-fill">0%</div>
+                        <div class="opacity-controls"> <!-- Grouped opacity controls -->
+                            <div class="opacity-control">
+                                <label for="image-opacity">Image</label>
+                                <input type="range" id="image-opacity">
+                                <span id="image-opacity-value" class="opacity-value-display">100%</span>
+                            </div>
+                            <div class="opacity-control">
+                                <label for="prediction-opacity">Predictions</label>
+                                <input type="range" id="prediction-opacity">
+                                <span id="prediction-opacity-value" class="opacity-value-display">70%</span>
+                            </div>
+                            <div class="opacity-control">
+                                <label for="user-input-opacity">Drawings</label>
+                                <input type="range" id="user-input-opacity">
+                                <span id="user-input-opacity-value" class="opacity-value-display">80%</span>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="toolbar-section">
-                        <button id="clear-inputs-btn">Clear Inputs</button>
-                    </div>
-
-                    <div class="toolbar-section">
-                        <label for="mask-display-mode">Display Mode:</label>
-                        <select id="mask-display-mode">
-                            <option value="best">Best Mask</option>
-                            <option value="all">All Masks</option>
-                        </select>
-                    </div>
-
-                    <div class="toolbar-section opacity-controls">
-                        <div class="opacity-control">
-                            <label for="image-opacity">Image: <span id="image-opacity-value">100%</span></label>
-                            <input type="range" id="image-opacity" min="0" max="1" step="0.2" value="1">
-                        </div>
-                        <div class="opacity-control">
-                            <label for="prediction-opacity">Predictions: <span id="prediction-opacity-value">60%</span></label>
-                            <input type="range" id="prediction-opacity" min="0" max="1" step="0.2" value="0.6">
-                        </div>
-                        <div class="opacity-control">
-                            <label for="user-input-opacity">Drawings: <span id="user-input-opacity-value">40%</span></label>
-                            <input type="range" id="user-input-opacity" min="0" max="1" step="0.2" value="0.4">
+                        <div class="toolbar-section help-section">
+                            <div class="help-icon" id="help-icon" title="Show usage instructions">
+                                <span>?</span>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-content">
+                                        <p><strong>Canvas Instructions:</strong></p>
+                                        <ul>
+                                            <li><strong>Positive Point:</strong> Left-click</li>
+                                            <li><strong>Negative Point:</strong> Right-click</li>
+                                            <li><strong>Bounding Box:</strong> Shift + Drag</li>
+                                            <li><strong>Lasso/Polygon:</strong> Ctrl/Cmd + Drag</li>
+                                            <li><strong>Remove Input:</strong>
+                                                <ul>
+                                                    <li>Click on an existing point.</li>
+                                                    <li>Shift-click inside a box.</li>
+                                                    <li>Ctrl/Cmd-click inside a lasso.</li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Instructions Help Icon -->
-                    <div class="toolbar-section help-section">
-                        <div class="help-icon" id="help-icon">
-                            <span>?</span>
-                            <div class="help-tooltip">
-                                <div class="tooltip-content">
-                                    <p><strong>Instructions:</strong></p>
-                                    <ul>
-                                        <li><strong>Points:</strong> Left-click for positive points (green), right-click for negative points (red)</li>
-                                        <li><strong>Box:</strong> Hold Shift + drag to draw bounding box (blue)</li>
-                                        <li><strong>Lasso:</strong> Hold Ctrl/Cmd + drag to draw freeform mask (yellow)</li>
-                                        <li><strong>Remove:</strong> Click on existing points, boxes, or lasso areas to remove them</li>
-                                    </ul>
+                    <div class="image-display-area">
+                        <div class="canvas-container">
+                            <canvas id="image-canvas"></canvas>
+                            <canvas id="prediction-mask-canvas"></canvas>
+                            <canvas id="user-input-canvas"></canvas>
+                            <div id="canvas-lock" class="canvas-lock-overlay">
+                                <div class="canvas-lock-content">
+                                    <div class="spinner"></div>
+                                    <div class="canvas-lock-message">Processing...</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Image Display Area -->
-                <div class="image-display-area">
-                    <div class="canvas-container">
-                        <!-- Canvas stack (bottom to top: image, predictions, user input) -->
-                        <canvas id="image-canvas"></canvas>
-                        <canvas id="prediction-mask-canvas"></canvas>
-                        <canvas id="user-input-canvas"></canvas>
-                        
-                        <!-- Canvas lock overlay -->
-                        <div id="canvas-lock" class="canvas-lock-overlay">
-                            <div class="canvas-lock-content">
-                                <div class="spinner"></div>
-                                <div class="canvas-lock-message">Processing... Please Wait.</div>
+                <div class="expandable-section auto-mask-section">
+                    <div class="expandable-header">
+                        <span>Automatic Mask Generation</span>
+                        <span class="expand-indicator">▲</span>
+                    </div>
+                    <div class="expandable-content">
+                        <div class="auto-mask-controls">
+                            <div class="amg-parameters">
+                                <!-- <h3>AMG Parameters</h3> -->
+                                <div class="parameter-group">
+                                    <label for="amg-points-per-side">Points per side:</label>
+                                    <input type="number" id="amg-points-per-side" value="32" min="1" max="128" title="Number of points sampled along one side of the image. Total points = value^2.">
+                                </div>
+                                <div class="parameter-group">
+                                    <label for="amg-pred-iou-thresh">Pred. IoU threshold:</label>
+                                    <input type="number" id="amg-pred-iou-thresh" value="0.88" min="0" max="1" step="0.01" title="Filters masks based on model's predicted mask quality (0-1).">
+                                </div>
+                                <div class="parameter-group">
+                                    <label for="amg-stability-score-thresh">Stability score threshold:</label>
+                                    <input type="number" id="amg-stability-score-thresh" value="0.95" min="0" max="1" step="0.01" title="Filters masks based on stability under binarization cutoff changes (0-1).">
+                                </div>
+                                <!-- Add more AMG parameters here as UI elements if needed -->
                             </div>
+                            <div class="amg-actions">
+                                <button id="auto-mask-btn" title="Automatically generate masks for the entire image">Run AutoMask</button>
+                                <button id="cancel-auto-mask-btn" style="display: none;" title="Cancel ongoing AutoMask generation">Cancel</button>
+                                <button id="recover-auto-mask-btn" title="Try to recover previously generated AutoMask for this image from local storage">Recover Last AutoMask</button>
+                            </div>
+                            <div id="auto-mask-status" class="status-message small">Set parameters for AutoMask.</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Automatic Mask Generation Section -->
-            <div class="expandable-section auto-mask-section">
-                <div class="expandable-header">Automatic Mask Generation ▲</div>
-                <div class="expandable-content">
-                    <div class="auto-mask-controls">
-                        <div class="amg-parameters">
-                            <h3>AMG Parameters</h3>
-                            <div class="parameter-group">
-                                <label for="amg-points-per-side">Points per side:</label>
-                                <input type="number" id="amg-points-per-side" value="32" min="1" max="128">
-                            </div>
-                            <div class="parameter-group">
-                                <label for="amg-pred-iou-thresh">Prediction IoU threshold:</label>
-                                <input type="number" id="amg-pred-iou-thresh" value="0.88" min="0" max="1" step="0.01">
-                            </div>
-                            <div class="parameter-group">
-                                <label for="amg-stability-score-thresh">Stability score threshold:</label>
-                                <input type="number" id="amg-stability-score-thresh" value="0.95" min="0" max="1" step="0.01">
-                            </div>
-                        </div>
-                        
-                        <div class="amg-actions">
-                            <button id="auto-mask-btn">Run AutoMask</button>
-                            <button id="cancel-auto-mask-btn" style="display: none;">Cancel</button>
-                            <button id="recover-auto-mask-btn">Recover AutoMask</button>
-                        </div>
-                        
-                        <div id="auto-mask-status" class="status-message small"></div>
+                <div class="results-section"> <!-- Placeholder for results/export -->
+                    <h2>Final Masks & Export</h2>
+                    <div class="export-controls">
+                        <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
+                        <!-- More export options will go here, e.g., "Commit Final Masks to Project", "Export COCO JSON" -->
+                        <p style="margin-top: 10px; font-size: 14px; color: #666;"><i>Mask list, selection, and structured data export functionalities will be added here.</i></p>
                     </div>
-                </div>
-            </div>
-
-            <!-- Results and Export Section -->
-            <div class="results-section">
-                <h2>Results & Export</h2>
-                <div class="export-controls">
-                    <button id="save-masks-btn">Save Image with Overlays</button>
                 </div>
             </div>
         </div>
 
-        <!-- Status Messages -->
-        <div id="status-message" class="status-message"></div>
+        <div id="status-message" class="status-message" role="alert" aria-live="polite">
+            <!-- Global status messages will appear here -->
+        </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='canvas.js') }}"></script>
-    <script src="{{ url_for('static', filename='modelLoader.js') }}"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <!-- JavaScript Modules: Order can be important if they have dependencies.
+         Utility and controller classes first, then handlers, then main orchestrator. -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script> <!-- General frontend utilities -->
+    <script src="{{ url_for('static', filename='js/apiClient.js') }}"></script> <!-- API communication -->
+    <script src="{{ url_for('static', filename='js/stateManager.js') }}"></script> <!-- Global frontend state -->
+
+    <script src="{{ url_for('static', filename='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
+    <script src="{{ url_for('static', filename='js/uiManager.js') }}"></script> <!-- General UI component management -->
+
+    <script src="{{ url_for('static', filename='js/modelHandler.js') }}"></script> <!-- Model loading UI -->
+    <script src="{{ url_for('static', filename='js/projectHandler.js') }}"></script> <!-- Project management UI -->
+    <script src="{{ url_for('static', filename='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>
