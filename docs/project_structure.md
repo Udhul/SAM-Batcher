@@ -24,10 +24,10 @@ project_root/
   │   │       ├── js/
   │   │       │   ├── main.js             # Main frontend script: initializes app, orchestrates modules
   │   │       │   ├── apiClient.js        # Handles all API calls to the backend
-  │   │       │   ├── canvasController.js # Implements canvas_specification.md logic (renamed from canvas.js)
+  │   │       │   ├── canvasController.js # Implements canvas_specification.md logic
   │   │       │   ├── uiManager.js        # Manages general UI elements (modals, notifications, nav)
   │   │       │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
-  │   │       │   ├── modelHandler.js     # Handles model selection, loading, status (renamed from modelLoader.js)
+  │   │       │   ├── modelHandler.js     # Handles model selection, loading, status
   │   │       │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
   │   │       │   ├── stateManager.js     # Keeps track of current frontend state
   │   │       │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
@@ -82,7 +82,7 @@ project_root/
 
 **Frontend (`project_root/app/frontend/static/js/`):**
 
-*   **`main.js`** (renamed from `script.js`):
+*   **`main.js`**:
     *   Initializes the entire frontend application on page load.
     *   Sets up global event listeners (e.g., for main UI controls outside specific components).
     *   Coordinates the initialization and interaction of other frontend modules (`projectHandler`, `modelHandler`, `canvasController`, etc.).
@@ -90,7 +90,7 @@ project_root/
     *   Provides a centralized way to make HTTP requests to the backend API.
     *   Abstracts `fetch` calls, JSON parsing, error handling for API communication.
     *   Functions like `apiClient.loadModel(params)`, `apiClient.uploadImage(fileData)`, `apiClient.getPredictions(prompts)`.
-*   **`canvasController.js`** (renamed from `canvas.js`):
+*   **`canvasController.js`**:
     *   **Primary Role:** Implements all functionalities detailed in `canvas_specification.md`.
     *   Manages the multi-layer HTML5 Canvas setup (Image Display, Prediction Mask, User Input, Final Mask Edit layers).
     *   Handles rendering of images, masks (with dynamic coloring, opacity), and user inputs (points, boxes, polygons).
@@ -109,7 +109,7 @@ project_root/
         *   Managing image sources (UI for adding file uploads, server folders, URLs, Azure URIs; listing, removing sources).
     *   Uses `apiClient.js` for all project and image source-related backend communication.
     *   Updates the UI based on backend responses (e.g., populating project list, image source list).
-*   **`modelHandler.js`** (renamed from `modelLoader.js`):
+*   **`modelHandler.js`**:
     *   Handles UI and logic for:
         *   Displaying available SAM models.
         *   Selecting a model or providing custom paths.

@@ -1,56 +1,246 @@
 // project_root/app/frontend/static/js/canvasController.js
+
+/**
+ * @file canvasController.js
+ * @description Manages all aspects of the HTML5 canvas, including rendering layers,
+ * user interactions, and coordinate transformations as per canvas_specification.md.
+ *
+ * Responsibilities:
+ * - Initialize and manage multiple canvas layers (image, prediction mask, user input).
+ * - Render the source image, AI-generated masks, and user-drawn inputs.
+ * - Handle user interactions on the canvas (points, boxes, lasso/polygons).
+ * - Perform coordinate transformations between display and original image space.
+ * - Manage opacity for each canvas layer.
+ * - Expose methods to set image data and prediction data.
+ * - Emit events for user interactions and canvas state changes.
+ *
+ * External Dependencies: None (operates on provided DOM elements).
+ *
+ * Input/Output (I/O):
+ * Input:
+ *   - DOM Elements (IDs): image-canvas, prediction-mask-canvas, user-input-canvas,
+ *                         image-opacity, prediction-opacity, user-input-opacity,
+ *                         mask-display-mode, canvas-lock, canvas-lock-message.
+ *   - Methods:
+ *     - `loadImageOntoCanvas(imageElement, originalWidth, originalHeight, filename)`: To load and display an image.
+ *     - `setManualPredictions(predictionData)`: To display masks from interactive predictions.
+ *     - `setAutomaskPredictions(predictionData)`: To display masks from automatic generation.
+ *     - `clearAllCanvasInputs(clearImageAlso)`: To clear inputs and optionally the image.
+ *     - `lockCanvas(message)` / `unlockCanvas()`: To show/hide a loading overlay.
+ *
+ * Output:
+ *   - Custom DOM Events:
+ *     - `canvas-imageLoaded`: Dispatched when an image is successfully loaded and drawn.
+ *                           Detail: { filename: string }
+ *     - `canvas-userInteraction`: Dispatched after any user input on the canvas that might trigger a prediction.
+ *                                Detail: { points: Array, box: Object, maskInput: Array|null }
+ *     - `canvas-inputsCleared`: Dispatched when inputs (and optionally image) are cleared.
+ *                               Detail: { clearedImage: boolean, clearedInputs: boolean }
+ *     - `canvas-error`: Dispatched for canvas-specific errors.
+ *                       Detail: { message: string }
+ *     - `canvas-opacityChanged`: Dispatched when an opacity slider changes.
+ *                                Detail: { layer: string, value: number }
+ *   - Methods:
+ *     - `getCurrentCanvasInputs()`: Returns current points, box, and combined user mask.
+ */
 class CanvasManager {
     constructor() {
         this.initializeElements();
         this.initializeState();
         this.initializeCanvases();
-        this.setupEventListeners();
+        this.setupEventListeners(); // Basic canvas interaction listeners
         this.setupOpacitySliders();
+        console.log("CanvasManager initialized");
     }
 
     initializeElements() {
         this.imageCanvas = document.getElementById('image-canvas');
         this.predictionMaskCanvas = document.getElementById('prediction-mask-canvas');
         this.userInputCanvas = document.getElementById('user-input-canvas');
-        
-        this.imageCtx = this.imageCanvas.getContext('2d');
-        this.predictionCtx = this.predictionMaskCanvas.getContext('2d', { willReadFrequently: true });
-        this.userCtx = this.userInputCanvas.getContext('2d');
 
-        this.imageUpload = document.getElementById('image-upload');
-        this.imageUploadProgressEl = document.getElementById('image-upload-progress');
-        this.imageUploadBarEl = document.getElementById('image-upload-bar');
-        this.clearInputsBtn = document.getElementById('clear-inputs-btn');
+        // Fallback for contexts if canvases are not yet in DOM during tests or early init
+        this.imageCtx = this.imageCanvas ? this.imageCanvas.getContext('2d') : null;
+        this.predictionCtx = this.predictionMaskCanvas ? this.predictionMaskCanvas.getContext('2d', { willReadFrequently: true }) : null;
+        this.userCtx = this.userInputCanvas ? this.userInputCanvas.getContext('2d') : null;
+
         this.maskDisplayModeSelect = document.getElementById('mask-display-mode');
-        
-        // Check if mask display mode select exists, if not create a default
         if (!this.maskDisplayModeSelect) {
-            console.warn('mask-display-mode element not found, creating default');
-            this.maskDisplayModeSelect = { value: 'best' }; // Default fallback
+            // console.warn('mask-display-mode element not found, creating default behavior.');
+            this.maskDisplayModeSelect = { value: 'best', addEventListener: () => {} }; // Mock for headless init
         }
-        
+
         this.imageOpacitySlider = document.getElementById('image-opacity');
         this.predictionOpacitySlider = document.getElementById('prediction-opacity');
         this.userInputOpacitySlider = document.getElementById('user-input-opacity');
-        
-        this.canvasLockEl = document.getElementById('canvas-lock');
-        this.canvasLockMessageEl = document.querySelector('#canvas-lock .canvas-lock-message');
 
+        this.canvasLockEl = document.getElementById('canvas-lock');
+        this.canvasLockMessageEl = this.canvasLockEl ? this.canvasLockEl.querySelector('.canvas-lock-message') : null;
+
+        // Offscreen canvases for efficient rendering
         this.offscreenPredictionCanvas = document.createElement('canvas');
         this.offscreenPredictionCtx = this.offscreenPredictionCanvas.getContext('2d', { willReadFrequently: true });
         this.offscreenUserCanvas = document.createElement('canvas');
         this.offscreenUserCtx = this.offscreenUserCanvas.getContext('2d');
 
+        // Temporary canvas for processing individual mask pixels before scaling
         this.tempMaskPixelCanvas = document.createElement('canvas');
         this.tempMaskPixelCtx = this.tempMaskPixelCanvas.getContext('2d', { willReadFrequently: true });
     }
 
     initializeState() {
-        this.currentImage = null;
+        this.currentImage = null; // Will hold the Image object
         this.currentImageFilename = null;
         this.originalImageWidth = 0;
         this.originalImageHeight = 0;
+        this.displayScale = 1.0; // Scale of original image to displayed image
 
+        this.userPoints = []; // [{x, y, label}, ...] in original image coordinates
+        this.userBox = null;  // {x1, y1, x2, y2} in original image coordinates
+        this.userDrawnMasks = []; // [{points: [{x,y},...], color, id}, ...] polygons
+        this.currentLassoPoints = []; // Temporary points for drawing lasso
+        this.isDrawingLasso = false;
+        this.combinedUserMaskInput256 = null; // 256x256 binary array for `mask_input`
+
+        this.manualPredictions = []; // [{segmentation: [[0,1,...]], score: 0.9}, ...]
+        this.automaskPredictions = []; // From AMG, same structure or raw AMG output
+
+        this.interactionState = {
+            isDrawingBox: false,
+            isMouseDown: false,
+            startX_orig: 0, // Mouse down start X in original image coordinates
+            startY_orig: 0, // Mouse down start Y in original image coordinates
+            didMove: false  // To distinguish click from drag
+        };
+    }
+
+    initializeCanvases() {
+        // Set initial placeholder size if canvases are present
+        if (this.imageCanvas) this.resizeCanvases(300, 150); // Default placeholder size
+    }
+
+    setupOpacitySliders() {
+        const sliders = [
+            { el: this.imageOpacitySlider, layer: 'image', default: '1.0', action: () => this.drawImageLayer() },
+            { el: this.predictionOpacitySlider, layer: 'prediction', default: '0.7', action: () => this.drawPredictionMaskLayer() },
+            { el: this.userInputOpacitySlider, layer: 'userInput', default: '0.8', action: () => this.drawUserInputLayer() }
+        ];
+
+        sliders.forEach(item => {
+            if (item.el) {
+                item.el.min = '0';
+                item.el.max = '1';
+                item.el.step = '0.05'; // Finer control
+                item.el.value = item.default;
+                item.el.addEventListener('input', () => {
+                    item.action();
+                    this._dispatchEvent('opacityChanged', { layer: item.layer, value: parseFloat(item.el.value) });
+                });
+            }
+        });
+    }
+
+    setupEventListeners() {
+        if (this.userInputCanvas) {
+            this.userInputCanvas.addEventListener('mousedown', (e) => this._handleMouseDown(e));
+            this.userInputCanvas.addEventListener('mousemove', (e) => this._handleMouseMove(e));
+            this.userInputCanvas.addEventListener('mouseup', (e) => this._handleMouseUp(e));
+            this.userInputCanvas.addEventListener('mouseleave', (e) => this._handleMouseLeave(e));
+            this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
+        }
+        if (this.maskDisplayModeSelect) {
+            this.maskDisplayModeSelect.addEventListener('change', () => this.drawPredictionMaskLayer());
+        }
+        // window.addEventListener('resize', () => this._handleWindowResize()); // More robust resize
+    }
+
+    _handleWindowResize() {
+        // Debounce resize event if necessary
+        if (this.currentImage) {
+            this.drawImageLayer(); // This will re-calculate sizes and redraw all
+        }
+    }
+
+    resizeCanvases(width, height) {
+        const canvases = [
+            this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas,
+            this.offscreenPredictionCanvas, this.offscreenUserCanvas
+        ];
+        canvases.forEach(canvas => {
+            if (canvas) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+        });
+        // tempMaskPixelCanvas is sized based on original image, not display
+    }
+
+    // --- Coordinate Transformation ---
+    _displayToOriginalCoords(clientX, clientY) {
+        if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
+            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
+
+        const rect = this.userInputCanvas.getBoundingClientRect();
+        // Normalize click coordinates to be relative to the canvas element
+        const canvasX = (clientX - rect.left) * (this.userInputCanvas.width / rect.width);
+        const canvasY = (clientY - rect.top) * (this.userInputCanvas.height / rect.height);
+
+        // Scale canvas coordinates to original image coordinates
+        return {
+            x: canvasX / this.displayScale,
+            y: canvasY / this.displayScale
+        };
+    }
+
+    _originalToDisplayCoords(originalX, originalY) {
+        if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
+            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
+        return {
+            x: originalX * this.displayScale,
+            y: originalY * this.displayScale
+        };
+    }
+
+
+    // --- Public Methods for External Control ---
+    loadImageOntoCanvas(imageElement, originalWidth, originalHeight, filename) {
+        if (!imageElement || !originalWidth || !originalHeight) {
+            this._dispatchEvent('error', { message: 'Invalid image data provided to canvas.' });
+            return;
+        }
+        this.currentImage = imageElement;
+        this.originalImageWidth = originalWidth;
+        this.originalImageHeight = originalHeight;
+        this.currentImageFilename = filename;
+
+        this.clearAllCanvasInputs(false); // Clear previous inputs/masks, but not the image itself
+        this.drawImageLayer(); // This will resize canvases and draw the new image
+        this._dispatchEvent('imageLoaded', { filename: this.currentImageFilename });
+    }
+
+    setManualPredictions(predictionData) {
+        this.manualPredictions = [];
+        if (predictionData && predictionData.masks_data && predictionData.scores &&
+            predictionData.masks_data.length === predictionData.scores.length) {
+            this.manualPredictions = predictionData.masks_data.map((seg, index) => ({
+                segmentation: seg, // Expects 2D binary array
+                score: predictionData.scores[index]
+            })).sort((a, b) => b.score - a.score); // Sort by score descending
+        } else if (predictionData && predictionData.masks_data) { // Scores optional
+             this.manualPredictions = predictionData.masks_data.map(seg => ({
+                segmentation: seg, score: 0 // Default score
+            }));
+        }
+        this.automaskPredictions = []; // Clear automasks when manual predictions come in
+        this.drawPredictionMaskLayer();
+    }
+
+    setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
+        this.automaskPredictions = (predictionData && predictionData.masks_data) ? predictionData.masks_data : [];
+        this.manualPredictions = []; // Clear manual predictions
+        this.drawPredictionMaskLayer();
+    }
+
+    clearAllCanvasInputs(clearImageAlso = false) {
         this.userPoints = [];
         this.userBox = null;
         this.userDrawnMasks = [];
@@ -58,491 +248,269 @@ class CanvasManager {
         this.isDrawingLasso = false;
         this.combinedUserMaskInput256 = null;
 
-        this.manualPredictions = []; 
-        this.automaskPredictions = []; 
+        this.manualPredictions = [];
+        this.automaskPredictions = [];
 
-        this.interactionState = {
-            isDrawingBox: false,
-            isMouseDown: false,
-            startX_orig: 0,
-            startY_orig: 0,
-            didMove: false
-        };
-    }
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
 
-    initializeCanvases() {
-        this.resizeCanvases(300, 150);
-    }
+        let eventDetail = { clearedImage: false, clearedInputs: true };
 
-    setupOpacitySliders() {
-        const opacitySliders = [this.imageOpacitySlider, this.predictionOpacitySlider, this.userInputOpacitySlider];
-        opacitySliders.forEach(slider => {
-            slider.min = '0';
-            slider.max = '1';
-            slider.step = '0.125';
-        });
-        this.imageOpacitySlider.value = '1.0'; 
-        this.predictionOpacitySlider.value = '1.0'; 
-        this.userInputOpacitySlider.value = '0.6';
-
-        this.imageOpacitySlider.addEventListener('input', () => this.drawImage());
-        this.predictionOpacitySlider.addEventListener('input', () => this.drawPredictionMasks());
-        this.userInputOpacitySlider.addEventListener('input', () => this.drawUserInput());
-    }
-
-    setupEventListeners() {
-        this.imageUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) this.uploadImage(file);
-        });
-        this.clearInputsBtn.addEventListener('click', () => this.clearAllInputs(false, true));
-        this.maskDisplayModeSelect.addEventListener('change', () => this.drawPredictionMasks());
-        this.setupCanvasInteractions();
-        window.addEventListener('resize', () => this.drawImage());
-    }
-
-    setupCanvasInteractions() {
-        this.userInputCanvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-        this.userInputCanvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.userInputCanvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
-        this.userInputCanvas.addEventListener('mouseleave', (e) => this.handleMouseLeave(e));
-        this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
-
-    resizeCanvases(width, height) {
-        [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas, 
-         this.offscreenPredictionCanvas, this.offscreenUserCanvas].forEach(canvas => {
-            canvas.width = width;
-            canvas.height = height;
-        });
-    }
-
-    displayToOriginalCoords(clientX, clientY) {
-        if (!this.originalImageWidth || !this.originalImageHeight || 
-            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
-        const rect = this.userInputCanvas.getBoundingClientRect();
-        const canvasX = (clientX - rect.left) * (this.userInputCanvas.width / rect.width);
-        const canvasY = (clientY - rect.top) * (this.userInputCanvas.height / rect.height);
-        return {
-            x: canvasX * (this.originalImageWidth / this.userInputCanvas.width),
-            y: canvasY * (this.originalImageHeight / this.userInputCanvas.height)
-        };
-    }
-
-    originalToDisplayCoords(originalX, originalY) {
-        if (!this.originalImageWidth || !this.originalImageHeight || 
-            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
-        return {
-            x: originalX * (this.userInputCanvas.width / this.originalImageWidth),
-            y: originalY * (this.userInputCanvas.height / this.originalImageHeight)
-        };
-    }
-
-    _generateDistinctColors(count) {
-        const colors = [];
-        for (let i = 0; i < count; i++) {
-            const hue = (i * (360 / (count < 5 ? count * 1.8 : count * 1.1))) % 360; 
-            const saturation = 70 + Math.random() * 20; 
-            const lightness = 55 + Math.random() * 10; 
-            
-            // Convert HSL to RGB
-            const h = hue / 360;
-            const s = saturation / 100;
-            const l = lightness / 100;
-            
-            let r, g, b;
-            if (s === 0) {
-                r = g = b = l; // achromatic
-            } else {
-                const hue2rgb = (p, q, t) => {
-                    if (t < 0) t += 1;
-                    if (t > 1) t -= 1;
-                    if (t < 1/6) return p + (q - p) * 6 * t;
-                    if (t < 1/2) return q;
-                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-                    return p;
-                };
-                
-                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                const p = 2 * l - q;
-                r = hue2rgb(p, q, h + 1/3);
-                g = hue2rgb(p, q, h);
-                b = hue2rgb(p, q, h - 1/3);
-            }
-            
-            // Convert to 0-255 range and create rgba string
-            const red = Math.round(r * 255);
-            const green = Math.round(g * 255);
-            const blue = Math.round(b * 255);
-            colors.push(`rgba(${red}, ${green}, ${blue}, 0.7)`); // 70% opacity
+        if (clearImageAlso) {
+            this.currentImage = null;
+            this.currentImageFilename = null;
+            this.originalImageWidth = 0;
+            this.originalImageHeight = 0;
+            this.displayScale = 1.0;
+            // Reset canvases to placeholder size and clear them
+            this.resizeCanvases(300, 150); // Placeholder size
+             [this.imageCtx, this.predictionCtx, this.userCtx,
+             this.offscreenPredictionCtx, this.offscreenUserCtx,
+             this.tempMaskPixelCtx].forEach(ctx => {
+                if (ctx) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            });
+            eventDetail.clearedImage = true;
         }
-        return colors;
+        this._dispatchEvent('inputsCleared', eventDetail);
     }
-    
-    _parseRgbaFromString(rgbaStr) {
-        console.log('Parsing color string:', rgbaStr);
-        const match = rgbaStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-        if (!match) {
-            console.warn('Failed to parse color string:', rgbaStr);
-            return [255, 0, 0, 255]; // Return red as fallback instead of transparent
+
+    getCurrentCanvasInputs() {
+        return {
+            points: this.userPoints, // Array of {x, y, label} in original coords
+            box: this.userBox,       // {x1, y1, x2, y2} in original coords or null
+            maskInput: this.combinedUserMaskInput256, // 256x256 array or null
+            imagePresent: !!this.currentImage,
+            filename: this.currentImageFilename
+        };
+    }
+
+    // --- Drawing Layers ---
+    drawImageLayer() {
+        if (!this.currentImage || !this.imageCtx) return;
+
+        const displayArea = this.imageCanvas.parentElement || document.body; // Get parent for sizing
+        const areaWidth = displayArea.clientWidth;
+        const areaHeight = displayArea.clientHeight;
+
+        // Calculate scale to fit image within parent while maintaining aspect ratio
+        const hRatio = areaWidth / this.originalImageWidth;
+        const vRatio = areaHeight / this.originalImageHeight;
+        this.displayScale = Math.min(hRatio, vRatio, 1.0); // Don't scale up beyond 100% unless image is smaller than area
+
+        const displayWidth = Math.round(this.originalImageWidth * this.displayScale);
+        const displayHeight = Math.round(this.originalImageHeight * this.displayScale);
+
+        if (this.imageCanvas.width !== displayWidth || this.imageCanvas.height !== displayHeight) {
+            this.resizeCanvases(displayWidth, displayHeight);
         }
-        const result = [
-            parseInt(match[1]),
-            parseInt(match[2]),
-            parseInt(match[3]),
-            match[4] !== undefined ? Math.round(parseFloat(match[4]) * 255) : 255 
-        ];
-        console.log('Parsed color result:', result);
-        return result;
-    }
 
-
-    drawImage() {
-        if (!this.currentImage) return;
-        const displayArea = document.querySelector('.image-display-area');
-        const areaWidth = displayArea.clientWidth || 600;
-        const areaHeight = displayArea.clientHeight || 400;
-        const maxWidth = areaWidth * 0.98;
-        const maxHeight = areaHeight * 0.98;
-        const hRatio = maxWidth / this.originalImageWidth;
-        const vRatio = maxHeight / this.originalImageHeight;
-        const currentDisplayScale = Math.min(hRatio, vRatio, 1.0);
-        const displayWidth = Math.round(this.originalImageWidth * currentDisplayScale);
-        const displayHeight = Math.round(this.originalImageHeight * currentDisplayScale);
-
-        this.resizeCanvases(displayWidth, displayHeight);
         this.imageCtx.clearRect(0, 0, displayWidth, displayHeight);
-        this.imageCtx.globalAlpha = parseFloat(this.imageOpacitySlider.value);
+        this.imageCtx.globalAlpha = this.imageOpacitySlider ? parseFloat(this.imageOpacitySlider.value) : 1.0;
         this.imageCtx.drawImage(this.currentImage, 0, 0, displayWidth, displayHeight);
         this.imageCtx.globalAlpha = 1.0;
 
-        this.drawUserInput();
-        this.drawPredictionMasks();
+        // Redraw other layers as their display depends on image size/scale
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
     }
 
-    drawUserInput() {
-        if (!this.currentImage || this.offscreenUserCanvas.width === 0 || this.offscreenUserCanvas.height === 0) return;        
+    drawUserInputLayer() {
+        if (!this.currentImage || !this.userCtx || !this.offscreenUserCtx ||
+            this.offscreenUserCanvas.width === 0 || this.offscreenUserCanvas.height === 0) {
+            if(this.userCtx) this.userCtx.clearRect(0, 0, this.userCtx.canvas.width, this.userCtx.canvas.height);
+            return;
+        }
+
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
-        const pointDisplayRadius = 2;
-        const lineDisplayWidth = 1;
+
+        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Scale point radius slightly
+        const lineDisplayWidth = Math.max(1, 2 * this.displayScale); // Scale line width
+
+        // Draw drawn polygons (lassos)
         this.userDrawnMasks.forEach(mask => {
             if (mask.points.length < 3) return;
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this.originalToDisplayCoords(mask.points[0].x, mask.points[0].y);
+            const firstP_disp = this._originalToDisplayCoords(mask.points[0].x, mask.points[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < mask.points.length; i++) {
-                const p_disp = this.originalToDisplayCoords(mask.points[i].x, mask.points[i].y);
+                const p_disp = this._originalToDisplayCoords(mask.points[i].x, mask.points[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.closePath();
-            this.offscreenUserCtx.fillStyle = mask.color || 'rgba(255, 255, 0, 0.4)';
+            this.offscreenUserCtx.fillStyle = mask.color || 'rgba(255, 255, 0, 0.3)'; // Yellow with some transparency
             this.offscreenUserCtx.fill();
-            this.offscreenUserCtx.strokeStyle = 'rgba(0,0,0,0.6)';
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.7)'; // White outline
             this.offscreenUserCtx.lineWidth = 1;
             this.offscreenUserCtx.stroke();
         });
+
+        // Draw current lasso drawing in progress
         if (this.isDrawingLasso && this.currentLassoPoints.length > 0) {
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this.originalToDisplayCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
+            const firstP_disp = this._originalToDisplayCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < this.currentLassoPoints.length; i++) {
-                const p_disp = this.originalToDisplayCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
+                const p_disp = this._originalToDisplayCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
-            if (this.currentLassoPoints.length > 1) {
-                this.offscreenUserCtx.lineTo(firstP_disp.x, firstP_disp.y);
-            }
-            this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.9)';
+            // Don't close path while drawing, or draw line back to start for preview
+            // if (this.currentLassoPoints.length > 1) {
+            //     this.offscreenUserCtx.lineTo(firstP_disp.x, firstP_disp.y);
+            // }
+            this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.9)'; // Bright yellow for active drawing
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.stroke();
         }
+
+        // Draw points
         this.userPoints.forEach(p_orig => {
-            const dp = this.originalToDisplayCoords(p_orig.x, p_orig.y);
+            const dp = this._originalToDisplayCoords(p_orig.x, p_orig.y);
             this.offscreenUserCtx.beginPath();
             this.offscreenUserCtx.arc(dp.x, dp.y, pointDisplayRadius, 0, 2 * Math.PI);
-            this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(0,200,0,0.8)' : 'rgba(200,0,0,0.8)';
+            this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'; // Green/Red
             this.offscreenUserCtx.fill();
-            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.9)';
-            this.offscreenUserCtx.lineWidth = lineDisplayWidth * 0.75;
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.9)'; // White outline
+            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.5);
             this.offscreenUserCtx.stroke();
         });
+
+        // Draw box
         if (this.userBox) {
-            const db1 = this.originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
-            const db2 = this.originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
-            this.offscreenUserCtx.strokeStyle = 'rgba(0,100,255,0.8)';
+            const db1 = this._originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
+            const db2 = this._originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
+            this.offscreenUserCtx.strokeStyle = 'rgba(0, 100, 255, 0.8)'; // Blue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
+            // Add white outline for contrast
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.7)';
+            this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.5);
+            this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
+
         }
+
+        // Composite to visible canvas
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
-        this.userCtx.globalAlpha = parseFloat(this.userInputOpacitySlider.value);
+        this.userCtx.globalAlpha = this.userInputOpacitySlider ? parseFloat(this.userInputOpacitySlider.value) : 0.8;
         this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
         this.userCtx.globalAlpha = 1.0;
     }
-    
-    drawPredictionMasks() {
-        console.log('=== drawPredictionMasks() called ===');
-        console.log('Current image exists:', !!this.currentImage);
-        console.log('Canvas dimensions:', this.offscreenPredictionCanvas.width, 'x', this.offscreenPredictionCanvas.height);
-        console.log('Manual predictions count:', this.manualPredictions.length);
-        console.log('Automask predictions count:', this.automaskPredictions.length);
-        
-        if (!this.currentImage || this.offscreenPredictionCanvas.width === 0 || this.offscreenPredictionCanvas.height === 0) {
-            console.log('Early return: no image or zero canvas dimensions');
-            this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
-            this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+
+    drawPredictionMaskLayer() {
+        if (!this.currentImage || !this.predictionCtx || !this.offscreenPredictionCtx ||
+            this.offscreenPredictionCanvas.width === 0 || this.offscreenPredictionCanvas.height === 0) {
+            if(this.predictionCtx) this.predictionCtx.clearRect(0, 0, this.predictionCtx.canvas.width, this.predictionCtx.canvas.height);
             return;
         }
-        
+
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
-        let activePredictions = []; 
-        
+        let activePredictions = [];
+        // Determine which set of predictions to use (automask or manual)
         if (this.automaskPredictions && this.automaskPredictions.length > 0) {
-            console.log('Using automask predictions');
             activePredictions = this.automaskPredictions;
         } else if (this.manualPredictions && this.manualPredictions.length > 0) {
-            console.log('Using manual predictions');
             const mode = this.maskDisplayModeSelect ? this.maskDisplayModeSelect.value : 'best';
-            console.log('Mask display mode:', mode);
-            if (mode === 'best' && this.manualPredictions[0]) {
+            if (mode === 'best' && this.manualPredictions[0]) { // Assumes manualPredictions are sorted by score
                 activePredictions.push(this.manualPredictions[0]);
             } else if (mode === 'all') {
                 activePredictions = this.manualPredictions;
-            } else {
-                // Default to best if mode is unknown
-                activePredictions.push(this.manualPredictions[0]);
+            } else { // Default or unknown mode
+                if(this.manualPredictions[0]) activePredictions.push(this.manualPredictions[0]);
             }
         }
 
-        console.log('Active predictions count:', activePredictions.length);
-        console.log('Active predictions sample:', activePredictions[0]);
-
         if (activePredictions.length > 0) {
+            // Ensure tempMaskPixelCanvas is sized to the original image dimensions
             if (this.tempMaskPixelCanvas.width !== this.originalImageWidth || this.tempMaskPixelCanvas.height !== this.originalImageHeight) {
-                console.log('Resizing temp canvas to:', this.originalImageWidth, 'x', this.originalImageHeight);
                 this.tempMaskPixelCanvas.width = this.originalImageWidth;
                 this.tempMaskPixelCanvas.height = this.originalImageHeight;
             }
-            
+
             const generatedColors = this._generateDistinctColors(activePredictions.length);
-            console.log('Generated colors:', generatedColors);
 
             activePredictions.forEach((predictionItem, index) => {
-                console.log(`Processing prediction ${index}:`, predictionItem);
-                const segmentation = predictionItem.segmentation; // segmentation is the 2D array
-                if (!segmentation || segmentation.length === 0 || segmentation[0].length === 0) {
-                    console.log(`Skipping prediction ${index}: no segmentation data`);
-                    return;
+                // predictionItem is {segmentation: [[0,1,...]], score: 0.9, ...} or from AMG: {segmentation, area, bbox, ...}
+                const segmentation = predictionItem.segmentation; // This is the 2D binary array
+                if (!segmentation || segmentation.length === 0 || !segmentation[0] || segmentation[0].length === 0) {
+                    return; // Skip if no valid segmentation
                 }
 
-                const maskHeight = segmentation.length;    
-                const maskWidth = segmentation[0].length; 
-                console.log(`Mask ${index} dimensions: ${maskWidth}x${maskHeight}`);
-                console.log(`Original image dimensions: ${this.originalImageWidth}x${this.originalImageHeight}`);
+                const maskHeight = segmentation.length;
+                const maskWidth = segmentation[0].length;
 
                 if (maskHeight !== this.originalImageHeight || maskWidth !== this.originalImageWidth) {
-                    console.warn("Mask dimensions do not match original image dimensions. Skipping a mask.");
+                    console.warn("Mask dimensions mismatch original image. Skipping a mask.",
+                                 `Mask: ${maskWidth}x${maskHeight}`,
+                                 `Image: ${this.originalImageWidth}x${this.originalImageHeight}`);
                     return;
                 }
-                
-                this.tempMaskPixelCtx.clearRect(0,0, maskWidth, maskHeight); 
+
+                this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
                 const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
                 const pixelData = imageData.data;
-                const colorStr = generatedColors[index % generatedColors.length];
+                const colorStr = generatedColors[index % generatedColors.length]; // Cycle through colors
                 const [r, g, b, a_int] = this._parseRgbaFromString(colorStr); // a_int is 0-255
-                console.log(`Using color for mask ${index}: rgba(${r},${g},${b},${a_int})`);
 
                 let pixelCount = 0;
                 for (let y = 0; y < maskHeight; y++) {
                     for (let x = 0; x < maskWidth; x++) {
-                        if (segmentation[y][x] === 1 || segmentation[y][x] === true) { 
+                        if (segmentation[y][x] === 1 || segmentation[y][x] === true) {
                             const pixelIndex = (y * maskWidth + x) * 4;
                             pixelData[pixelIndex] = r;
                             pixelData[pixelIndex + 1] = g;
                             pixelData[pixelIndex + 2] = b;
-                            pixelData[pixelIndex + 3] = a_int; 
+                            pixelData[pixelIndex + 3] = a_int; // Use parsed alpha
                             pixelCount++;
                         }
                     }
                 }
-                console.log(`Mask ${index} filled ${pixelCount} pixels`);
-                
+
                 if (pixelCount > 0) {
                     this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-                    
-                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, 
-                                                          this.offscreenPredictionCanvas.width, 
+                    // Draw the processed mask (at original resolution) onto the offscreen canvas,
+                    // scaling it down to the display size.
+                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
+                                                          this.offscreenPredictionCanvas.width,
                                                           this.offscreenPredictionCanvas.height);
-                    console.log(`Drew mask ${index} to offscreen canvas`);
-                } else {
-                    console.log(`Mask ${index} had no pixels to draw`);
                 }
             });
         }
 
+        // Composite to visible prediction canvas
         this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
-        const opacity = parseFloat(this.predictionOpacitySlider.value);
+        const opacity = this.predictionOpacitySlider ? parseFloat(this.predictionOpacitySlider.value) : 0.7;
         this.predictionCtx.globalAlpha = opacity;
-        console.log('Prediction opacity:', opacity);
         this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
         this.predictionCtx.globalAlpha = 1.0;
-        console.log('=== drawPredictionMasks() completed ===');
     }
 
-    async uploadImage(file) {
-        console.log('=== uploadImage() called ===');
-        console.log('File:', file);
-        console.log('File name:', file.name);
-        console.log('File size:', file.size);
-        console.log('File type:', file.type);
-
-        const formData = new FormData();
-        formData.append('image', file);
-        this.currentImageFilename = file.name;
-        
-        console.log('FormData created, showing canvas progress...');
-        this.imageUploadProgressEl.style.display = 'block';
-        this.imageUploadBarEl.style.width = '0%';
-        this.imageUploadBarEl.textContent = '0%';
-        this.lockCanvas("Uploading image...");
-
-        try {
-            console.log('Creating XMLHttpRequest...');
-            const xhr = new XMLHttpRequest();
-            
-            xhr.upload.onprogress = (event) => {
-                console.log('Upload progress event:', event);
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    console.log(`Upload progress: ${percentComplete}% (${event.loaded}/${event.total})`);
-                    this.imageUploadBarEl.style.width = percentComplete + '%';
-                    this.imageUploadBarEl.textContent = percentComplete + '%';
-                } else {
-                    console.log('Upload progress event not computable');
-                }
-            };
-
-            xhr.upload.onloadstart = () => {
-                console.log('Upload started');
-            };
-
-            xhr.upload.onload = () => {
-                console.log('Upload completed');
-            };
-
-            xhr.upload.onerror = () => {
-                console.log('Upload error');
-            };
-
-            xhr.onloadstart = () => {
-                console.log('Request started');
-            };
-
-            xhr.onload = async () => {
-                console.log('XMLHttpRequest onload triggered');
-                console.log('Response status:', xhr.status);
-                console.log('Response text length:', xhr.responseText ? xhr.responseText.length : 'null');
-                
-                this.unlockCanvas();
-                this.imageUploadProgressEl.style.display = 'none';
-                
-                if (xhr.status === 200) {
-                    console.log('Response status 200, parsing JSON...');
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        console.log('Parsed response data:', data);
-                        
-                        if (data.success) {
-                            console.log('Upload successful, clearing inputs...');
-                            this.clearAllInputs(true, true); 
-                            
-                            console.log('Creating new Image object...');
-                            this.currentImage = new Image();
-                            
-                            this.currentImage.onload = () => {
-                                console.log('Image onload triggered');
-                                this.originalImageWidth = data.width;
-                                this.originalImageHeight = data.height;
-                                console.log('Image dimensions:', data.width, 'x', data.height);
-                                this.drawImage(); 
-                                this.dispatchEvent('imageLoaded', { filename: this.currentImageFilename });
-                            };
-                            
-                            this.currentImage.onerror = (err) => {
-                                console.error('Image loading error:', err);
-                                this.dispatchEvent('error', { message: 'Failed to load image data from server response.' });
-                            }
-                            
-                            console.log('Setting image src...');
-                            this.currentImage.src = data.image_data; 
-                            this.currentImageFilename = data.filename || file.name;
-                        } else {
-                            console.log('Upload failed:', data.error);
-                            this.dispatchEvent('error', { message: 'Failed to upload image: ' + (data.error || "Unknown server error") });
-                        }
-                    } catch (parseError) {
-                        console.error('JSON parse error:', parseError);
-                        console.log('Raw response text:', xhr.responseText.substring(0, 500));
-                        this.dispatchEvent('error', { message: 'Invalid response from server' });
-                    }
-                } else {
-                    console.log('HTTP error status:', xhr.status, xhr.statusText);
-                    this.dispatchEvent('error', { message: `Image upload failed: ${xhr.status} ${xhr.statusText || "Server error"}` });
-                }
-            };
-            
-            xhr.onerror = () => {
-                console.log('XMLHttpRequest onerror triggered');
-                this.unlockCanvas();
-                this.imageUploadProgressEl.style.display = 'none';
-                this.dispatchEvent('error', { message: 'Image upload error (network connection or server unavailable).' });
-            };
-
-            xhr.ontimeout = () => {
-                console.log('XMLHttpRequest timeout');
-                this.unlockCanvas();
-                this.imageUploadProgressEl.style.display = 'none';
-                this.dispatchEvent('error', { message: 'Image upload timeout.' });
-            };
-
-            console.log('Opening POST request to /api/upload_image...');
-            xhr.open('POST', '/api/upload_image', true);
-            xhr.timeout = 60000; // 60 second timeout
-            
-            console.log('Sending FormData...');
-            xhr.send(formData);
-            
-        } catch (error) {
-            console.error('Error in uploadImage:', error);
-            this.unlockCanvas();
-            this.imageUploadProgressEl.style.display = 'none';
-            this.dispatchEvent('error', { message: 'Error setting up image upload: ' + error });
-        }
-    }
-
-    handleMouseDown(e) {
-        if (!this.currentImage || this.canvasLockEl.style.display !== 'none') return;        
+    // --- User Interaction Handlers ---
+    _handleMouseDown(e) {
+        if (!this.currentImage || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.isMouseDown = true;
         this.interactionState.didMove = false;
-        const origCoords = this.displayToOriginalCoords(e.clientX, e.clientY);
+        const origCoords = this._displayToOriginalCoords(e.clientX, e.clientY);
         this.interactionState.startX_orig = origCoords.x;
         this.interactionState.startY_orig = origCoords.y;
+
         const isShift = e.shiftKey;
-        const isCtrl = e.ctrlKey || e.metaKey;
-        if (isCtrl) {
+        const isCtrl = e.ctrlKey || e.metaKey; // Meta for Mac Cmd key
+
+        if (isCtrl) { // Lasso tool
             this.isDrawingLasso = true;
             this.currentLassoPoints = [origCoords];
-        } else if (isShift) {
+        } else if (isShift) { // Box tool
             this.interactionState.isDrawingBox = true;
-            this.userBox = null;
+            this.userBox = null; // Clear previous box or start new one
         }
         e.preventDefault();
     }
 
-    handleMouseMove(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || this.canvasLockEl.style.display !== 'none') return;        
+    _handleMouseMove(e) {
+        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.didMove = true;
-        const currentCoords_orig = this.displayToOriginalCoords(e.clientX, e.clientY);
+        const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
+
         if (this.interactionState.isDrawingBox) {
             this.userBox = {
                 x1: Math.min(this.interactionState.startX_orig, currentCoords_orig.x),
@@ -550,59 +518,63 @@ class CanvasManager {
                 x2: Math.max(this.interactionState.startX_orig, currentCoords_orig.x),
                 y2: Math.max(this.interactionState.startY_orig, currentCoords_orig.y),
             };
-            this.drawUserInput();
+            this.drawUserInputLayer();
         } else if (this.isDrawingLasso) {
             this.currentLassoPoints.push(currentCoords_orig);
-            this.drawUserInput();
+            this.drawUserInputLayer(); // Redraw user input layer to show lasso path
         }
     }
 
-    handleMouseUp(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || this.canvasLockEl.style.display !== 'none') return;
-        const coords_orig = this.displayToOriginalCoords(e.clientX, e.clientY);
-        const pointDisplayRadius = 5;
-        const clickThresholdOrig = (this.userInputCanvas.width > 0 && this.originalImageWidth > 0) ?
-                                   (pointDisplayRadius * (this.originalImageWidth / this.userInputCanvas.width)) :
-                                   pointDisplayRadius;
+    _handleMouseUp(e) {
+        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
+        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Visual radius on canvas
+        const clickThresholdOrig = pointDisplayRadius / this.displayScale; // Equivalent radius in original image coords
+
         const isShift = e.shiftKey;
         const isCtrl = e.ctrlKey || e.metaKey;
-        let interactionHandledOnUp = false;
+        let interactionHandledOnUp = false; // Flag to check if specific tool action (box/lasso finish) was taken
+
         if (this.interactionState.isDrawingBox) {
+            // Finalize box or discard if too small
             if (this.userBox && (this.userBox.x2 - this.userBox.x1 < clickThresholdOrig || this.userBox.y2 - this.userBox.y1 < clickThresholdOrig)) {
-                this.userBox = null;
+                this.userBox = null; // Discard tiny box (likely a shift-click)
             }
             interactionHandledOnUp = true;
         } else if (this.isDrawingLasso) {
-            if (this.currentLassoPoints.length > 2) {
+            if (this.currentLassoPoints.length > 2) { // Need at least 3 points for a polygon
                 this.userDrawnMasks.push({
                     points: [...this.currentLassoPoints],
-                    color: `${this.getRandomHexColor()}99`,
+                    color: `${this._getRandomHexColor()}66`, // Hex with alpha, e.g. 40%
                     id: Date.now()
                 });
-                this.prepareCombinedUserMaskInput();
+                this._prepareCombinedUserMaskInput(); // Update the 256x256 mask_input
             }
             interactionHandledOnUp = true;
         }
+
+        // Handle clicks (if no drag or if tool action didn't consume the click)
         if (!this.interactionState.didMove || (!interactionHandledOnUp && !this.isDrawingLasso && !this.interactionState.isDrawingBox)) {
-            if (isCtrl) {
+            if (isCtrl) { // Ctrl-click to remove lasso/polygon
                 let removedMask = false;
                 for (let i = this.userDrawnMasks.length - 1; i >= 0; i--) {
-                    if (this.isPointInPolygon(coords_orig, this.userDrawnMasks[i].points)) {
+                    if (this._isPointInPolygon(coords_orig, this.userDrawnMasks[i].points)) {
                         this.userDrawnMasks.splice(i, 1);
                         removedMask = true;
                         break;
                     }
                 }
-                if (removedMask) this.prepareCombinedUserMaskInput();
-            } else if (isShift) {
+                if (removedMask) this._prepareCombinedUserMaskInput();
+            } else if (isShift) { // Shift-click (without drag) to remove box under cursor
                 if (this.userBox &&
                     coords_orig.x >= this.userBox.x1 && coords_orig.x <= this.userBox.x2 &&
                     coords_orig.y >= this.userBox.y1 && coords_orig.y <= this.userBox.y2) {
                     this.userBox = null;
                 }
-            } else {
-                const label = e.button === 0 ? 1 : 0;
+            } else { // Normal click for points
+                const label = e.button === 0 ? 1 : 0; // Left click = positive (1), Right click = negative (0)
                 let removedPoint = false;
+                // Check if clicking on an existing point to remove it
                 for (let i = this.userPoints.length - 1; i >= 0; i--) {
                     const p_orig = this.userPoints[i];
                     const dist = Math.sqrt(Math.pow(p_orig.x - coords_orig.x, 2) + Math.pow(p_orig.y - coords_orig.y, 2));
@@ -612,57 +584,66 @@ class CanvasManager {
                         break;
                     }
                 }
-                if (!removedPoint) {
+                if (!removedPoint) { // If not removing, add new point
                     this.userPoints.push({ x: coords_orig.x, y: coords_orig.y, label: label });
                 }
             }
         }
+
+        // Reset drawing states
         this.isDrawingLasso = false;
         this.currentLassoPoints = [];
         this.interactionState.isDrawingBox = false;
         this.interactionState.isMouseDown = false;
         this.interactionState.didMove = false;
-        this.drawUserInput();
-        this.dispatchEvent('userInteraction', { 
-            points: this.userPoints, 
-            box: this.userBox, 
-            maskInput: this.combinedUserMaskInput256 
-        });
+
+        this.drawUserInputLayer(); // Redraw user inputs
+        this._dispatchEvent('userInteraction', this.getCurrentCanvasInputs()); // Notify external listeners
     }
 
-    handleMouseLeave(e) {
-        if (this.interactionState.isMouseDown && this.canvasLockEl.style.display === 'none') {
-            const clickThresholdOrig = (this.userInputCanvas.width > 0 && this.originalImageWidth > 0) ?
-                                       (10 * (this.originalImageWidth / this.userInputCanvas.width)) : 10;
-            if (this.interactionState.isDrawingBox) {
-                if (this.userBox && (this.userBox.x2 - this.userBox.x1 < clickThresholdOrig || this.userBox.y2 - this.userBox.y1 < clickThresholdOrig)) {
-                    this.userBox = null;
-                }
-            } else if (this.isDrawingLasso) {
-                if (this.currentLassoPoints.length > 2) {
-                    this.userDrawnMasks.push({ 
-                        points: [...this.currentLassoPoints], 
-                        color: `${this.getRandomHexColor()}99`, 
-                        id: Date.now() 
-                    });
-                    this.prepareCombinedUserMaskInput();
-                }
-            }
-            this.isDrawingLasso = false;
-            this.currentLassoPoints = [];
-            this.interactionState.isDrawingBox = false;
-            this.interactionState.isMouseDown = false;
-            this.interactionState.didMove = false;
-            this.drawUserInput();
-            this.dispatchEvent('userInteraction', { 
-                points: this.userPoints, 
-                box: this.userBox, 
-                maskInput: this.combinedUserMaskInput256 
-            });
+    _handleMouseLeave(e) {
+        // If mouse leaves canvas while drawing, finalize the current operation
+        if (this.interactionState.isMouseDown && (this.canvasLockEl && this.canvasLockEl.style.display === 'none')) {
+             // Treat as mouse up to complete any drawing action
+            this._handleMouseUp(e);
         }
     }
 
-    isPointInPolygon(point, polygonPoints) {
+
+    // --- Utility Methods ---
+    _generateDistinctColors(count) {
+        const colors = [];
+        if (count === 0) return colors;
+        for (let i = 0; i < count; i++) {
+            const hue = (i * (360 / (count < 5 ? count * 1.8 : count * 1.1))) % 360;
+            const saturation = 70 + Math.random() * 20; // Saturation between 70-90%
+            const lightness = 55 + Math.random() * 10;  // Lightness between 55-65%
+            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 0.7)`); // Use HSLA for 70% alpha
+        }
+        return colors;
+    }
+
+    _parseRgbaFromString(colorStr) { // Handles HSL(A) or RGB(A)
+        if (colorStr.startsWith('hsl')) { // Convert HSL(A) to RGB(A)
+            let [h, s, l, a] = colorStr.match(/hsla?\((\d+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/).slice(1).map(parseFloat);
+            if (isNaN(a)) a = 1; // Default alpha for HSL
+            s /= 100; l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const calc_a = s * Math.min(l, 1 - l);
+            const f = n => l - calc_a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            return [255 * f(0), 255 * f(8), 255 * f(4), Math.round(a * 255)];
+        } else if (colorStr.startsWith('rgb')) {
+            const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+            if (!match) return [255, 0, 0, 178]; // Fallback: Red at 70% alpha
+            return [
+                parseInt(match[1]), parseInt(match[2]), parseInt(match[3]),
+                match[4] !== undefined ? Math.round(parseFloat(match[4]) * 255) : 255 // Alpha from 0-1 to 0-255
+            ];
+        }
+        return [255, 0, 0, 178]; // Fallback red if format unknown
+    }
+
+    _isPointInPolygon(point, polygonPoints) {
         if (!polygonPoints || polygonPoints.length < 3) return false;
         let x = point.x, y = point.y;
         let inside = false;
@@ -675,161 +656,92 @@ class CanvasManager {
         return inside;
     }
 
-    prepareCombinedUserMaskInput() {
+    _prepareCombinedUserMaskInput() {
+        // Creates a 256x256 binary mask from `this.userDrawnMasks`
         if (this.userDrawnMasks.length === 0 || !this.originalImageWidth || !this.originalImageHeight) {
             this.combinedUserMaskInput256 = null;
             return;
         }
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
+
         const MASK_DIM = 256;
-        tempCanvas.width = MASK_DIM; tempCanvas.height = MASK_DIM;
-        tempCtx.fillStyle = 'black'; tempCtx.fillRect(0, 0, MASK_DIM, MASK_DIM);
-        tempCtx.fillStyle = 'white';
+        // Use an offscreen canvas for this operation if not already using one
+        const tempMaskCanvas = document.createElement('canvas');
+        const tempMaskCtx = tempMaskCanvas.getContext('2d');
+        tempMaskCanvas.width = MASK_DIM;
+        tempMaskCanvas.height = MASK_DIM;
+
+        // Fill with black (0)
+        tempMaskCtx.fillStyle = 'black';
+        tempMaskCtx.fillRect(0, 0, MASK_DIM, MASK_DIM);
+
+        // Draw each user polygon in white (1)
+        tempMaskCtx.fillStyle = 'white';
         this.userDrawnMasks.forEach(mask => {
             if (mask.points.length < 3) return;
-            tempCtx.beginPath();
+            tempMaskCtx.beginPath();
             const firstP_orig = mask.points[0];
-            tempCtx.moveTo((firstP_orig.x / this.originalImageWidth) * MASK_DIM, (firstP_orig.y / this.originalImageHeight) * MASK_DIM);
+            // Scale points from original image coordinates to 256x256 mask coordinates
+            tempMaskCtx.moveTo(
+                (firstP_orig.x / this.originalImageWidth) * MASK_DIM,
+                (firstP_orig.y / this.originalImageHeight) * MASK_DIM
+            );
             for (let i = 1; i < mask.points.length; i++) {
                 const p_orig = mask.points[i];
-                tempCtx.lineTo((p_orig.x / this.originalImageWidth) * MASK_DIM, (p_orig.y / this.originalImageHeight) * MASK_DIM);
+                tempMaskCtx.lineTo(
+                    (p_orig.x / this.originalImageWidth) * MASK_DIM,
+                    (p_orig.y / this.originalImageHeight) * MASK_DIM
+                );
             }
-            tempCtx.closePath(); tempCtx.fill();
+            tempMaskCtx.closePath();
+            tempMaskCtx.fill();
         });
-        const imageData = tempCtx.getImageData(0, 0, MASK_DIM, MASK_DIM);
-        const data = imageData.data; this.combinedUserMaskInput256 = [];
+
+        // Read pixel data and convert to binary array
+        const imageData = tempMaskCtx.getImageData(0, 0, MASK_DIM, MASK_DIM);
+        const data = imageData.data;
+        this.combinedUserMaskInput256 = [];
         for (let r = 0; r < MASK_DIM; r++) {
             const row = [];
             for (let c = 0; c < MASK_DIM; c++) {
                 const idx = (r * MASK_DIM + c) * 4;
+                // Check R channel; if > 128, it's white (1), else black (0)
                 row.push(data[idx] > 128 ? 1.0 : 0.0);
             }
             this.combinedUserMaskInput256.push(row);
         }
     }
 
-    clearAllInputs(clearImage = false, clearPredictionsAndInputs = true) {
-        if (clearPredictionsAndInputs) {
-            this.userPoints = [];
-            this.userBox = null;
-            this.userDrawnMasks = [];
-            this.currentLassoPoints = [];
-            this.isDrawingLasso = false;
-            this.combinedUserMaskInput256 = null;
-            
-            this.manualPredictions = []; 
-            this.automaskPredictions = [];    
-
-            this.drawUserInput(); 
-            this.drawPredictionMasks(); 
-        }
-
-        if (clearImage) {
-            this.currentImage = null;
-            this.currentImageFilename = null;
-            this.originalImageWidth = 0;
-            this.originalImageHeight = 0;
-            [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas, 
-             this.offscreenPredictionCanvas, this.offscreenUserCanvas, 
-             this.tempMaskPixelCanvas].forEach(canvas => { 
-                canvas.width = 300; canvas.height = 150;
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            });
-            this.imageUpload.value = '';
-            this.imageUploadProgressEl.style.display = 'none';
-        }
-
-        this.dispatchEvent('inputsCleared', { 
-            clearedImage: clearImage, 
-            clearedInputs: clearPredictionsAndInputs 
-        });
+    _getRandomHexColor() {
+        return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     }
 
-    setManualPredictions(data) { 
-        console.log('=== setManualPredictions() called ===');
-        console.log('Input data:', data);
-        
-        this.manualPredictions = [];
-        if (data && data.masks_data && data.scores && data.masks_data.length === data.scores.length) {
-            console.log('Processing manual predictions with scores');
-            this.manualPredictions = data.masks_data.map((seg, index) => ({
-                segmentation: seg,
-                score: data.scores[index]
-            }));
-            this.manualPredictions.sort((a, b) => b.score - a.score);
-            console.log('Sorted manual predictions:', this.manualPredictions.length);
-        } else if (data && data.masks_data) { 
-            console.log('Processing manual predictions without scores');
-             this.manualPredictions = data.masks_data.map(seg => ({
-                segmentation: seg,
-                score: 0 
-            }));
-            console.log('Manual predictions without scores:', this.manualPredictions.length);
-        } else {
-            console.log('No valid manual prediction data');
-        }
-        
-        this.automaskPredictions = []; 
-        console.log('Cleared automask predictions');
-        console.log('Final manual predictions:', this.manualPredictions);
-        this.drawPredictionMasks();
-    }
-
-    setAutomaskPredictions(data) { 
-        console.log('=== setAutomaskPredictions() called ===');
-        console.log('Input data:', data);
-        
-        this.automaskPredictions = (data && data.masks_data) ? data.masks_data : [];
-        this.manualPredictions = []; 
-        console.log('Set automask predictions count:', this.automaskPredictions.length);
-        console.log('Cleared manual predictions');
-        console.log('Sample automask prediction:', this.automaskPredictions[0]);
-        this.drawPredictionMasks();
-    }
-
-    getCurrentInputs() {
-        return {
-            points: this.userPoints,
-            box: this.userBox,
-            maskInput: this.combinedUserMaskInput256,
-            image: this.currentImage,
-            filename: this.currentImageFilename
-        };
-    }
-
-    dispatchEvent(eventType, data) {
+    _dispatchEvent(eventType, data) {
+        // console.log(`Canvas dispatching: canvas-${eventType}`, data);
         const event = new CustomEvent(`canvas-${eventType}`, { detail: data });
         document.dispatchEvent(event);
     }
 
+    // Public method to allow external modules to listen to canvas events
     addEventListener(eventType, callback) {
         document.addEventListener(`canvas-${eventType}`, callback);
     }
 
-    lockCanvas(message) {
-        if (this.canvasLockEl && this.canvasLockMessageEl) {
-            this.canvasLockEl.style.display = 'block';
-            this.canvasLockMessageEl.textContent = message || 'Processing...';
-        } else {
-            console.warn('Canvas lock elements not found');
+    lockCanvas(message = 'Processing...') {
+        if (this.canvasLockEl) {
+            this.canvasLockEl.style.display = 'flex'; // Use flex for centering
+            if (this.canvasLockMessageEl) this.canvasLockMessageEl.textContent = message;
         }
     }
 
     unlockCanvas() {
         if (this.canvasLockEl) {
             this.canvasLockEl.style.display = 'none';
-        } else {
-            console.warn('Canvas lock element not found');
         }
-    }
-
-    getRandomHexColor() {
-        return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.canvasManager = new CanvasManager();
-});
+// Instantiate CanvasManager when the DOM is ready, making it globally accessible via window.canvasManager
+// if (!window.canvasManager) { // Ensure only one instance
+//     window.canvasManager = new CanvasManager();
+// }
+// The instantiation will be handled by main.js to ensure DOM is ready.
