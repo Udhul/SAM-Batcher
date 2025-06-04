@@ -1,4 +1,4 @@
-// static/script.js
+// project_root/app/frontend/static/js/main.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const autoMaskExpandableHeader = document.querySelector('.auto-mask-section .expandable-header');

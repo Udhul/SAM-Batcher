@@ -1,4 +1,4 @@
-// static/canvas.js
+// project_root/app/frontend/static/js/canvasController.js
 class CanvasManager {
     constructor() {
         this.initializeElements();

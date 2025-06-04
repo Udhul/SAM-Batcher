@@ -1,4 +1,4 @@
-// static/modelLoader.js
+// project_root/app/frontend/static/js/modelHandler.js
 document.addEventListener('DOMContentLoaded', () => {
     const loaderSection = document.getElementById('model-loader-expandable');
     const header = loaderSection.querySelector('.expandable-header');
