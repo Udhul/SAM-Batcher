@@ -11,18 +11,28 @@ body {
     line-height: 1.6;
     color: #333;
     background-color: #f8f9fa;
+    display: flex; /* Use flexbox for centering the container */
+    flex-direction: column; /* Stack header and main content */
+    align-items: center; /* Center .container horizontally */
+    min-height: 100vh; /* Ensure body takes full viewport height */
+    padding: 10px;
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%; /* Take full width up to max-width */
+    max-width: 1400px; /* Increased max-width for wider layout */
+    /* margin: 0 auto; /* Centering handled by body flexbox */
     padding: 20px;
+    display: flex; /* Use flexbox for layout within container */
+    flex-direction: column; /* Stack sections vertically */
+    gap: 20px;
 }
 
 /* Header */
 header {
+    width: 100%; /* Header takes full width of its parent (.container) */
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px; /* Reduced margin */
     padding: 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -31,27 +41,45 @@ header {
 }
 
 header h1 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
+    font-size: 2.2em; /* Slightly reduced */
+    margin-bottom: 8px;
     font-weight: 300;
 }
 
 header p {
-    font-size: 1.1em;
+    font-size: 1.0em; /* Slightly reduced */
     opacity: 0.9;
 }
 
-/* Main Content */
-.main-content {
+/* Main Content Layout */
+.main-layout {
+    display: flex;
+    flex-direction: row; /* Side-by-side layout */
+    gap: 20px;
+    width: 100%;
+}
+
+.controls-column {
+    flex: 0 0 380px; /* Fixed width for controls column */
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
+.canvas-column {
+    flex: 1 1 auto; /* Canvas column takes remaining space */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0; /* Important for flex item to shrink properly */
+}
+
+
 /* Section Styles */
 .config-section,
-.image-section,
-.results-section {
+.image-section, /* This might become part of canvas-column or specific handlers */
+.results-section, /* This might be for mask lists, export buttons */
+.auto-mask-section {
     background: white;
     padding: 20px;
     border-radius: 8px;
@@ -60,11 +88,14 @@ header p {
 
 .config-section h2,
 .image-section h2,
-.results-section h2 {
+.results-section h2,
+.auto-mask-section h2 { /* Combined for consistency */
+    margin-top: 0; /* Remove default h2 margin if it's the first child */
     margin-bottom: 15px;
     color: #2c3e50;
     border-bottom: 2px solid #ecf0f1;
     padding-bottom: 10px;
+    font-size: 1.3em;
 }
 
 /* Model Controls */
@@ -83,6 +114,7 @@ header p {
 
 .model-selection label {
     font-weight: 500;
+    margin-right: 5px;
 }
 
 .model-selection select {
@@ -91,6 +123,7 @@ header p {
     border-radius: 4px;
     font-size: 14px;
     min-width: 150px;
+    flex-grow: 1; /* Allow select to grow */
 }
 
 .model-selection button {
@@ -104,7 +137,7 @@ header p {
     transition: background-color 0.2s;
 }
 
-.model-selection button:hover {
+.model-selection button:hover:not(:disabled) {
     background-color: #0056b3;
 }
 
@@ -114,7 +147,7 @@ header p {
 }
 
 /* Custom Model Inputs */
-#custom-model-inputs {
+#custom-model-inputs { /* This ID might be dynamically handled */
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -136,7 +169,8 @@ header p {
     font-size: 14px;
 }
 
-.custom-input-group input {
+.custom-input-group input[type="text"],
+.custom-input-group input[type="file"] { /* file input for custom paths */
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -147,6 +181,7 @@ header p {
 .model-options {
     display: flex;
     align-items: center;
+    margin-top: 10px;
 }
 
 .checkbox-label {
@@ -159,93 +194,33 @@ header p {
 
 .checkbox-label input[type="checkbox"] {
     transform: scale(1.1);
+    margin-right: 5px;
 }
 
-/* Status Text */
-.status-text {
+/* Status Text (General) */
+.status-text { /* Used for model loading status etc. */
     font-size: 14px;
     color: #6c757d;
     font-style: italic;
+    margin-top: 5px;
 }
 
-/* Canvas Toolbar */
-.canvas-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    padding: 15px;
-    background-color: #f5f5f5;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    align-items: center;
-    border: 1px solid #e9ecef;
-}
 
-.toolbar-section {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* File Upload Button (general styling, can be reused) */
+.file-upload-btn-container { /* Wrapper for input[type=file] for styling */
+    position: relative;
+    display: inline-block;
 }
-
-.opacity-controls {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    margin-left: auto;
-}
-
-.opacity-control {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-}
-
-.opacity-control label {
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-    color: #495057;
-}
-
-.opacity-control input[type="range"] {
-    width: 100px;
-    height: 4px;
-    background: #ddd;
-    border-radius: 2px;
-    outline: none;
+input[type="file"]#image-upload { /* Hide default file input */
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
 }
-
-.opacity-control input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #007bff;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.opacity-control input[type="range"]::-webkit-slider-thumb:hover {
-    background: #0056b3;
-}
-
-.opacity-control input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: #007bff;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.opacity-control input[type="range"]::-moz-range-thumb:hover {
-    background: #0056b3;
-}
-
-.file-upload-btn {
+.file-upload-styled-btn { /* This is the visible button */
     padding: 8px 16px;
     background-color: #28a745;
     color: white;
@@ -254,166 +229,78 @@ header p {
     border: none;
     font-size: 14px;
     transition: background-color 0.2s;
-    text-decoration: none;
     display: inline-block;
+    text-align: center;
 }
-
-.file-upload-btn:hover {
+.file-upload-styled-btn:hover {
     background-color: #218838;
 }
 
-.progress-bar {
-    width: 200px;
+
+/* Progress Bar */
+.progress-bar-container { /* For image upload progress */
+    width: 100%;
+    max-width: 300px;
     height: 20px;
     background-color: #e9ecef;
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid #dee2e6;
+    margin-top: 10px;
+    display: none; /* Hidden by default */
 }
 
-.progress-fill {
+.progress-bar-fill {
     height: 100%;
     background: linear-gradient(90deg, #28a745, #20c997);
-    border-radius: 10px;
+    border-radius: 10px; /* Match parent */
     text-align: center;
     line-height: 20px;
     color: white;
     font-size: 12px;
     font-weight: 500;
     transition: width 0.3s ease;
-    min-width: 40px;
+    min-width: 40px; /* Show text even at 0% */
+    width: 0%; /* Start at 0 */
 }
 
+/* Clear Inputs Button */
 #clear-inputs-btn {
     background: linear-gradient(135deg, #ff7300, #ffa500);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
-    text-transform: none;
-    letter-spacing: 0.5px;
-    display: inline-block;
-    text-align: center;
-    text-decoration: none;
-    user-select: none;
-    min-width: 100px;
 }
 
-#clear-inputs-btn:hover {
+#clear-inputs-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #e67e00, #cb7600);
     box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
     transform: translateY(-1px);
 }
-
-#clear-inputs-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
-}
-
 #clear-inputs-btn:disabled {
-    background: linear-gradient(135deg, #cccccc, #dddddd);
-    color: #888888;
-    cursor: not-allowed;
+    background: #ccc;
+    color: #888;
     box-shadow: none;
     transform: none;
+    cursor: not-allowed;
 }
 
-/* Image Display Area */
-.image-display-area {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
 
-.canvas-container {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 800px;
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.canvas-container canvas {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-#image-canvas {
-    z-index: 1;
-}
-
-#prediction-mask-canvas {
-    z-index: 2;
-}
-
-#user-input-canvas {
-    z-index: 3;
-    cursor: crosshair;
-}
-
-/* Canvas Lock Overlay */
-.canvas-lock-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    border-radius: 8px;
-}
-
-.canvas-lock-content {
-    text-align: center;
-    color: white;
-}
-
-.canvas-lock-message {
-    margin-top: 15px;
-    font-size: 16px;
-    font-weight: 500;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Help icon and tooltip styles for usage instructions */
+/* Help icon and tooltip styles */
 .help-section {
-    position: relative;
+    position: relative; /* For tooltip positioning */
     display: flex;
     align-items: center;
+    margin-left: auto; /* Push to the right if in a flex container */
 }
 
 .help-icon {
-    position: relative;
     display: inline-block;
     width: 24px;
     height: 24px;
@@ -426,6 +313,7 @@ header p {
     font-weight: bold;
     cursor: help;
     user-select: none;
+    transition: background-color 0.2s;
 }
 
 .help-icon:hover {
@@ -434,80 +322,79 @@ header p {
 
 .help-tooltip {
     position: absolute;
-    bottom: 100%;
-    right: 0;
-    margin-bottom: 8px;
+    bottom: calc(100% + 8px); /* Position above the icon */
+    right: 0; /* Align to the right of the icon */
+    transform: translateX(50%); /* Center it relative to icon if needed, or adjust*/
+    right: -10px; /* Shift slightly to align better with icon edge */
+
     background-color: #333;
     color: white;
     padding: 12px;
     border-radius: 6px;
     text-align: left;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    white-space: nowrap;
+    white-space: nowrap; /* Initially nowrap, content will wrap */
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(10px);
-    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
-    min-width: 350px;
+    /* transform: translateY(10px); Removed for cleaner transition */
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* Simpler transition */
+    min-width: 300px; /* Minimum width for readability */
+    max-width: 400px; /* Max width */
 }
-
-.help-tooltip::after {
+.help-tooltip::after { /* Arrow */
     content: '';
     position: absolute;
-    top: 100%;
-    right: 12px;
-    border: 6px solid transparent;
-    border-top-color: #333;
+    top: 100%; /* Bottom of the tooltip */
+    right: 20px; /* Position arrow near the icon */
+    /* transform: translateX(-50%); Centering arrow, adjust if needed */
+    border-width: 6px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
 }
 
 .help-icon:hover .help-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
 }
 
 .tooltip-content {
-    white-space: normal;
+    white-space: normal; /* Allow content to wrap */
 }
-
 .tooltip-content p {
     margin: 0 0 8px 0;
     font-size: 14px;
 }
-
 .tooltip-content ul {
     margin: 0;
     padding-left: 16px;
     list-style-type: disc;
 }
-
 .tooltip-content li {
     margin-bottom: 4px;
     font-size: 13px;
     line-height: 1.4;
 }
-
 .tooltip-content strong {
-    color: #fff;
+    color: #ffc107;
 }
 
 /* Expandable Section */
-.expandable-section {
+.expandable-section { /* e.g., for AutoMask settings */
     margin-bottom: 20px;
     border: 1px solid #ddd;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: hidden; /* For collapse animation */
     background-color: #fff;
 }
 
 .expandable-header {
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    padding: 12px 16px;
+    padding: 10px 15px; /* Slightly reduced padding */
     cursor: pointer;
     user-select: none;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 1.0em;
     color: #333;
     border-bottom: 1px solid #ddd;
     transition: background-color 0.3s ease;
@@ -515,100 +402,95 @@ header p {
     justify-content: space-between;
     align-items: center;
 }
-
 .expandable-header:hover {
     background: linear-gradient(135deg, #e9ecef, #dee2e6);
 }
-
-.expandable-header.collapsed {
+.expandable-header.collapsed { /* Class added by JS when collapsed */
     border-bottom: none;
 }
-
-.expand-indicator {
+.expand-indicator { /* The arrow icon */
     font-size: 14px;
     transition: transform 0.3s ease;
     color: #666;
 }
-
 .expandable-header.collapsed .expand-indicator {
-    transform: rotate(180deg);
+    transform: rotate(-90deg); /* Arrow pointing right when collapsed */
 }
+.expandable-header:not(.collapsed) .expand-indicator {
+    transform: rotate(0deg); /* Arrow pointing down when expanded */
+}
+
 
 .expandable-content {
-    padding: 20px;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
-    overflow: hidden;
+    padding: 15px; /* Consistent padding */
+    /* transition: max-height 0.3s ease-out, opacity 0.3s ease-out; */ /* Smooth collapse/expand */
+    /* overflow: hidden; */ /* Needed for max-height transition */
+    border-top: 1px solid #eee; /* Visual separation if header has no bottom border when collapsed */
 }
-
 .expandable-content.collapsed {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
+    display: none; /* Simple show/hide */
+    /* max-height: 0; */
+    /* padding-top: 0; */
+    /* padding-bottom: 0; */
+    /* opacity: 0; */
+    /* visibility: hidden; */
 }
 
-/* Model status inline styling */
+
+/* Model status inline styling (e.g., next to load button) */
 .model-status-inline {
-    font-size: 14px;
+    font-size: 13px; /* Smaller */
     font-weight: 400;
     color: #666;
     font-style: italic;
+    margin-left: 10px; /* Spacing from button */
 }
+.model-status-inline.loaded { color: #28a745; font-weight: 500; }
+.model-status-inline.loading { color: #ffc107; }
+.model-status-inline.error { color: #dc3545; }
 
-.model-status-inline.loaded {
-    color: #28a745;
-    font-weight: 500;
-}
-
-.model-status-inline.loading {
-    color: #ffc107;
-}
-
-.model-status-inline.error {
-    color: #dc3545;
-}
-
-/* Auto Mask Controls */
+/* Auto Mask Controls (within expandable content) */
 .auto-mask-controls {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px; /* Spacing between parameter groups and actions */
 }
 
-.amg-parameters h3 {
-    margin-bottom: 15px;
-    color: #2c3e50;
+.amg-parameters h3 { /* If there's a sub-heading */
+    margin-bottom: 10px;
+    color: #495057;
+    font-size: 0.95em;
 }
 
 .parameter-group {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 8px; /* Spacing between each param */
 }
-
 .parameter-group label {
-    min-width: 180px;
+    flex: 0 0 180px; /* Fixed width for label consistency */
     font-weight: 500;
     font-size: 14px;
 }
-
-.parameter-group input {
+.parameter-group input[type="number"],
+.parameter-group input[type="text"] { /* For AMG params */
     padding: 6px 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    width: 100px;
+    width: 80px;
     font-size: 14px;
 }
 
 .amg-actions {
     display: flex;
     gap: 10px;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    margin-top: 10px; /* Space above action buttons */
 }
 
 .amg-actions button {
-    padding: 10px 20px;
+    padding: 8px 15px;
     border: none;
     border-radius: 4px;
     font-size: 14px;
@@ -616,49 +498,28 @@ header p {
     cursor: pointer;
     transition: all 0.2s;
 }
+#auto-mask-btn { background-color: #17a2b8; color: white; }
+#auto-mask-btn:hover:not(:disabled) { background-color: #138496; }
+#auto-mask-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
 
-#auto-mask-btn {
-    background-color: #17a2b8;
-    color: white;
-}
+#cancel-auto-mask-btn { background-color: #dc3545; color: white; display: none; /* Hidden by default */ }
+#cancel-auto-mask-btn:hover { background-color: #c82333; }
 
-#auto-mask-btn:hover:not(:disabled) {
-    background-color: #138496;
-}
+#recover-auto-mask-btn { background-color: #ffc107; color: #212529; }
+#recover-auto-mask-btn:hover:not(:disabled) { background-color: #e0a800; }
+#recover-auto-mask-btn:disabled { background-color: #ffe083; cursor: not-allowed; }
 
-#auto-mask-btn:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-}
-
-#cancel-auto-mask-btn {
-    background-color: #dc3545;
-    color: white;
-}
-
-#cancel-auto-mask-btn:hover {
-    background-color: #c82333;
-}
-
-#recover-auto-mask-btn {
-    background-color: #ffc107;
-    color: #212529;
-}
-
-#recover-auto-mask-btn:hover {
-    background-color: #e0a800;
-}
 
 /* Export Controls */
 .export-controls {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 15px;
 }
-
 .export-controls button {
     padding: 10px 20px;
-    background-color: #28a745;
+    background-color: #28a745; /* Green for export */
     color: white;
     border: none;
     border-radius: 4px;
@@ -667,91 +528,76 @@ header p {
     cursor: pointer;
     transition: background-color 0.2s;
 }
-
-.export-controls button:hover {
+.export-controls button:hover:not(:disabled) {
     background-color: #218838;
 }
+.export-controls button:disabled {
+    background-color: #79d48f;
+    cursor: not-allowed;
+}
 
-/* Status Messages */
-.status-message {
+/* Global Status Messages (e.g., at bottom or top of page) */
+#status-message { /* The main status message element */
     padding: 12px 20px;
     border-radius: 6px;
-    margin-top: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
     font-weight: 500;
     text-align: center;
     transition: all 0.3s ease;
+    width: 100%; /* Take full width of its container */
+    max-width: 800px; /* Max width for readability */
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.status-message.error   { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.status-message.info    { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+.status-message.small { /* For #auto-mask-status */
+    padding: 6px 10px;
+    font-size: 13px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    text-align: left;
+    width: auto; /* Don't force full width for small status */
+    display: inline-block;
+    box-shadow: none;
 }
 
-.status-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+
+/* Responsive Design Adjustments */
+@media (max-width: 1200px) {
+    .main-layout {
+        flex-direction: column; /* Stack columns on smaller screens */
+    }
+    .controls-column {
+        flex: 1 1 auto; /* Allow controls column to take full width */
+        max-width: none;
+    }
 }
 
-.status-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.status-message.info {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-
-.status-message.small {
-    padding: 8px 15px;
-    font-size: 14px;
-    margin-top: 10px;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
     .container {
         padding: 10px;
     }
-    
-    header h1 {
-        font-size: 2em;
-    }
-    
-    .canvas-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .opacity-controls {
-        margin-left: 0;
-        justify-content: space-around;
-    }
-    
-    .model-selection {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .parameter-group {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .parameter-group label {
-        min-width: auto;
-    }
-    
-    .amg-actions {
-        flex-direction: column;
-    }
+    header h1 { font-size: 1.8em; }
+    header p { font-size: 0.9em; }
+
+    .model-selection { flex-direction: column; align-items: stretch; }
+    .parameter-group { flex-direction: column; align-items: stretch; }
+    .parameter-group label { flex: 0 0 auto; margin-bottom: 5px; }
+    .amg-actions { flex-direction: column; }
+    .amg-actions button { width: 100%; }
+    #clear-inputs-btn { width: 100%; margin-top: 10px; }
 }
 
 @media (max-width: 480px) {
-    .opacity-controls {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .canvas-container {
-        min-height: 300px;
+    /* Further adjustments for very small screens */
+    .custom-input-group input[type="text"],
+    .parameter-group input[type="number"],
+    .parameter-group input[type="text"] {
+        width: 100%; /* Full width inputs */
     }
 }
