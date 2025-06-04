@@ -1,2 +1,605 @@
 /* project_root/app/frontend/static/css/canvas.css */
 /* Canvas Styles */
+
+/* Canvas Toolbar (specific to canvas interactions) */
+.canvas-toolbar {
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap */
+    gap: 10px;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    align-items: center;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.toolbar-section { /* For grouping items like mode select and clear button */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Gap within a section */
+}
+
+.toolbar-section label { /* For mask display mode */
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+}
+.toolbar-section select#mask-display-mode {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-size: 14px;
+    background-color: white;
+}
+
+
+/* Opacity Controls within Canvas Toolbar */
+.opacity-controls {
+    display: flex;
+    gap: 20px; /* Spacing between individual opacity controls */
+    flex-wrap: wrap;
+    margin-left: auto; /* Push to the right side of the toolbar */
+}
+
+.opacity-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px; 
+}
+
+.opacity-control label {
+    font-size: 12px; /* Smaller label */
+    font-weight: 500;
+    white-space: nowrap;
+    color: #495057;
+}
+.opacity-control .opacity-value-display { /* For text like "100%" */
+    font-size: 11px;
+    color: #6c757d;
+    min-width: 25px; /* Ensure space for text */
+    text-align: center;
+}
+
+.opacity-control input[type="range"] {
+    width: 80px; /* Smaller sliders */
+    height: 5px; /* Thinner track */
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none; /* Override default Safari/Chrome styles */
+    appearance: none;
+}
+
+/* Webkit (Chrome, Safari) */
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; /* Smaller thumb */
+    height: 14px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: -4.5px; /* Adjust thumb position to center on track */
+}
+.opacity-control input[type="range"]::-webkit-slider-thumb:hover {
+    background: #0056b3;
+}
+
+/* Mozilla (Firefox) */
+.opacity-control input[type="range"]::-moz-range-track {
+    width: 100%;
+    height: 5px;
+    background: #ddd;
+    border-radius: 3px;
+    border: none;
+}
+.opacity-control input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #007bff;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.opacity-control input[type="range"]::-moz-range-thumb:hover {
+    background: #0056b3;
+}
+
+/* MS (Edge, IE) */
+.opacity-control input[type="range"]::-ms-track {
+    width: 100%;
+    height: 5px;
+    background: transparent; /* IE track needs to be transparent */
+    border-color: transparent;
+    color: transparent;
+    cursor: pointer;
+}
+.opacity-control input[type="range"]::-ms-fill-lower {
+    background: #007bff; /* Color of the track before thumb */
+    border-radius: 3px;
+}
+.opacity-control input[type="range"]::-ms-fill-upper {
+    background: #ddd; /* Color of the track after thumb */
+    border-radius: 3px;
+}
+.opacity-control input[type="range"]::-ms-thumb {
+    width: 14px;
+    height: 14px;
+    background: #007bff;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    margin-top: 0px; /* Adjust if needed */
+    transition: background-color 0.2s;
+}
+.opacity-control input[type="range"]::-ms-thumb:hover {
+    background: #0056b3;
+}
+
+
+/* Image Display Area & Canvas Container */
+.image-display-area { /* This is the direct parent of .canvas-container */
+    display: flex;
+    flex-direction: column; /* Stack toolbar and canvas container */
+    gap: 10px; /* Space between toolbar and canvas container */
+    flex-grow: 1; /* Allow it to take available vertical space */
+    min-height: 0; /* Important for flex item to shrink properly if content overflows */
+}
+
+.canvas-container {
+    position: relative; /* For absolute positioning of canvases and overlay */
+    display: flex; /* For centering canvases if they are smaller than container */
+    justify-content: center;
+    align-items: center;
+    /* min-height: 400px; /* Minimum height for the canvas area */
+    /* max-height: calc(100vh - 250px); /* Example: viewport height minus header/toolbar/footer */
+    flex-grow: 1; /* Allow canvas container to fill available space in image-display-area */
+    background-color: #e9ecef; /* Slightly darker background for canvas area */
+    border: 1px solid #dee2e6; /* Softer border */
+    border-radius: 6px;
+    overflow: hidden; /* Ensure canvases don't overflow rounded corners */
+    width: 100%; /* Take full width of its parent (.canvas-column) */
+}
+
+/* Individual Canvases */
+.canvas-container canvas {
+    position: absolute;
+    /* top: 50%; /* Centering handled by flex on parent */
+    /* left: 50%; */
+    /* transform: translate(-50%, -50%); */
+    border-radius: 3px; /* Slight rounding on canvas edges */
+    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Softer shadow */
+    /* Canvases will be sized by JS, these are fallbacks or if JS fails */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure image within canvas respects aspect ratio if canvas is forced to a size */
+}
+
+#image-canvas { z-index: 1; }
+#prediction-mask-canvas { z-index: 2; }
+#user-input-canvas {
+    z-index: 3;
+    cursor: crosshair; /* Default cursor for drawing */
+}
+
+/* Canvas Lock Overlay */
+#canvas-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.65);
+    display: none; /* Hidden by default, shown by JS */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Ensure it's on top of all canvases */
+    border-radius: 6px; /* Match parent container */
+    color: white;
+    text-align: center;
+}
+
+.canvas-lock-content {
+    text-align: center;
+    color: white;
+}
+
+.canvas-lock-message {
+    margin-top: 15px;
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
+.spinner { /* Spinner within the lock overlay */
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.25); /* Lighter border */
+    border-top-color: white; /* Spinner color */
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite; /* Faster spin */
+    margin: 0 auto 10px auto; /* Center spinner and space from message */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+/* Responsive adjustments for canvas toolbar */
+@media (max-width: 768px) {
+    .canvas-toolbar {
+        flex-direction: column;
+        align-items: stretch; /* Make toolbar items take full width */
+    }
+    .toolbar-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .toolbar-section select#mask-display-mode {
+        width: 100%; /* Full width select */
+    }
+    .opacity-controls {
+        margin-left: 0;
+        justify-content: space-between; /* Spread out opacity controls */
+        width: 100%;
+    }
+    .opacity-control {
+        flex-grow: 1; /* Allow opacity controls to share space */
+        min-width: 120px; /* Ensure they don't get too squished */
+    }
+    .opacity-control input[type="range"] {
+        width: 100%; /* Full width sliders */
+    }
+    .canvas-container {
+        min-height: 300px; /* Adjust min-height for smaller screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .opacity-controls {
+        flex-direction: column; /* Stack opacity controls vertically */
+        gap: 10px;
+        align-items: stretch;
+    }
+    .opacity-control {
+        min-width: none; /* Reset min-width */
+    }
+}
+
+
+
+
+
+
+/* Old */
+
+/* Canvas Toolbar */
+/* .canvas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    align-items: center;
+    border: 1px solid #e9ecef;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.opacity-controls {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.opacity-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.opacity-control label {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #495057;
+}
+
+.opacity-control input[type="range"] {
+    width: 100px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.opacity-control input[type="range"]::-webkit-slider-thumb:hover {
+    background: #0056b3;
+}
+
+.opacity-control input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.opacity-control input[type="range"]::-moz-range-thumb:hover {
+    background: #0056b3;
+}
+
+.file-upload-btn {
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.file-upload-btn:hover {
+    background-color: #218838;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 10px;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    transition: width 0.3s ease;
+    min-width: 40px;
+}
+
+#clear-inputs-btn {
+    background: linear-gradient(135deg, #ff7300, #ffa500);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
+    text-transform: none;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    user-select: none;
+    min-width: 100px;
+}
+
+#clear-inputs-btn:hover {
+    background: linear-gradient(135deg, #e67e00, #cb7600);
+    box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+#clear-inputs-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
+}
+
+#clear-inputs-btn:disabled {
+    background: linear-gradient(135deg, #cccccc, #dddddd);
+    color: #888888;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+} */
+
+/* Image Display Area */
+/* .image-display-area {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.canvas-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 800px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.canvas-container canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#image-canvas {
+    z-index: 1;
+}
+
+#prediction-mask-canvas {
+    z-index: 2;
+}
+
+#user-input-canvas {
+    z-index: 3;
+    cursor: crosshair;
+} */
+
+/* Canvas Lock Overlay */
+/* .canvas-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 8px;
+}
+
+.canvas-lock-content {
+    text-align: center;
+    color: white;
+}
+
+.canvas-lock-message {
+    margin-top: 15px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+} */
+
+/* Help icon and tooltip styles for usage instructions */
+/* .help-section {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.help-icon {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: help;
+    user-select: none;
+}
+
+.help-icon:hover {
+    background-color: #0056b3;
+}
+
+.help-tooltip {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    background-color: #333;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    min-width: 350px;
+}
+
+.help-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 12px;
+    border: 6px solid transparent;
+    border-top-color: #333;
+}
+
+.help-icon:hover .help-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.tooltip-content {
+    white-space: normal;
+}
+
+.tooltip-content p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+}
+
+.tooltip-content ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style-type: disc;
+}
+
+.tooltip-content li {
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.tooltip-content strong {
+    color: #fff;
+} */
