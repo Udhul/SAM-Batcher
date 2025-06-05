@@ -647,11 +647,15 @@ class SAMInference:
                     return None
             
             # Convert inputs to numpy arrays if provided
-            if point_coords is not None: 
+            if point_coords is not None:
                 point_coords = np.asarray(point_coords)
-            if point_labels is not None: 
+                if point_coords.size == 0:
+                    point_coords = None
+            if point_labels is not None:
                 point_labels = np.asarray(point_labels)
-            if box is not None: 
+                if point_labels.size == 0:
+                    point_labels = None
+            if box is not None:
                 box = np.asarray(box)
                 # Handle both single box and multiple boxes
                 if box.ndim == 1:
@@ -662,7 +666,9 @@ class SAMInference:
                     pass
                 else:
                     raise ValueError(f"Invalid box format. Expected shape (4,) or (N, 4), got {box.shape}")
-            if mask_input is not None: 
+                if box.shape[0] > 1:
+                    multimask_output = False
+            if mask_input is not None:
                 mask_input = np.asarray(mask_input)
             
             # Run prediction with appropriate precision

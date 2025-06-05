@@ -274,16 +274,20 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasManager.lockCanvas("Predicting...");
         canvasManager.setAutomaskPredictions(null);
 
+        const hasPoints = canvasInputs.points && canvasInputs.points.length > 0;
+        const hasBoxes = canvasInputs.boxes && canvasInputs.boxes.length > 0;
+        const multipleBoxes = hasBoxes && canvasInputs.boxes.length > 1;
+
         const payload = {
-            points: canvasInputs.points.map(p => [p.x, p.y]),
-            labels: canvasInputs.points.map(p => p.label),
-            box: (canvasInputs.boxes && canvasInputs.boxes.length > 0) ?
+            points: hasPoints ? canvasInputs.points.map(p => [p.x, p.y]) : null,
+            labels: hasPoints ? canvasInputs.points.map(p => p.label) : null,
+            box: hasBoxes ?
                 (canvasInputs.boxes.length === 1 ?
                     [canvasInputs.boxes[0].x1, canvasInputs.boxes[0].y1, canvasInputs.boxes[0].x2, canvasInputs.boxes[0].y2] :
                     canvasInputs.boxes.map(b => [b.x1, b.y1, b.x2, b.y2]))
                 : null,
-            maskInput: canvasInputs.maskInput, // This is the 256x256 mask from user-drawn polygons
-            multimask_output: true
+            maskInput: canvasInputs.maskInput,
+            multimask_output: multipleBoxes ? false : true
         };
         const activeProjectId = stateManager.getActiveProjectId();
 

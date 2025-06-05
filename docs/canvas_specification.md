@@ -258,6 +258,7 @@ Response: {
 * **Box Removal:** Shift-click inside an existing box or draw a minimal box
 * **Real-time Preview:** Show box outline during drag operation
 * **Constraint Handling:** Ensure minimum box size for meaningful input
+* **Multi-box Prediction:** When more than one box is used as input the predictor returns a single mask per box (multimask output disabled)
 
 **Polygon Drawing:**
 * **Lasso Mode (Ctrl + Drag):** Draw freeform polygon regions
@@ -413,6 +414,8 @@ Response: {
     "boxes": [[50, 75, 200, 225]],
     "maskInput": [/* 256x256 binary array */]
 }
+// When no points are present, "points" and "labels" are sent as null rather than empty arrays.
+// If multiple boxes are provided, the client forces multimask_output=false so one mask is returned per box.
 
 // Selection state
 {

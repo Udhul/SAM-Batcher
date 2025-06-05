@@ -436,11 +436,19 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
         if not result["success"]:
             return result
 
+    pts = prompts.get('points')
+    lbls = prompts.get('labels')
+    box = prompts.get('box')
+    if isinstance(pts, list) and len(pts) == 0:
+        pts = None
+    if isinstance(lbls, list) and len(lbls) == 0:
+        lbls = None
+
     prediction_results = sam_inference.predict(
-        point_coords=prompts.get('points'),
-        point_labels=prompts.get('labels'),
-        box=prompts.get('box'),
-        mask_input=prompts.get('mask_input'), # This should be low-res (e.g. 256x256)
+        point_coords=pts,
+        point_labels=lbls,
+        box=box,
+        mask_input=prompts.get('mask_input'), # low-res mask
         multimask_output=predict_params.get('multimask_output', True)
         # return_logits is handled by sam_inference, client doesn't specify
     )
