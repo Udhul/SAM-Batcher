@@ -157,7 +157,7 @@
     display: flex; /* For centering canvases if they are smaller than container */
     justify-content: center;
     align-items: center;
-    /* min-height: 400px; /* Minimum height for the canvas area */
+    min-height: 400px; /* Ensure the canvas area has height before JS sizing */
     /* max-height: calc(100vh - 250px); /* Example: viewport height minus header/toolbar/footer */
     flex-grow: 1; /* Allow canvas container to fill available space in image-display-area */
     background-color: #e9ecef; /* Slightly darker background for canvas area */

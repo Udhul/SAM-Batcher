@@ -298,8 +298,21 @@ class CanvasManager {
         if (!this.currentImage || !this.imageCtx || !this.imageCanvas.parentElement) return;
 
         const displayArea = this.imageCanvas.parentElement;
-        const areaWidth = displayArea.clientWidth;
-        const areaHeight = displayArea.clientHeight;
+        let areaWidth = displayArea.clientWidth;
+        let areaHeight = displayArea.clientHeight;
+
+        if (areaWidth === 0 || areaHeight === 0) {
+            const rect = displayArea.getBoundingClientRect();
+            if (areaWidth === 0) {
+                areaWidth = rect.width || this.originalImageWidth;
+            }
+            if (areaHeight === 0) {
+                areaHeight = rect.height || (areaWidth * (this.originalImageHeight / this.originalImageWidth));
+            }
+        }
+
+        if (areaWidth === 0) areaWidth = this.originalImageWidth;
+        if (areaHeight === 0) areaHeight = areaWidth * (this.originalImageHeight / this.originalImageWidth);
 
         // Calculate scale to fit image within parent while maintaining aspect ratio
         const hRatio = areaWidth / this.originalImageWidth;
