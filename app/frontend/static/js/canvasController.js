@@ -228,16 +228,29 @@ class CanvasManager {
 
     setManualPredictions(predictionData) {
         this.manualPredictions = [];
-        if (predictionData && predictionData.masks_data && predictionData.scores &&
-            predictionData.masks_data.length === predictionData.scores.length) {
-            this.manualPredictions = predictionData.masks_data.map((seg, index) => ({
-                segmentation: seg, // Expects 2D binary array
-                score: predictionData.scores[index]
-            })).sort((a, b) => b.score - a.score); // Sort by score descending
-        } else if (predictionData && predictionData.masks_data) { // Scores optional
-             this.manualPredictions = predictionData.masks_data.map(seg => ({
-                segmentation: seg, score: 0 // Default score
-            }));
+        if (predictionData && predictionData.masks_data) {
+            let masks = predictionData.masks_data;
+            let scores = Array.isArray(predictionData.scores) ? predictionData.scores : [];
+
+            // Some backends may return [[mask1, mask2, ...]] when multiple boxes are used.
+            if (masks.length === 1 && Array.isArray(masks[0]) && Array.isArray(masks[0][0])) {
+                const maybeMask = masks[0][0];
+                if (Array.isArray(maybeMask) && Array.isArray(maybeMask[0])) {
+                    masks = masks[0];
+                    if (scores.length === 1 && Array.isArray(scores[0])) {
+                        scores = scores[0];
+                    }
+                }
+            }
+
+            if (scores.length !== masks.length) {
+                scores = masks.map((_, idx) => parseFloat(scores[idx] || 0));
+            }
+
+            this.manualPredictions = masks.map((seg, index) => ({
+                segmentation: seg,
+                score: parseFloat(scores[index]) || 0
+            })).sort((a, b) => b.score - a.score);
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();
