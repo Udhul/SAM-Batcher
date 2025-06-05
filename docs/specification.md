@@ -246,7 +246,9 @@ The system will employ a client-server architecture.
     *   Calls `sam_inference_instance.predict(...)` with provided prompts and parameters.
     *   Receives masks, scores, logits.
     *   Persists these masks as a new "predictions" layer in the Project State DB, including prompts used.
-    *   Converts masks for client.
+    *   Converts masks for client. When multiple boxes are supplied the model's
+        `(N,1,H,W)` output is flattened into `N` separate 2D masks with scores in
+        the same order.
 *   **Server Response:** `{"success": true, "masks_data": [...raw mask arrays...], "scores": [...], "layer_id": "interactive_uuid"}` (Logits typically not sent to client unless needed for advanced features).
 *   **Client:** Displays new predicted masks. If `multimask_output` is true, allows user to choose best one or cycle through.
 

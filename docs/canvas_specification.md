@@ -192,6 +192,10 @@ Response: {
 }
 ```
 
+When multiple boxes are provided as input, the backend flattens the model output
+so that `masks_data` is a simple list of 2D masks, one per box. Scores are
+returned in the same order.
+
 **Processing Pipeline:**
 1. **Validation:** Verify mask dimensions match original image
 2. **Sorting:** Order masks by confidence score (highest first)

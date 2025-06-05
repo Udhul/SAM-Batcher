@@ -56,6 +56,8 @@ db_dict = {
         },
         # When no points are given the fields `point_coords` and `point_labels` are None.
         # If more than one box is supplied the predictor runs with `multimask_output=False` automatically.
+        # Prediction outputs from multiple boxes are flattened so `masks` and `scores`
+        # are simple lists of 2D masks and floats in the order boxes were provided.
         "outputs": { # Prediction outputs. Returned masks. Optional: keys inside set to None if no predictions returned yet
             "model": dict, # dict containing the model (name) used to get the prediction outputs, and the other args parsed into the model (is model built with post processing or not)
             "masks": np.ndarray,
