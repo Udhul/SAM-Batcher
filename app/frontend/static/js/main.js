@@ -87,18 +87,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State Variables for main.js orchestration ---
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
+    const canvasStateCache = new Map(); // In-memory cache keyed by image hash
 
     function saveCanvasState() {
         const hash = stateManager.getActiveImageHash();
         if (!hash) return;
         const state = canvasManager.exportCanvasState();
-        localStorage.setItem(`canvasState_${hash}`, JSON.stringify(state));
+        canvasStateCache.set(hash, state);
     }
 
     function loadCanvasState(hash) {
-        const stored = localStorage.getItem(`canvasState_${hash}`);
-        if (stored) {
-            try { canvasManager.applyCanvasState(JSON.parse(stored)); } catch(e) { console.error('Failed to load canvas state', e); }
+        const cached = canvasStateCache.get(hash);
+        if (cached) {
+            try { canvasManager.applyCanvasState(cached); } catch(e) { console.error('Failed to load canvas state', e); }
         }
     }
 

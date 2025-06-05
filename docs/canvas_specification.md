@@ -433,6 +433,7 @@ Response: {
 * **Session Restoration:** Reload previous state when returning to image
 * **Cross-Session Persistence:** Maintain user preferences across sessions
 * **Default State:** Establish sensible defaults for new images/sessions
+* **In-Memory Cache:** Image states are cached while the page is open to allow switching between images without losing work
 
 **Synchronization Events:**
 * **Input Changes:** Immediate dispatch when user modifies inputs
