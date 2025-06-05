@@ -1,3 +1,22 @@
+"""Backend business logic layer.
+
+This module orchestrates interactions between the Flask API layer
+(`server.py`), persistent storage (`db_manager.py`) and the SAM2
+inference backend (`sam_backend2.py`).  Functions defined here operate
+purely on Python data structures and filesystem paths.
+
+Input/Output:
+    * Inputs: plain Python values from API handlers or other backend modules.
+    * Outputs: dictionaries containing status flags, data for the frontend or
+      prepared for database storage.
+
+Key Responsibilities:
+    * Project lifecycle management and settings persistence.
+    * Image source registration and pool management.
+    * Bridging SAM model loading/inference with stored project data.
+    * Preparing mask data for storage and for the client.
+"""
+
 # project_root/app/backend/project_logic.py
 import os
 import uuid
@@ -50,6 +69,58 @@ def get_image_dimensions_from_stream(file_stream: BinaryIO) -> Tuple[int, int]:
     width, height = img.size
     file_stream.seek(0)
     return width, height
+
+
+def get_image_path_on_server_from_db_info(project_id: str, image_info_db: Dict[str, Any]) -> Optional[str]:
+    """Resolve the absolute path of an image given its DB record.
+
+    Parameters
+    ----------
+    project_id : str
+        Identifier of the project the image belongs to.
+    image_info_db : Dict[str, Any]
+        Row from the ``Images`` table as a dictionary.
+
+    Returns
+    -------
+    Optional[str]
+        Absolute path to the image on the server filesystem or ``None`` if it
+        cannot be resolved.
+    """
+
+    if not image_info_db:
+        return None
+
+    image_path = ""
+    source_id = image_info_db.get("source_id_ref")
+    if source_id:
+        sources = db_manager.get_image_sources(project_id)
+        source = next((s for s in sources if s["source_id"] == source_id), None)
+        if source:
+            if source["type"] == "upload":
+                image_path = image_info_db.get("path_in_source", "")
+            elif source["type"] == "folder":
+                image_path = os.path.join(source["details"]["path"], image_info_db.get("path_in_source", ""))
+            # Other source types (url, azure) not handled in this minimal version
+
+    if not image_path or not os.path.exists(image_path):
+        filename = image_info_db.get("original_filename")
+        if filename:
+            ext = os.path.splitext(filename)[1]
+            potential = get_sharded_image_path(project_id, image_info_db["image_hash"], ext)
+            if os.path.exists(potential):
+                image_path = potential
+            else:
+                upload_dir = get_project_upload_dir(project_id)
+                prefix = image_info_db["image_hash"][:config.SHARD_PREFIX_LENGTH]
+                shard_dir = os.path.join(upload_dir, prefix)
+                if os.path.exists(shard_dir):
+                    for fname in os.listdir(shard_dir):
+                        if fname.startswith(image_info_db["image_hash"] + "."):
+                            image_path = os.path.join(shard_dir, fname)
+                            break
+
+    return image_path if image_path and os.path.exists(image_path) else None
 
 # --- Project Management ---
 def create_new_project(project_name: Optional[str] = None) -> Dict[str, Any]:

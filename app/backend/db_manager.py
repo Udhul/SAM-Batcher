@@ -1,3 +1,14 @@
+"""SQLite persistence layer for SAM-Batcher projects.
+
+This module exposes helper functions to create and query project databases.
+Functions here perform no higher level logic; they simply translate Python
+values to SQL operations and back.
+
+Input/Output:
+    * Inputs: primitive values describing project metadata, images and masks.
+    * Outputs: dictionaries representing rows from the database.
+"""
+
 # project_root/app/backend/db_manager.py
 import sqlite3
 import os

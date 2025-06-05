@@ -1,3 +1,16 @@
+"""Wrapper around the SAM2 model for inference tasks.
+
+``SAMInference`` encapsulates model loading, image management and both
+automatic and interactive mask generation.  It operates on numpy arrays
+and filesystem paths only, without knowledge of HTTP or the database.
+
+Input/Output:
+    * Inputs: paths to images, numpy arrays for prompts or masks and
+      parameters controlling model behaviour.
+    * Outputs: numpy arrays of masks, scores and convenience helpers for
+      converting images to base64 strings.
+"""
+
 # project_root/app/backend/sam_backend2.py
 
 import os

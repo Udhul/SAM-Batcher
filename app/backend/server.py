@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""Flask API server for the SAM-Batcher application.
+
+This module wires HTTP requests to the business logic defined in
+``project_logic`` and ``db_manager``.  It maintains a single
+``SAMInference`` instance used for model loading and inference.
+
+Input/Output:
+    * Inputs: JSON payloads, form data and file uploads from the frontend.
+    * Outputs: JSON responses or files to be downloaded by the client.
+"""
+
 # project_root/app/backend/server.py
 
 from flask import Flask, request, jsonify, render_template, send_from_directory, send_file, make_response
@@ -336,9 +347,8 @@ def api_get_image_thumbnail(project_id, image_hash):
     if not image_info or not image_info.get('path_in_source'):
         return jsonify({"success": False, "error": "Image for thumbnail not found."}), 404
 
-    # This part needs to correctly resolve the image path like in `set_active_image_for_project`
-    # For simplicity, let's assume path_in_source for 'upload' type is directly usable for now
-    img_path = project_logic.get_image_path_on_server_from_db_info(project_id, image_info) # You'd need to create this helper in project_logic
+    # Resolve the absolute file path for this image using project logic helper
+    img_path = project_logic.get_image_path_on_server_from_db_info(project_id, image_info)
     if not img_path or not os.path.exists(img_path):
          return jsonify({"success": False, "error": "Original image file not found for thumbnail."}), 404
     
