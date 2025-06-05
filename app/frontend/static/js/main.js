@@ -88,6 +88,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
 
+    function saveCanvasState() {
+        const hash = stateManager.getActiveImageHash();
+        if (!hash) return;
+        const state = canvasManager.exportCanvasState();
+        localStorage.setItem(`canvasState_${hash}`, JSON.stringify(state));
+    }
+
+    function loadCanvasState(hash) {
+        const stored = localStorage.getItem(`canvasState_${hash}`);
+        if (stored) {
+            try { canvasManager.applyCanvasState(JSON.parse(stored)); } catch(e) { console.error('Failed to load canvas state', e); }
+        }
+    }
+
 
     // --- Setup Event Listeners for Inter-Module Communication ---
 
@@ -159,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
             processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
+            loadCanvasState(imageHash);
             uiManager.clearGlobalStatus();
         };
         imageElement.onerror = () => {
@@ -229,14 +244,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!canvasInputs.imagePresent) return;
 
+        saveCanvasState();
         clearTimeout(predictionDebounceTimer);
         predictionDebounceTimer = setTimeout(() => {
-            if (canvasInputs.points.length > 0 || canvasInputs.box || canvasInputs.maskInput) {
+            if (canvasInputs.points.length > 0 || (canvasInputs.boxes && canvasInputs.boxes.length > 0) || canvasInputs.maskInput) {
                 performInteractivePrediction(canvasInputs, activeImageHash);
             } else {
                 canvasManager.setManualPredictions(null);
             }
         }, 300);
+    });
+
+    canvasManager.addEventListener('inputsCleared', () => {
+        saveCanvasState();
     });
 
     canvasManager.addEventListener('opacityChanged', (event) => {
@@ -256,7 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             points: canvasInputs.points.map(p => [p.x, p.y]),
             labels: canvasInputs.points.map(p => p.label),
-            box: canvasInputs.box ? [canvasInputs.box.x1, canvasInputs.box.y1, canvasInputs.box.x2, canvasInputs.box.y2] : null,
+            box: (canvasInputs.boxes && canvasInputs.boxes.length > 0) ?
+                (canvasInputs.boxes.length === 1 ?
+                    [canvasInputs.boxes[0].x1, canvasInputs.boxes[0].y1, canvasInputs.boxes[0].x2, canvasInputs.boxes[0].y2] :
+                    canvasInputs.boxes.map(b => [b.x1, b.y1, b.x2, b.y2]))
+                : null,
             maskInput: canvasInputs.maskInput, // This is the 256x256 mask from user-drawn polygons
             multimask_output: true
         };
@@ -266,12 +290,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await apiClient.predictInteractive(activeProjectId, imageHashForAPI, payload);
             if (data.success) {
                 canvasManager.setManualPredictions({ masks_data: data.masks_data, scores: data.scores });
+                saveCanvasState();
             } else {
                 throw new Error(data.error || "Interactive prediction API error.");
             }
         } catch (error) {
             uiManager.showGlobalStatus(`Prediction error: ${utils.escapeHTML(error.message)}`, 'error');
             canvasManager.setManualPredictions(null);
+            saveCanvasState();
         } finally {
             canvasManager.unlockCanvas();
         }
@@ -389,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (data.success) {
                 canvasManager.setAutomaskPredictions(data);
+                saveCanvasState();
                 const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 const statusText = `AutoMask complete (${data.count || 0} masks) in ${duration}s.`;
                 if (amgParamsElements.statusEl) {
@@ -410,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 uiManager.showGlobalStatus(`AutoMask error: ${utils.escapeHTML(error.message)}`, 'error');
             }
             canvasManager.setAutomaskPredictions(null);
+            saveCanvasState();
         } finally {
             canvasManager.unlockCanvas();
             if (autoMaskBtn) autoMaskBtn.disabled = false;

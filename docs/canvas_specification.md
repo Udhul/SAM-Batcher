@@ -211,7 +211,7 @@ Response: {
 * Base hue step: 360° / (mask_count * distribution_factor)
 * Saturation range: 70-90% for vibrant colors
 * Lightness range: 55-65% for optimal contrast
-* Alpha channel: 70% opacity as default
+* Alpha channel: full opacity; overall transparency controlled solely by the user slider
 
 ### 4.3. Rendering Pipeline
 
@@ -253,9 +253,9 @@ Response: {
 * **Point Removal:** Click near existing point (within threshold distance)
 * **Visual Feedback:** Immediate display update on interaction
 
-**Box Annotation:**
-* **Box Drawing (Shift + Drag):** Blue rectangle indicating region
-* **Box Removal:** Click inside existing box or draw minimal box
+**Box Annotation (multiple supported):**
+* **Box Drawing (Shift + Drag):** Blue rectangle indicating region; multiple boxes may be drawn
+* **Box Removal:** Shift-click inside an existing box or draw a minimal box
 * **Real-time Preview:** Show box outline during drag operation
 * **Constraint Handling:** Ensure minimum box size for meaningful input
 
@@ -410,7 +410,7 @@ Response: {
 // User interactions
 {
     "points": [{"x": 100, "y": 150, "label": 1}],
-    "box": {"x1": 50, "y1": 75, "x2": 200, "y2": 225},
+    "boxes": [[50, 75, 200, 225]],
     "maskInput": [/* 256x256 binary array */]
 }
 

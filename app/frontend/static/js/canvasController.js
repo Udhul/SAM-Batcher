@@ -96,7 +96,8 @@ class CanvasManager {
         this.displayScale = 1.0; // Scale of original image to displayed image
 
         this.userPoints = []; // [{x, y, label}, ...] in original image coordinates
-        this.userBox = null;  // {x1, y1, x2, y2} in original image coordinates
+        this.userBoxes = [];  // Array of {x1, y1, x2, y2} in original image coordinates
+        this.currentDrawingBox = null; // Temp box while dragging
         this.userDrawnMasks = []; // [{points: [{x,y},...], color, id}, ...] polygons
         this.currentLassoPoints = []; // Temporary points for drawing lasso
         this.isDrawingLasso = false;
@@ -250,7 +251,8 @@ class CanvasManager {
 
     clearAllCanvasInputs(clearImageAlso = false) {
         this.userPoints = [];
-        this.userBox = null;
+        this.userBoxes = [];
+        this.currentDrawingBox = null;
         this.userDrawnMasks = [];
         this.currentLassoPoints = [];
         this.isDrawingLasso = false;
@@ -285,13 +287,35 @@ class CanvasManager {
     getCurrentCanvasInputs() {
         return {
             points: this.userPoints, // Array of {x, y, label} in original coords
-            box: this.userBox,       // {x1, y1, x2, y2} in original coords or null
+            boxes: this.userBoxes,   // Array of boxes in original coords
             maskInput: this.combinedUserMaskInput256, // 256x256 array or null
             imagePresent: !!this.currentImage,
             filename: this.currentImageFilename,
             originalWidth: this.originalImageWidth,
             originalHeight: this.originalImageHeight
         };
+    }
+
+    exportCanvasState() {
+        return {
+            inputs: this.getCurrentCanvasInputs(),
+            manualPredictions: this.manualPredictions,
+            automaskPredictions: this.automaskPredictions
+        };
+    }
+
+    applyCanvasState(state) {
+        if (!state) return;
+        if (state.inputs) {
+            this.userPoints = state.inputs.points || [];
+            this.userBoxes = state.inputs.boxes || [];
+            this.userDrawnMasks = []; // not persisted yet
+            this.combinedUserMaskInput256 = state.inputs.maskInput || null;
+        }
+        if (state.manualPredictions) this.manualPredictions = state.manualPredictions;
+        if (state.automaskPredictions) this.automaskPredictions = state.automaskPredictions;
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
     }
 
     drawImageLayer() {
@@ -392,18 +416,19 @@ class CanvasManager {
             this.offscreenUserCtx.stroke();
         });
 
-        // Draw box
-        if (this.userBox) {
-            const db1 = this._originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
-            const db2 = this._originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
+        // Draw boxes
+        const drawBox = (box) => {
+            const db1 = this._originalToDisplayCoords(box.x1, box.y1);
+            const db2 = this._originalToDisplayCoords(box.x2, box.y2);
             this.offscreenUserCtx.strokeStyle = 'rgba(30, 144, 255, 0.85)'; // DodgerBlue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
-            // Add white outline for contrast
             this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.8)';
             this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.4);
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
-        }
+        };
+        this.userBoxes.forEach(drawBox);
+        if (this.currentDrawingBox) drawBox(this.currentDrawingBox);
 
         // Composite to visible canvas
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
@@ -514,7 +539,7 @@ class CanvasManager {
             this.currentLassoPoints = [origCoords];
         } else if (isShift) { // Box tool
             this.interactionState.isDrawingBox = true;
-            this.userBox = null; // Clear previous box or start new one
+            this.currentDrawingBox = null; // Start new box
         }
         e.preventDefault();
     }
@@ -525,7 +550,7 @@ class CanvasManager {
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
 
         if (this.interactionState.isDrawingBox) {
-            this.userBox = {
+            this.currentDrawingBox = {
                 x1: Math.min(this.interactionState.startX_orig, currentCoords_orig.x),
                 y1: Math.min(this.interactionState.startY_orig, currentCoords_orig.y),
                 x2: Math.max(this.interactionState.startX_orig, currentCoords_orig.x),
@@ -549,8 +574,11 @@ class CanvasManager {
         let interactionHandledOnUp = false; // Flag to check if specific tool action (box/lasso finish) was taken
 
         if (this.interactionState.isDrawingBox) {
-            if (this.userBox && (this.userBox.x2 - this.userBox.x1 < clickThresholdOrig || this.userBox.y2 - this.userBox.y1 < clickThresholdOrig)) {
-                this.userBox = null; // Discard tiny box (likely a shift-click)
+            if (this.currentDrawingBox && (this.currentDrawingBox.x2 - this.currentDrawingBox.x1 < clickThresholdOrig || this.currentDrawingBox.y2 - this.currentDrawingBox.y1 < clickThresholdOrig)) {
+                this.currentDrawingBox = null; // Discard tiny box
+            } else if (this.currentDrawingBox) {
+                this.userBoxes.push({ ...this.currentDrawingBox });
+                this.currentDrawingBox = null;
             }
             interactionHandledOnUp = true;
         } else if (this.isDrawingLasso) {
@@ -578,10 +606,12 @@ class CanvasManager {
                 }
                 if (removedMask) this._prepareCombinedUserMaskInput();
             } else if (isShift) { // Shift-click (without drag) to remove box under cursor
-                if (this.userBox &&
-                    coords_orig.x >= this.userBox.x1 && coords_orig.x <= this.userBox.x2 &&
-                    coords_orig.y >= this.userBox.y1 && coords_orig.y <= this.userBox.y2) {
-                    this.userBox = null;
+                for (let i = this.userBoxes.length - 1; i >= 0; i--) {
+                    const b = this.userBoxes[i];
+                    if (coords_orig.x >= b.x1 && coords_orig.x <= b.x2 && coords_orig.y >= b.y1 && coords_orig.y <= b.y2) {
+                        this.userBoxes.splice(i, 1);
+                        break;
+                    }
                 }
             } else { // Normal click for points
                 const label = e.button === 0 ? 1 : 0; // Left click = positive (1), Right click = negative (0)
@@ -605,6 +635,7 @@ class CanvasManager {
         // Reset drawing states
         this.isDrawingLasso = false;
         this.currentLassoPoints = [];
+        this.currentDrawingBox = null;
         this.interactionState.isDrawingBox = false;
         this.interactionState.isMouseDown = false;
         this.interactionState.didMove = false;
@@ -628,7 +659,7 @@ class CanvasManager {
             const hue = (i * (360 / (count < 6 ? count * 1.6 : count * 1.1))) % 360; // Adjusted factor for better spread with few items
             const saturation = 65 + Math.random() * 25;
             const lightness = 50 + Math.random() * 15;
-            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 0.65)`); // Slightly less alpha
+            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1.0)`); // Full alpha; slider controls opacity
         }
         return colors;
     }
