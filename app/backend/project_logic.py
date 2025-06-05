@@ -30,13 +30,15 @@ import numpy as np
 try:
     from .... import config # For running from within app/backend
     from . import db_manager
-    from .sam_backend2 import SAMInference # Assuming SAMInference is accessible
+    from .sam_backend2 import SAMInference  # Assuming SAMInference is accessible
+    from . import mask_utils
 except ImportError:
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..')) # Add project_root to path
     import config
     import app.backend.db_manager as db_manager
     from app.backend.sam_backend2 import SAMInference
+    import app.backend.mask_utils as mask_utils
 
 
 def get_project_upload_dir(project_id: str, ensure_exists: bool = False) -> str:
@@ -387,19 +389,12 @@ def process_automask_request(project_id: str, image_hash: str, sam_inference: SA
     processed_mask_data_for_client = []
 
     for ann in auto_masks_anns:
-        # Convert numpy mask to RLE for storage and client
-        # Assuming ann['segmentation'] is a binary numpy array
-        # We need to use pycocotools or similar for RLE conversion here.
-        # sam_backend2.py has prepare_masks_for_export - we can adapt or use it.
-        # For now, let's assume ann['segmentation'] is directly usable/storable as list of lists.
-        # THIS IS A SIMPLIFICATION - RLE IS BETTER
+        # ann['segmentation'] is a binary numpy array
         mask_np = ann['segmentation']
-        mask_list_of_lists = mask_np.astype(np.uint8).tolist() # For client JSON
-        
-        # For DB, we'd convert mask_list_of_lists to RLE string/dict
-        # For now, store as is for simplicity in this step.
-        # Proper RLE conversion required here for spec compliance.
-        rle_for_db = {"type": "raw_list", "data": mask_list_of_lists} # Placeholder
+        mask_list_of_lists = mask_np.astype(np.uint8).tolist()  # For client JSON
+
+        # Encode mask for storage using simple RLE
+        rle_for_db = mask_utils.binary_mask_to_rle(mask_list_of_lists)
 
         db_entry_metadata = {
             "area": int(ann.get('area', 0)),
@@ -464,12 +459,11 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
 
     if masks_np is not None:
         for i, mask_array_np in enumerate(masks_np):
-            binary_mask_list = mask_array_np.astype(np.uint8).tolist() # For client
+            binary_mask_list = mask_array_np.astype(np.uint8).tolist()  # For client
             client_mask_list.append(binary_mask_list)
-            
+
             # Convert binary_mask_list to RLE for DB storage
-            # placeholder
-            rle_for_db_entry = {"type": "raw_list", "data": binary_mask_list} # Placeholder for RLE
+            rle_for_db_entry = mask_utils.binary_mask_to_rle(binary_mask_list)
             
             db_mask_list.append({
                 "segmentation_rle": rle_for_db_entry, # This should be actual RLE
@@ -505,13 +499,8 @@ def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[
         if not binary_mask_array:
             continue # Skip if no segmentation data
 
-        # Convert binary_mask_array to RLE for storage
-        # Placeholder - RLE conversion required
-        # For example, using pycocotools:
-        # from pycocotools import mask as mask_utils
-        # rle = mask_utils.encode(np.asfortranarray(np.array(binary_mask_array, dtype=np.uint8)))
-        # rle_for_db = {"size": rle['size'], "counts": rle['counts'].decode('utf-8')} # COCO RLE
-        rle_for_db = {"type": "raw_list_final", "data": binary_mask_array} # Placeholder for actual RLE
+        # Encode binary mask for storage
+        rle_for_db = mask_utils.binary_mask_to_rle(binary_mask_array)
 
         current_layer_id = f"{layer_id_base}_{i}"
         db_manager.save_mask_layer(

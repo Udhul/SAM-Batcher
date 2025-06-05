@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // == CanvasManager Events ==
-    canvasManager.addEventListener('canvas-userInteraction', (event) => {
+    canvasManager.addEventListener('userInteraction', (event) => {
         const canvasInputs = event.detail;
         const currentModel = stateManager.getCurrentLoadedModel();
         const activeImageHash = stateManager.getActiveImageHash();
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    canvasManager.addEventListener('canvas-opacityChanged', (event) => {
+    canvasManager.addEventListener('opacityChanged', (event) => {
         const { layer, value } = event.detail;
         const valueDisplayId = `${layer}-opacity-value`;
         const valueDisplayElement = document.getElementById(valueDisplayId);
@@ -395,16 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     amgParamsElements.statusEl.className = 'status-message success small';
                     amgParamsElements.statusEl.textContent = statusText;
                 }
-                if (currentCanvasState.filename) {
-                    try { // Store only segmentations for recovery, as other metadata can be large/complex
-                        const storableData = data.masks_data.map(m => ({ segmentation: m.segmentation }));
-                        localStorage.setItem(`automask_data_${currentCanvasState.filename}`, JSON.stringify(storableData));
-                        localStorage.setItem(`automask_info_${currentCanvasState.filename}`, statusText);
-                    } catch (e) {
-                        console.warn("localStorage error on automask save:", e);
-                        uiManager.showGlobalStatus("Could not save automask to localStorage (data too large).", "error", 8000);
-                    }
-                }
+                // Automask results are stored in the backend DB; no localStorage handling
             } else {
                 throw new Error(data.error || "AutoMask API error.");
             }
@@ -428,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleRecoverAutoMask() {
+    async function handleRecoverAutoMask() {
         const currentCanvasState = canvasManager.getCurrentCanvasInputs();
         if (!currentCanvasState.imagePresent || !currentCanvasState.filename) {
             uiManager.showGlobalStatus("No image loaded to recover automask for.", "error");
@@ -436,24 +427,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            const recoveredDataString = localStorage.getItem(`automask_data_${currentCanvasState.filename}`);
-            const recoveredInfo = localStorage.getItem(`automask_info_${currentCanvasState.filename}`);
-            if (recoveredDataString) {
-                const recoveredMasks = JSON.parse(recoveredDataString);
-                canvasManager.setAutomaskPredictions({ masks_data: recoveredMasks, count: recoveredMasks.length }); // Assuming masks_data structure is compatible
+            const activeProjectId = stateManager.getActiveProjectId();
+            const activeImageHash = stateManager.getActiveImageHash();
+            const res = await apiClient.getImageMasks(activeProjectId, activeImageHash, 'automask');
+            if (res.success && res.masks && res.masks.length > 0) {
+                const latest = res.masks[0];
+                const masksRLE = latest.mask_data_rle;
+                const recoveredMasks = masksRLE.map(rleObj => ({ segmentation: utils.rleToBinaryMask(rleObj.segmentation_rle || rleObj, currentCanvasState.originalHeight, currentCanvasState.originalWidth) }));
+                canvasManager.setAutomaskPredictions({ masks_data: recoveredMasks, count: recoveredMasks.length });
+                const infoText = latest.metadata && latest.metadata.source_amg_params ? 'Recovered previous AutoMask.' : 'Recovered masks';
                 if (amgParamsElements.statusEl) {
-                    amgParamsElements.statusEl.textContent = "Recovered: " + (recoveredInfo || "Previously generated AutoMask.");
+                    amgParamsElements.statusEl.textContent = infoText;
                     amgParamsElements.statusEl.className = 'status-message success small';
                 }
-                uiManager.showGlobalStatus("AutoMask recovered from local storage.", 'success', 4000);
+                uiManager.showGlobalStatus('AutoMask recovered from project DB.', 'success', 4000);
             } else {
-                uiManager.showGlobalStatus("No previous AutoMask found in local storage for this image.", "info");
-                 if (amgParamsElements.statusEl) { amgParamsElements.statusEl.textContent = "No previous AutoMask found."; amgParamsElements.statusEl.className = 'status-message info small'; }
+                uiManager.showGlobalStatus('No previous AutoMask found.', 'info');
+                if (amgParamsElements.statusEl) { amgParamsElements.statusEl.textContent = 'No previous AutoMask found.'; amgParamsElements.statusEl.className = 'status-message info small'; }
             }
         } catch (e) {
-            uiManager.showGlobalStatus("Error recovering AutoMask. Storage might be corrupted/disabled.", 'error');
-            if (amgParamsElements.statusEl) { amgParamsElements.statusEl.textContent = "Error recovering AutoMask."; amgParamsElements.statusEl.className = 'status-message error small'; }
-            console.error("localStorage error on automask recovery:", e);
+            uiManager.showGlobalStatus(`Error recovering AutoMask: ${utils.escapeHTML(e.message)}`, 'error');
+            if (amgParamsElements.statusEl) { amgParamsElements.statusEl.textContent = 'Error recovering AutoMask.'; amgParamsElements.statusEl.className = 'status-message error small'; }
+            console.error('recover automask error:', e);
         }
     }
 

@@ -190,6 +190,34 @@ const Utils = {
             binaryMaskArray.push(Array.from(out.slice(r * width, (r + 1) * width)));
         }
         return binaryMaskArray;
+    },
+
+    /**
+     * Encodes a binary mask array into a simple COCO-style RLE object.
+     * @param {Array<Array<number>>} binaryMask - 2D array of 0/1 values.
+     * @returns {object} RLE object with {counts: number[], size: [height,width]}.
+     */
+    binaryMaskToRLE: (binaryMask) => {
+        if (!binaryMask || !binaryMask.length || !binaryMask[0].length) return null;
+        const height = binaryMask.length;
+        const width = binaryMask[0].length;
+        const counts = [];
+        let count = 0;
+        let current = 0; // RLE starts with count of zeros
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const val = binaryMask[y][x] ? 1 : 0;
+                if (val !== current) {
+                    counts.push(count);
+                    count = 1;
+                    current = val;
+                } else {
+                    count++;
+                }
+            }
+        }
+        counts.push(count);
+        return { counts, size: [height, width] };
     }
 };
 
