@@ -467,7 +467,7 @@ class CanvasManager {
                 let pixelCount = 0;
                 for (let y = 0; y < maskHeight; y++) {
                     for (let x = 0; x < maskWidth; x++) {
-                        if (segmentation[y][x] === 1 || segmentation[y][x] === true) {
+                        if (segmentation[y][x]) {
                             const pixelIndex = (y * maskWidth + x) * 4;
                             pixelData[pixelIndex] = r;
                             pixelData[pixelIndex + 1] = g;
