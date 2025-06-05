@@ -105,6 +105,13 @@
                                 <input type="text" id="image-source-url-path" placeholder="http://.../img.jpg or .../list.txt">
                             </div>
                             <button id="add-image-source-btn">Add Source</button>
+                            <div class="file-upload-btn-container" style="margin-top:8px;">
+                                <label for="image-upload" class="file-upload-styled-btn">Load Image</label>
+                                <input type="file" id="image-upload" accept="image/*" multiple>
+                            </div>
+                            <div id="image-upload-progress" class="progress-bar-container">
+                                <div id="image-upload-bar" class="progress-bar-fill">0%</div>
+                            </div>
                             <div id="image-sources-list-container">
                                 <p><em>No sources added yet for this project.</em></p>
                             </div>
@@ -152,19 +159,9 @@
                 <div class="image-section">
                     <div class="canvas-toolbar">
                         <div class="toolbar-section">
-                            <div class="file-upload-btn-container">
-                                <label for="image-upload" class="file-upload-styled-btn">Load Image</label>
-                                <input type="file" id="image-upload" accept="image/*" multiple>
-                            </div>
-                            <div id="image-upload-progress" class="progress-bar-container">
-                                <div id="image-upload-bar" class="progress-bar-fill">0%</div>
-                            </div>
-                        </div>
-                        <div class="toolbar-section">
                             <button id="clear-inputs-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
                         </div>
                         <div class="toolbar-section">
-                            <label for="mask-display-mode">Display Mode:</label>
                             <select id="mask-display-mode" title="Choose how to display multiple predicted masks">
                                 <option value="best">Best Mask Only</option>
                                 <option value="all">All Masks</option>

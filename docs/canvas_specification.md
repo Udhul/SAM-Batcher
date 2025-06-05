@@ -106,6 +106,7 @@ The canvas system employs a three-layer architecture with independent rendering 
 * Session-level: Opacity settings, display preferences
 * Image-level: User inputs, mask selections, toggle states
 * Temporary: Drawing states, interaction feedback
+* In-memory cache keyed by image hash stores recent canvas state to avoid large localStorage usage
 
 ---
 
@@ -211,7 +212,7 @@ Response: {
 * Base hue step: 360° / (mask_count * distribution_factor)
 * Saturation range: 70-90% for vibrant colors
 * Lightness range: 55-65% for optimal contrast
-* Alpha channel: 70% opacity as default
+* Alpha channel: 100% opacity for generated colors; layer transparency controlled by slider
 
 ### 4.3. Rendering Pipeline
 
@@ -258,6 +259,7 @@ Response: {
 * **Box Removal:** Click inside existing box or draw minimal box
 * **Real-time Preview:** Show box outline during drag operation
 * **Constraint Handling:** Ensure minimum box size for meaningful input
+* **Multiple Boxes:** Several boxes can be drawn concurrently; each is kept until manually removed
 
 **Polygon Drawing:**
 * **Lasso Mode (Ctrl + Drag):** Draw freeform polygon regions

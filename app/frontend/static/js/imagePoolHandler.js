@@ -220,6 +220,8 @@ class ImagePoolHandler {
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) return;
 
+        this.Utils.dispatchCustomEvent('save-canvas-state', { imageHash: this.stateManager.getActiveImageHash() });
+
         this.latestImageRequestHash = imageHash;
         const requestedHash = imageHash;
 
