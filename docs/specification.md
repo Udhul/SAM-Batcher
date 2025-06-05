@@ -63,7 +63,7 @@ The system will employ a client-server architecture.
 *   **Technology:** Python with Flask (as per existing `server.py`).
 *   **Core Components:**
     *   **API Layer:** Flask routes for handling client requests.
-    *   **SAM2 Integration Layer:** `SAMInference` class (from `sam_backend2.py`) interacting with the SAM2 library.
+    *   **SAM2 Integration Layer:** `SAMInference` class (from `sam_backend.py`) interacting with the SAM2 library.
     *   **Business Logic Layer:** Managing projects, image pools, state, and orchestrating SAM2 operations.
     *   **Data Access Layer:** Interacting with the project state database.
 *   **Responsibilities:**
@@ -144,7 +144,7 @@ The system will employ a client-server architecture.
     *   **Client:** Updates UI with model status. Disables interaction during load.
 *   **Model Load Progress (Optional - for downloads):**
     *   **Client:** If initial response indicates loading, periodically polls a progress endpoint. `GET /api/model/load_progress?task_id=<task_id>`
-    *   **Server:** `get_model` in `sam_backend2.py` would need to be adapted to report progress (e.g., update a shared status variable or use a more sophisticated task queue). The imported utils/get_model.py supports a progress_callback. Should be integrated with the server through the backend2.
+    *   **Server:** `get_model` in `sam_backend.py` would need to be adapted to report progress (e.g., update a shared status variable or use a more sophisticated task queue). The imported utils/get_model.py supports a progress_callback. Should be integrated with the server through the backend module.
     *   **Server Response:** `{"success": true, "task_id": "...", "progress": 0.75, "status": "downloading"}`
     *   **Client:** Updates progress bar.
 *   **Cancel Model Load (Optional):**

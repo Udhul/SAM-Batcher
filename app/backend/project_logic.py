@@ -2,7 +2,7 @@
 
 This module orchestrates interactions between the Flask API layer
 (`server.py`), persistent storage (`db_manager.py`) and the SAM2
-inference backend (`sam_backend2.py`).  Functions defined here operate
+inference backend (`sam_backend.py`).  Functions defined here operate
 purely on Python data structures and filesystem paths.
 
 Input/Output:
@@ -30,14 +30,14 @@ import numpy as np
 try:
     from .... import config # For running from within app/backend
     from . import db_manager
-    from .sam_backend2 import SAMInference  # Assuming SAMInference is accessible
+    from .sam_backend import SAMInference  # Assuming SAMInference is accessible
     from . import mask_utils
 except ImportError:
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..')) # Add project_root to path
     import config
     import app.backend.db_manager as db_manager
-    from app.backend.sam_backend2 import SAMInference
+    from app.backend.sam_backend import SAMInference
     import app.backend.mask_utils as mask_utils
 
 

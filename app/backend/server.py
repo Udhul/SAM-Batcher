@@ -26,7 +26,7 @@ from datetime import datetime
 # Assuming config.py and other backend modules are in correct relative paths or sys.path is set
 try:
     from .... import config # For running from within app/backend
-    from .sam_backend2 import SAMInference, ModelNotLoadedError, ImageNotSetError # Import custom exceptions
+    from .sam_backend import SAMInference, ModelNotLoadedError, ImageNotSetError # Import custom exceptions
     from . import db_manager
     from . import project_logic
     from . import export_logic
@@ -34,7 +34,7 @@ except ImportError:
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..')) # Add project_root to path
     import config
-    from app.backend.sam_backend2 import SAMInference, ModelNotLoadedError, ImageNotSetError
+    from app.backend.sam_backend import SAMInference, ModelNotLoadedError, ImageNotSetError
     import app.backend.db_manager as db_manager
     import app.backend.project_logic as project_logic
     import app.backend.export_logic as export_logic
@@ -437,7 +437,7 @@ def api_predict_interactive(project_id, image_hash):
         "box": data.get('box'),       # Expected as [x1,y1,x2,y2] or [[b1x1,...],[b2x1,...]]
         "mask_input": data.get('maskInput') # Expected as 256x256 binary array
     }
-    # Convert to numpy arrays within project_logic or sam_backend2
+    # Convert to numpy arrays within project_logic or sam_backend
     
     # Extract other predict params if any (e.g., multimask_output from client)
     predict_params = {

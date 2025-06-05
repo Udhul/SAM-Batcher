@@ -36,13 +36,13 @@ project_root/
   │   └── backend/                  # Server-side application (Python/Flask)
   │       ├── __init__.py
   │       ├── server.py               # Flask app: API routes, request/response handling
-  │       ├── sam_backend2.py         # SAM2 model interaction, inference logic
+  │       ├── sam_backend.py         # SAM2 model interaction, inference logic
   │       ├── db_manager.py           # Database interaction: SQLite CRUD operations, schema
   │       ├── project_logic.py        # Business logic for projects, images, sources, mask persistence
   │       ├── export_logic.py         # Logic for data export functionalities
   │       └── azure_handler.py        # (If needed) Specific logic for Azure Blob Storage interactions
   │
-  ├── utils/                      # Utilities for SAM2 model/config fetching (as used by sam_backend2.py)
+  ├── utils/                      # Utilities for SAM2 model/config fetching (as used by sam_backend.py)
   │   ├── __init__.py
   │   ├── get_model.py
   │   └── get_model_config.py
@@ -57,7 +57,7 @@ project_root/
 
   └── tests/                      # Unit and integration tests (For the future)
       ├── backend/
-      │   ├── test_sam_backend2.py
+      │   ├── test_sam_backend.py
       │   ├── test_db_manager.py
       │   ├── test_project_logic.py
       │   └── test_api_endpoints.py
@@ -138,11 +138,11 @@ project_root/
     *   Defines all Flask API endpoints as specified in `specification.md` (e.g., `/api/project`, `/api/model/load`, `/api/images/.../predict_interactive`).
     *   Parses incoming requests (JSON, form data, file uploads).
     *   Performs initial request validation.
-    *   Delegates business logic to `project_logic.py`, `sam_backend2.py` (for model operations), and `export_logic.py`.
+    *   Delegates business logic to `project_logic.py`, `sam_backend.py` (for model operations), and `export_logic.py`.
     *   Uses `db_manager.py` (often via `project_logic.py`) for data persistence.
     *   Formats and returns JSON responses to the client.
     *   Serves the main `index.html` and static frontend files.
-*   **`sam_backend2.py`**:
+*   **`sam_backend.py`**:
     *   **Primary Role:** Encapsulates all direct interactions with the SAM2 library.
     *   Manages loading SAM2 models (using `utils/get_model.py`, `utils/get_model_config.py`).
     *   Handles setting the image into the SAM2 predictor (`predictor.set_image()`).
@@ -158,13 +158,13 @@ project_root/
         *   Example functions: `create_project_db(project_id)`, `add_image_source(project_id, source_details)`, `get_image_by_hash(project_id, image_hash)`, `save_mask_layer(project_id, image_hash, layer_data)`, `get_project_settings(project_id)`.
         *   Handles SQLite connections and transactions.
 *   **`project_logic.py`**:
-    *   Contains the core business logic of the application, acting as an orchestrator between `server.py` (API requests), `db_manager.py` (data), and `sam_backend2.py` (AI model).
+    *   Contains the core business logic of the application, acting as an orchestrator between `server.py` (API requests), `db_manager.py` (data), and `sam_backend.py` (AI model).
     *   Handles:
         *   Project creation (instructing `db_manager.py` to create DB, generating project ID).
         *   Loading projects (querying `db_manager.py`).
         *   Managing image sources: validating paths/URLs, listing images from sources (local files, URLs, Azure via `azure_handler.py`), calculating image hashes, adding image metadata to the DB via `db_manager.py`.
-        *   Image pool management: determining next unprocessed image, setting active image (fetches image path from DB, tells `sam_backend2.py` to load it, fetches image data for client).
-        *   Mask management: Storing prompts and generated masks (from `sam_backend2.py`) into the database via `db_manager.py` (e.g., converting masks to RLE for storage). Committing final masks.
+        *   Image pool management: determining next unprocessed image, setting active image (fetches image path from DB, tells `sam_backend.py` to load it, fetches image data for client).
+        *   Mask management: Storing prompts and generated masks (from `sam_backend.py`) into the database via `db_manager.py` (e.g., converting masks to RLE for storage). Committing final masks.
         *   Updating image statuses in the DB.
 *   **`export_logic.py`**:
     *   Handles the logic for exporting annotated data.
@@ -178,5 +178,5 @@ project_root/
 **Utilities (`project_root/utils/`):**
 
 *   **`get_model.py`**, **`get_model_config.py`**:
-    *   These are responsible for downloading/locating SAM2 model checkpoint files and their corresponding configuration files. They are dependencies of `sam_backend2.py`.
+    *   These are responsible for downloading/locating SAM2 model checkpoint files and their corresponding configuration files. They are dependencies of `sam_backend.py`.
 

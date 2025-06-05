@@ -11,7 +11,7 @@ Input/Output:
       converting images to base64 strings.
 """
 
-# project_root/app/backend/sam_backend2.py
+# project_root/app/backend/sam_backend.py
 
 import os
 import torch
