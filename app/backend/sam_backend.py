@@ -253,18 +253,18 @@ class SAMInference:
             self.current_config_path = resolved_config_path
             self.apply_postprocessing = apply_postprocessing
             
-            # Recreate inference objects if they were previously configured
-            predictor_existed = self.predictor is not None
+            # Remember whether inference objects were previously configured
             automask_existed = self.automatic_mask_generator is not None
-            
+
             # Clear existing inference objects
             self.predictor = None
             self.automatic_mask_generator = None
             self.active_inference_type = None
-            
-            # Recreate them with stored configurations
-            if predictor_existed:
-                self.create_predictor(**self.predictor_args)
+
+            # Always create a predictor so manual prediction works after loading
+            self.create_predictor(**self.predictor_args)
+
+            # Recreate automask generator if it existed before
             if automask_existed:
                 self.create_automatic_mask_generator(**self.automatic_mask_generator_args)
             
@@ -513,6 +513,13 @@ class SAMInference:
             True if image was set successfully, False otherwise.
         """
         try:
+            # Ensure a predictor exists so interactive prediction can follow
+            if self.predictor is None:
+                logger.info("Predictor not found when setting image. Creating default predictor.")
+                if not self.create_predictor(**self.predictor_args):
+                    logger.error("Failed to auto-create predictor while setting image.")
+                    return False
+
             # Process image data
             if isinstance(image_data, str):
                 if not os.path.exists(image_data):
@@ -624,8 +631,10 @@ class SAMInference:
         if self.predictor is None:
             if self.model is None:
                 raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
-            else:
-                raise InferenceObjectNotAvailableError("Predictor not loaded. Call create_predictor() first.")
+            # Attempt automatic creation if possible
+            if not self.create_predictor(**self.predictor_args):
+                raise InferenceObjectNotAvailableError(
+                    "Predictor not loaded. Call create_predictor() first.")
                 
         if self.image_np is None:
             raise ImageNotSetError("Image not set. Call set_image() first.")
@@ -791,6 +800,12 @@ class SAMInference:
                 del temp_generator
                 if self.device.type == "cuda":
                     torch.cuda.empty_cache()
+
+            # After automask generation, unload generator and recreate predictor
+            if self.automatic_mask_generator is not None:
+                self._unload_automatic_mask_generator()
+            if self.predictor is None:
+                self.create_predictor(**self.predictor_args)
 
     def get_recent_results(self) -> Dict[str, Any]:
         """
