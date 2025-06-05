@@ -595,7 +595,7 @@ class SAMInference:
                 mask_input: Optional[np.ndarray] = None,
                 multimask_output: bool = True, 
                 normalize_coords: bool = True,
-                return_logits: bool = True) -> Optional[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]]:
+                return_logits: bool = False) -> Optional[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]]:
         """
         Predict masks using SAM2ImagePredictor with interactive prompts.
         
