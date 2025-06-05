@@ -57,6 +57,7 @@ class ImagePoolHandler {
         this.currentStatusFilter = "";
         this.imageList = []; // Store the current list of images for prev/next
         this.currentImageIndex = -1; // Index in this.imageList
+        this.latestImageRequestHash = null; // Track latest requested image to avoid race conditions
 
         this._setupEventListeners();
         this.clearImagePoolDisplay(); // Initial state
@@ -219,9 +220,16 @@ class ImagePoolHandler {
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) return;
 
+        this.latestImageRequestHash = imageHash;
+        const requestedHash = imageHash;
+
         this.uiManager.showGlobalStatus(`Loading image '${imageHash.substring(0,10)}...'`, 'loading', 0);
         try {
             const data = await this.apiClient.setActiveImage(projectId, imageHash);
+            if (this.latestImageRequestHash !== requestedHash) {
+                // A newer request has been made, ignore this response
+                return;
+            }
             if (data.success) {
                 this.stateManager.setActiveImage(data.image_hash, data.filename); // filename from server
                 this.Utils.dispatchCustomEvent('active-image-set', {
@@ -244,6 +252,10 @@ class ImagePoolHandler {
             console.error("ImagePoolHandler: Select image error", error);
             this.stateManager.setActiveImage(null, null); // Clear active image on error
             this._updateCurrentImageDisplay();
+        } finally {
+            if (this.latestImageRequestHash === requestedHash) {
+                this.latestImageRequestHash = null;
+            }
         }
     }
 
