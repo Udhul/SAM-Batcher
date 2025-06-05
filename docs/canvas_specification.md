@@ -420,6 +420,7 @@ returned in the same order.
 }
 // When no points are present, "points" and "labels" are sent as null rather than empty arrays.
 // If multiple boxes are provided, the client forces multimask_output=false so one mask is returned per box.
+// The binary maskInput is converted to logits (±10) on the server before being passed to SAM.
 
 // Selection state
 {

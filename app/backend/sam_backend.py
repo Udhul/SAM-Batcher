@@ -669,7 +669,10 @@ class SAMInference:
                 if box.shape[0] > 1:
                     multimask_output = False
             if mask_input is not None:
-                mask_input = np.asarray(mask_input)
+                mask_input = np.asarray(mask_input, dtype=np.float32)
+                if mask_input.max() <= 1.0 and mask_input.min() >= 0.0:
+                    # Assume binary mask from frontend; convert to logits
+                    mask_input = np.where(mask_input > 0.5, 10.0, -10.0)
             
             # Run prediction with appropriate precision
             # TODO: Control precision cast from class attr. depeneding on device
