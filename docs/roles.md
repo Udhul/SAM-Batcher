@@ -23,6 +23,7 @@
   - A URI/ BLOB datastore reference (Support for Azure context). 
     - Credentials can be set up in the UI by the client, or via an environment variable, from the server runtime, or the server can attempt to use the default credentials which may work if the server is being run from an azure compuute instance.
 - Multiple images/ image sources can be added to the pool of images.
+- Manual uploads are initiated from the **Load Image** button located inside the Image Sources section.
 - The client can review and manage (add/remove/edit) sources currently in the pool, and also single images from any of the sources. The server will keep a registry with 
 - Images in the pool will not be loaded by the server runtime yet, but for images uploaded by the client, they will be stored on the server in a folder, "uploads", or another destination folder specified by the server.
 - The user can step through the images in the pool, and create the masks for each image, interacting woth the canvas until having reached the desired masks. Then the user can step on to the next image in the pool. 
