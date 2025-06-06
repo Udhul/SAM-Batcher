@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const uiManager = new UIManager();
     const canvasManager = new CanvasManager();
     
+    const canvasStateCache = {};
+    
     // modelHandler.js is a script that self-initializes its DOM listeners.
     // We don't instantiate it as a class here, but we will need its functions if we were to call them.
     // For now, it primarily dispatches events that main.js listens to.
@@ -88,8 +90,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
 
+    function saveCanvasState(hash) {
+        if (!hash) return;
+        canvasStateCache[hash] = canvasManager.exportState();
+    }
+
+    function restoreCanvasState(hash) {
+        const state = canvasStateCache[hash];
+        if (state) canvasManager.importState(state);
+    }
+
 
     // --- Setup Event Listeners for Inter-Module Communication ---
+
+    document.addEventListener('save-canvas-state', (e) => {
+        saveCanvasState(e.detail.imageHash);
+    });
 
     // == ProjectHandler Events ==
     document.addEventListener('project-created', (event) => {
@@ -158,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
+            restoreCanvasState(imageHash);
             processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
             uiManager.clearGlobalStatus();
         };
