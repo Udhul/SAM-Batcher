@@ -50,11 +50,13 @@ db_dict = {
             "point_labels": Optional[np.ndarray], # defining if each point above is positive/negative
             "box": Optional[np.ndarray], # can be multiple boxes in the aray. Format example single: np.array([x1, y1, x2, y2]) or multiple: np.array([[b1x1, b1y1, b1x2, b1y2],[b2x1, b2y1, b2x2, b2y2]])
             "mask_input": Optional[np.ndarray],
-            "multimask_output": bool , 
+            "multimask_output": bool ,
             "normalize_coords": bool,
             "return_logits_to_caller": bool,
             "sort_results": bool
         },
+        # When no points are given the fields `point_coords` and `point_labels` are None.
+        # If more than one box is supplied the predictor runs with `multimask_output=False` automatically.
         "outputs": { # Prediction outputs. Returned masks. Optional: keys inside set to None if no predictions returned yet
             "model": dict, # dict containing the model (name) used to get the prediction outputs, and the other args parsed into the model (is model built with post processing or not)
             "masks": np.ndarray,

@@ -106,6 +106,7 @@ The canvas system employs a three-layer architecture with independent rendering 
 * Session-level: Opacity settings, display preferences
 * Image-level: User inputs, mask selections, toggle states
 * Temporary: Drawing states, interaction feedback
+* In-memory cache keyed by image hash stores recent canvas state to avoid large localStorage usage
 
 ---
 
@@ -211,7 +212,7 @@ Response: {
 * Base hue step: 360° / (mask_count * distribution_factor)
 * Saturation range: 70-90% for vibrant colors
 * Lightness range: 55-65% for optimal contrast
-* Alpha channel: 70% opacity as default
+* Alpha channel: 100% opacity for generated colors; layer transparency controlled by slider
 
 ### 4.3. Rendering Pipeline
 
@@ -253,11 +254,15 @@ Response: {
 * **Point Removal:** Click near existing point (within threshold distance)
 * **Visual Feedback:** Immediate display update on interaction
 
-**Box Annotation:**
-* **Box Drawing (Shift + Drag):** Blue rectangle indicating region
-* **Box Removal:** Click inside existing box or draw minimal box
+**Box Annotation (multiple supported):**
+* **Box Drawing (Shift + Drag):** Blue rectangle indicating region; multiple boxes may be drawn. 
+  * Limit box area to within the image, but track mouse movement even outside image. 
+  * Only finish box drawing when mouse is released. 
+  * This helps prevent accidental box completion when mouse is moved slightly out of the image or canvas.
+* **Box Removal:** Shift-click inside an existing box
 * **Real-time Preview:** Show box outline during drag operation
 * **Constraint Handling:** Ensure minimum box size for meaningful input
+* **Multiple Boxes:** Several boxes can be drawn concurrently; each is kept until manually removed
 
 **Polygon Drawing:**
 * **Lasso Mode (Ctrl + Drag):** Draw freeform polygon regions
@@ -410,9 +415,11 @@ Response: {
 // User interactions
 {
     "points": [{"x": 100, "y": 150, "label": 1}],
-    "box": {"x1": 50, "y1": 75, "x2": 200, "y2": 225},
+    "boxes": [[50, 75, 200, 225]],
     "maskInput": [/* 256x256 binary array */]
 }
+// When no points are present, "points" and "labels" are sent as null rather than empty arrays.
+// If multiple boxes are provided, the client forces multimask_output=false so one mask is returned per box.
 
 // Selection state
 {
@@ -433,6 +440,7 @@ Response: {
 * **Session Restoration:** Reload previous state when returning to image
 * **Cross-Session Persistence:** Maintain user preferences across sessions
 * **Default State:** Establish sensible defaults for new images/sessions
+* **In-Memory Cache:** Image states are cached while the page is open to allow switching between images without losing work
 
 **Synchronization Events:**
 * **Input Changes:** Immediate dispatch when user modifies inputs
@@ -618,4 +626,3 @@ The canvas system serves as the primary interface between users and the SAM2 AI 
 6. **Future Enhancements:** Collaboration, accessibility, advanced tools
 
 This specification should be used in conjunction with the main `specification.md` document to understand the complete system context and integration requirements.
-

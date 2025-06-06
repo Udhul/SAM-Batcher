@@ -96,7 +96,8 @@ class CanvasManager {
         this.displayScale = 1.0; // Scale of original image to displayed image
 
         this.userPoints = []; // [{x, y, label}, ...] in original image coordinates
-        this.userBox = null;  // {x1, y1, x2, y2} in original image coordinates
+        this.userBoxes = [];  // Array of {x1, y1, x2, y2} boxes
+        this.currentBox = null; // Box being drawn
         this.userDrawnMasks = []; // [{points: [{x,y},...], color, id}, ...] polygons
         this.currentLassoPoints = []; // Temporary points for drawing lasso
         this.isDrawingLasso = false;
@@ -229,13 +230,21 @@ class CanvasManager {
         this.manualPredictions = [];
         if (predictionData && predictionData.masks_data && predictionData.scores &&
             predictionData.masks_data.length === predictionData.scores.length) {
-            this.manualPredictions = predictionData.masks_data.map((seg, index) => ({
-                segmentation: seg, // Expects 2D binary array
-                score: predictionData.scores[index]
-            })).sort((a, b) => b.score - a.score); // Sort by score descending
+            let maskList = predictionData.masks_data;
+            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
+                maskList = maskList[0];
+            }
+            this.manualPredictions = maskList.map((seg, index) => ({
+                segmentation: seg,
+                score: predictionData.scores[index] || predictionData.scores[0]
+            })).sort((a, b) => b.score - a.score);
         } else if (predictionData && predictionData.masks_data) { // Scores optional
-             this.manualPredictions = predictionData.masks_data.map(seg => ({
-                segmentation: seg, score: 0 // Default score
+            let maskList = predictionData.masks_data;
+            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
+                maskList = maskList[0];
+            }
+            this.manualPredictions = maskList.map(seg => ({
+                segmentation: seg, score: 0
             }));
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
@@ -250,7 +259,8 @@ class CanvasManager {
 
     clearAllCanvasInputs(clearImageAlso = false) {
         this.userPoints = [];
-        this.userBox = null;
+        this.userBoxes = [];
+        this.currentBox = null;
         this.userDrawnMasks = [];
         this.currentLassoPoints = [];
         this.isDrawingLasso = false;
@@ -285,7 +295,7 @@ class CanvasManager {
     getCurrentCanvasInputs() {
         return {
             points: this.userPoints, // Array of {x, y, label} in original coords
-            box: this.userBox,       // {x1, y1, x2, y2} in original coords or null
+            boxes: this.userBoxes,       // Array of boxes in original coords
             maskInput: this.combinedUserMaskInput256, // 256x256 array or null
             imagePresent: !!this.currentImage,
             filename: this.currentImageFilename,
@@ -392,10 +402,11 @@ class CanvasManager {
             this.offscreenUserCtx.stroke();
         });
 
-        // Draw box
-        if (this.userBox) {
-            const db1 = this._originalToDisplayCoords(this.userBox.x1, this.userBox.y1);
-            const db2 = this._originalToDisplayCoords(this.userBox.x2, this.userBox.y2);
+        // Draw boxes
+        [...this.userBoxes, this.currentBox].forEach(box => {
+            if (!box) return;
+            const db1 = this._originalToDisplayCoords(box.x1, box.y1);
+            const db2 = this._originalToDisplayCoords(box.x2, box.y2);
             this.offscreenUserCtx.strokeStyle = 'rgba(30, 144, 255, 0.85)'; // DodgerBlue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
@@ -403,7 +414,7 @@ class CanvasManager {
             this.offscreenUserCtx.strokeStyle = 'rgba(255,255,255,0.8)';
             this.offscreenUserCtx.lineWidth = Math.max(1, lineDisplayWidth * 0.4);
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
-        }
+        });
 
         // Composite to visible canvas
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
@@ -514,7 +525,7 @@ class CanvasManager {
             this.currentLassoPoints = [origCoords];
         } else if (isShift) { // Box tool
             this.interactionState.isDrawingBox = true;
-            this.userBox = null; // Clear previous box or start new one
+            this.currentBox = null;
         }
         e.preventDefault();
     }
@@ -525,7 +536,7 @@ class CanvasManager {
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
 
         if (this.interactionState.isDrawingBox) {
-            this.userBox = {
+            this.currentBox = {
                 x1: Math.min(this.interactionState.startX_orig, currentCoords_orig.x),
                 y1: Math.min(this.interactionState.startY_orig, currentCoords_orig.y),
                 x2: Math.max(this.interactionState.startX_orig, currentCoords_orig.x),
@@ -549,8 +560,11 @@ class CanvasManager {
         let interactionHandledOnUp = false; // Flag to check if specific tool action (box/lasso finish) was taken
 
         if (this.interactionState.isDrawingBox) {
-            if (this.userBox && (this.userBox.x2 - this.userBox.x1 < clickThresholdOrig || this.userBox.y2 - this.userBox.y1 < clickThresholdOrig)) {
-                this.userBox = null; // Discard tiny box (likely a shift-click)
+            if (this.currentBox && (this.currentBox.x2 - this.currentBox.x1 < clickThresholdOrig || this.currentBox.y2 - this.currentBox.y1 < clickThresholdOrig)) {
+                this.currentBox = null; // Discard tiny box (likely a shift-click)
+            } else if (this.currentBox) {
+                this.userBoxes.push({ ...this.currentBox });
+                this.currentBox = null;
             }
             interactionHandledOnUp = true;
         } else if (this.isDrawingLasso) {
@@ -578,10 +592,12 @@ class CanvasManager {
                 }
                 if (removedMask) this._prepareCombinedUserMaskInput();
             } else if (isShift) { // Shift-click (without drag) to remove box under cursor
-                if (this.userBox &&
-                    coords_orig.x >= this.userBox.x1 && coords_orig.x <= this.userBox.x2 &&
-                    coords_orig.y >= this.userBox.y1 && coords_orig.y <= this.userBox.y2) {
-                    this.userBox = null;
+                for (let i = this.userBoxes.length - 1; i >= 0; i--) {
+                    const b = this.userBoxes[i];
+                    if (coords_orig.x >= b.x1 && coords_orig.x <= b.x2 && coords_orig.y >= b.y1 && coords_orig.y <= b.y2) {
+                        this.userBoxes.splice(i, 1);
+                        break;
+                    }
                 }
             } else { // Normal click for points
                 const label = e.button === 0 ? 1 : 0; // Left click = positive (1), Right click = negative (0)
@@ -606,6 +622,7 @@ class CanvasManager {
         this.isDrawingLasso = false;
         this.currentLassoPoints = [];
         this.interactionState.isDrawingBox = false;
+        this.currentBox = null;
         this.interactionState.isMouseDown = false;
         this.interactionState.didMove = false;
 
@@ -628,7 +645,7 @@ class CanvasManager {
             const hue = (i * (360 / (count < 6 ? count * 1.6 : count * 1.1))) % 360; // Adjusted factor for better spread with few items
             const saturation = 65 + Math.random() * 25;
             const lightness = 50 + Math.random() * 15;
-            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 0.65)`); // Slightly less alpha
+            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1)`); // Full opacity; slider controls transparency
         }
         return colors;
     }
@@ -751,6 +768,31 @@ class CanvasManager {
         if (this.canvasLockEl) {
             this.canvasLockEl.style.display = 'none';
         }
+    }
+
+    exportState() {
+        return {
+            points: JSON.parse(JSON.stringify(this.userPoints)),
+            boxes: JSON.parse(JSON.stringify(this.userBoxes)),
+            drawnMasks: JSON.parse(JSON.stringify(this.userDrawnMasks)),
+            maskInput: this.combinedUserMaskInput256 ? JSON.parse(JSON.stringify(this.combinedUserMaskInput256)) : null,
+            manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
+            automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions))
+        };
+    }
+
+    importState(state) {
+        if (!state) return;
+        this.userPoints = state.points || [];
+        this.userBoxes = state.boxes || [];
+        this.currentBox = null;
+        this.userDrawnMasks = state.drawnMasks || [];
+        this.combinedUserMaskInput256 = state.maskInput || null;
+        this.manualPredictions = state.manualPredictions || [];
+        this.automaskPredictions = state.automaskPredictions || [];
+        if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
     }
 }
 

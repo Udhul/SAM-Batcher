@@ -239,7 +239,8 @@ The system will employ a client-server architecture.
 **4.5.3. Interactive Masking (Point/Box Prompts)**
 *   **Client:** User draws points (with positive/negative labels) or boxes on the canvas.
 *   **Client:** On interaction end (any change in canvas drawing layer: e.g. mouse up after drawing box, points, or input mask, or removing any of the drawing elements, or clearing inputs).
-*   **Client Request:** `POST /api/project/<project_id>/images/<image_hash>/predict_interactive` (Body: `{"points": [[x,y], ...], "labels": [1,0,...], "box": [x1,y1,x2,y2] or [[b1x1, b1y1, b1x2, b1y2],[b2x1, b2y1, b2x2, b2y2]], "multimask_output": true, ... other predict params ...}`)
+*   **Client Request:** `POST /api/project/<project_id>/images/<image_hash>/predict_interactive` (Body: `{"points": [[x,y], ...] | null, "labels": [1,0,...] | null, "box": [x1,y1,x2,y2] or [[b1x1, b1y1, b1x2, b1y2],[b2x1, b2y1, b2x2, b2y2]], "multimask_output": true, ...}`)
+    *   When no points are present the fields `points` and `labels` are `null`. If multiple boxes are supplied the client forces `multimask_output` to `false` so that each box yields a single mask.
 *   **Server:**
     *   Ensures correct image is active.
     *   Calls `sam_inference_instance.predict(...)` with provided prompts and parameters.

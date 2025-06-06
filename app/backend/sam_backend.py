@@ -646,24 +646,32 @@ class SAMInference:
                     logger.error("Failed to activate predictor in exclusive mode.")
                     return None
             
-            # Convert inputs to numpy arrays if provided
-            if point_coords is not None: 
+            # Convert inputs to numpy arrays if provided and handle empties
+            if point_coords is not None:
                 point_coords = np.asarray(point_coords)
-            if point_labels is not None: 
+                if point_coords.size == 0:
+                    point_coords = None
+            if point_labels is not None:
                 point_labels = np.asarray(point_labels)
-            if box is not None: 
+                if point_labels.size == 0:
+                    point_labels = None
+            if box is not None:
                 box = np.asarray(box)
-                # Handle both single box and multiple boxes
-                if box.ndim == 1:
-                    # Single box: [x1, y1, x2, y2] -> [[x1, y1, x2, y2]]
-                    box = box[None, :]
-                elif box.ndim == 2 and box.shape[1] == 4:
-                    # Multiple boxes: already in correct format [[x1, y1, x2, y2], ...]
-                    pass
+                if box.size == 0:
+                    box = None
                 else:
-                    raise ValueError(f"Invalid box format. Expected shape (4,) or (N, 4), got {box.shape}")
-            if mask_input is not None: 
+                    if box.ndim == 1:
+                        box = box[None, :]
+                    elif not (box.ndim == 2 and box.shape[1] == 4):
+                        raise ValueError(f"Invalid box format. Expected shape (4,) or (N,4), got {box.shape}")
+                    if box.shape[0] > 1:
+                        multimask_output = False
+            if mask_input is not None:
                 mask_input = np.asarray(mask_input)
+                if mask_input.ndim == 2:
+                    mask_input = np.where(mask_input > 0, 10.0, -10.0).astype(np.float32)
+                if mask_input.size == 0:
+                    mask_input = None
             
             # Run prediction with appropriate precision
             # TODO: Control precision cast from class attr. depeneding on device

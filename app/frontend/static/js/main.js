@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const stateManager = new StateManager();
     const uiManager = new UIManager();
     const canvasManager = new CanvasManager();
-    
+
     const canvasStateCache = {};
     
     // modelHandler.js is a script that self-initializes its DOM listeners.
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         clearTimeout(predictionDebounceTimer);
         predictionDebounceTimer = setTimeout(() => {
-            if (canvasInputs.points.length > 0 || canvasInputs.box || canvasInputs.maskInput) {
+            if (canvasInputs.points.length > 0 || (canvasInputs.boxes && canvasInputs.boxes.length > 0) || canvasInputs.maskInput) {
                 performInteractivePrediction(canvasInputs, activeImageHash);
             } else {
                 canvasManager.setManualPredictions(null);
@@ -273,8 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             points: canvasInputs.points.map(p => [p.x, p.y]),
             labels: canvasInputs.points.map(p => p.label),
-            box: canvasInputs.box ? [canvasInputs.box.x1, canvasInputs.box.y1, canvasInputs.box.x2, canvasInputs.box.y2] : null,
-            maskInput: canvasInputs.maskInput, // This is the 256x256 mask from user-drawn polygons
+            box: (canvasInputs.boxes && canvasInputs.boxes.length > 0) ? canvasInputs.boxes.map(b => [b.x1, b.y1, b.x2, b.y2]) : null,
+            maskInput: canvasInputs.maskInput,
             multimask_output: true
         };
         const activeProjectId = stateManager.getActiveProjectId();
