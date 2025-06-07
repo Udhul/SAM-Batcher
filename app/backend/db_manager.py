@@ -73,6 +73,16 @@ def init_project_db(project_id: str, project_name: str) -> None:
     )
     ''')
 
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Source_Image_Exemptions (
+        source_id TEXT NOT NULL,
+        image_hash TEXT NOT NULL,
+        PRIMARY KEY (source_id, image_hash),
+        FOREIGN KEY (source_id) REFERENCES Image_Sources(source_id) ON DELETE CASCADE,
+        FOREIGN KEY (image_hash) REFERENCES Images(image_hash) ON DELETE CASCADE
+    )
+    ''')
+
     # Images Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Images (
@@ -216,6 +226,49 @@ def remove_image_source(project_id: str, source_id: str) -> None:
     cursor = conn.cursor()
     # Images referencing this source will have source_id_ref set to NULL due to ON DELETE SET NULL
     cursor.execute("DELETE FROM Image_Sources WHERE source_id = ?", (source_id,))
+    conn.commit()
+    conn.close()
+    update_last_modified(project_id)
+
+def get_images_for_source(project_id: str, source_id: str) -> List[Dict[str, Any]]:
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT i.*, CASE WHEN e.image_hash IS NOT NULL THEN 1 ELSE 0 END AS exempted
+    FROM Images i
+    LEFT JOIN Source_Image_Exemptions e ON i.image_hash = e.image_hash AND e.source_id = ?
+    WHERE i.source_id_ref = ?
+    ORDER BY i.added_to_pool_at DESC
+    ''', (source_id, source_id))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    for r in rows:
+        r['exempted'] = bool(r['exempted'])
+    return rows
+
+def set_image_exemption(project_id: str, source_id: str, image_hash: str, exempt: bool = True) -> None:
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    if exempt:
+        cursor.execute('INSERT OR IGNORE INTO Source_Image_Exemptions (source_id, image_hash) VALUES (?, ?)', (source_id, image_hash))
+    else:
+        cursor.execute('DELETE FROM Source_Image_Exemptions WHERE source_id = ? AND image_hash = ?', (source_id, image_hash))
+    conn.commit()
+    conn.close()
+    update_last_modified(project_id)
+
+def get_source_id_for_image(project_id: str, image_hash: str) -> Optional[str]:
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute('SELECT source_id_ref FROM Images WHERE image_hash = ?', (image_hash,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['source_id_ref'] if row else None
+
+def delete_image_from_pool(project_id: str, image_hash: str) -> None:
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM Images WHERE image_hash = ?', (image_hash,))
     conn.commit()
     conn.close()
     update_last_modified(project_id)

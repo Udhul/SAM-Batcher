@@ -355,6 +355,43 @@ def api_remove_image_source(project_id, source_id):
     return jsonify({"success": True, "message": "Image source removed."})
 
 
+@app.route('/api/project/<project_id>/sources/<source_id>/images', methods=['GET'])
+def api_list_source_images(project_id, source_id):
+    if project_id != get_active_project_id():
+        return jsonify({"success": False, "error": "Operation only allowed on the active project."}), 403
+    try:
+        images = db_manager.get_images_for_source(project_id, source_id)
+        for img in images:
+            img['thumbnail_url'] = f"/api/image/thumbnail/{project_id}/{img['image_hash']}"
+        return jsonify({"success": True, "images": images})
+    except Exception as e:
+        app.logger.error(f"Error listing images for source {source_id}: {e}")
+        return jsonify({"success": False, "error": "Failed to list images."}), 500
+
+
+@app.route('/api/project/<project_id>/sources/<source_id>/exempt_image', methods=['POST'])
+def api_exempt_source_image(project_id, source_id):
+    if project_id != get_active_project_id():
+        return jsonify({"success": False, "error": "Operation only allowed on the active project."}), 403
+    data = request.json or {}
+    image_hash = data.get('image_hash')
+    if not image_hash:
+        return jsonify({"success": False, "error": "image_hash is required."}), 400
+    exempt = bool(data.get('exempt', True))
+    if source_id in (None, '', 'null', 'None'):
+        source_id = db_manager.get_source_id_for_image(project_id, image_hash)
+    if not source_id:
+        return jsonify({"success": False, "error": "Source not found for image."}), 400
+    try:
+        db_manager.set_image_exemption(project_id, source_id, image_hash, exempt)
+        if exempt:
+            db_manager.delete_image_from_pool(project_id, image_hash)
+        return jsonify({"success": True})
+    except Exception as e:
+        app.logger.error(f"Error setting image exemption: {e}")
+        return jsonify({"success": False, "error": "Failed to update image."}), 500
+
+
 @app.route('/api/project/<project_id>/images', methods=['GET'])
 def api_list_images_from_pool(project_id):
     if project_id != get_active_project_id():
