@@ -98,6 +98,45 @@ def api_list_projects():
     projects = project_logic.list_existing_projects()
     return jsonify({"success": True, "projects": projects})
 
+# New endpoint: get currently active project
+@app.route('/api/project/active', methods=['GET'])
+def api_get_active_project():
+    project_id = get_active_project_id()
+    if not project_id:
+        return jsonify({"success": True, "project_id": None, "project_name": None})
+    project_name = db_manager.get_project_name(project_id)
+    return jsonify({"success": True, "project_id": project_id, "project_name": project_name})
+
+# Endpoint to retrieve overall session state (project, model, image)
+@app.route('/api/session', methods=['GET'])
+def api_get_session_state():
+    project_id = get_active_project_id()
+    project_name = db_manager.get_project_name(project_id) if project_id else None
+
+    model_info = sam_inference_instance.get_model_info()
+
+    active_image = None
+    if project_id and sam_inference_instance.image_hash:
+        img_info = db_manager.get_image_by_hash(project_id, sam_inference_instance.image_hash)
+        if img_info:
+            active_image = {
+                "image_hash": sam_inference_instance.image_hash,
+                "filename": img_info.get("original_filename"),
+                "width": img_info.get("width"),
+                "height": img_info.get("height"),
+                "status": img_info.get("status"),
+                "image_data": sam_inference_instance.get_image_as_base64(),
+                "masks": db_manager.get_mask_layers_for_image(project_id, sam_inference_instance.image_hash)
+            }
+
+    return jsonify({
+        "success": True,
+        "project_id": project_id,
+        "project_name": project_name,
+        "model_info": model_info,
+        "active_image": active_image
+    })
+
 @app.route('/api/project/load', methods=['POST'])
 def api_load_project():
     data = request.json

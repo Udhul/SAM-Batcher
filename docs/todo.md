@@ -17,12 +17,12 @@
 
 
 ## Project Management
-### Active todos
-* Make the project management as a an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Project" bar.
-* The prject bar still shows text of the current project, but when we click the bar, it shows the popup overlay insead of expanding.
-* If no project is loaded, the popup overlay will be shown automatically. (For example on first page load after server start, we start by showing the project Manager overlay)
-* When reloading the page, we will get the active project from the server, so we don't loose the state, and can continue working with the session that we had before reloading, without having to load the project again.
-* The project should also save last loaded model and postprocessing setting. When we load the project, then the model with postprocessing setting should be loaded automatically.
+### Finished
+* Implemented project management as a modal overlay triggered by the "Project" bar.
+* Overlay opens automatically when no project is active and closes after loading or creating a project.
+* The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically. After loading a project the session state is refreshed as well so the model is ready without an extra click.
+* Restoring session state also dispatches a `model-load-success` event so the canvas recognizes the loaded model without manual intervention.
+* The selected model key (if any) is stored with the project so the same dropdown option is chosen again when the project is reloaded. Custom paths are only used when no key was selected.
 
 
 ## Model Configuration

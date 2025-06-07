@@ -90,6 +90,44 @@ document.addEventListener('DOMContentLoaded', () => {
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
 
+    async function restoreSessionFromServer() {
+        try {
+            const data = await apiClient.getSessionState();
+            if (!data.success) return;
+
+            if (data.model_info) {
+                stateManager.setCurrentLoadedModel(data.model_info);
+                utils.dispatchCustomEvent('project-model-settings-update', {
+                    modelKey: data.model_info.model_size_key,
+                    modelPath: data.model_info.model_path,
+                    configPath: data.model_info.config_path,
+                    applyPostprocessing: data.model_info.apply_postprocessing
+                });
+
+                if (data.model_info.loaded) {
+                    utils.dispatchCustomEvent('model-load-success', {
+                        model_info: data.model_info,
+                        message: 'Model ready.'
+                    });
+                }
+            }
+
+            if (data.active_image) {
+                stateManager.setActiveImage(data.active_image.image_hash, data.active_image.filename);
+                utils.dispatchCustomEvent('active-image-set', {
+                    imageHash: data.active_image.image_hash,
+                    filename: data.active_image.filename,
+                    width: data.active_image.width,
+                    height: data.active_image.height,
+                    imageDataBase64: data.active_image.image_data,
+                    existingMasks: data.active_image.masks
+                });
+            }
+        } catch (err) {
+            console.error('Error restoring session state:', err);
+        }
+    }
+
     function saveCanvasState(hash) {
         if (!hash) return;
         canvasStateCache[hash] = canvasManager.exportState();
@@ -122,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.addEventListener('project-loaded', (event) => {
+    document.addEventListener('project-loaded', async (event) => {
         const { projectId, projectName, projectData } = event.detail;
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' loaded.`, 'success');
         canvasManager.clearAllCanvasInputs(true);
@@ -136,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             applyPostprocessing: settings.current_sam_apply_postprocessing === 'true'
         });
         if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool();
+        await restoreSessionFromServer();
     });
 
     document.addEventListener('project-load-failed', (event) => {
@@ -630,6 +669,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (projectHandler && typeof projectHandler.fetchAndDisplayProjects === 'function') {
             projectHandler.fetchAndDisplayProjects();
         }
+        // Restore session from server after determining active project
+        if (projectHandler && typeof projectHandler.fetchActiveProject === 'function') {
+            projectHandler.fetchActiveProject().then(restoreSessionFromServer);
+        } else {
+            restoreSessionFromServer();
+        }
+
         // Image pool will be loaded when a project becomes active.
 
         uiManager.showGlobalStatus("Ready. Load a model, then an image or project.", 'info', 5000);

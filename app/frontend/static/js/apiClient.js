@@ -98,6 +98,12 @@ class APIClient {
     async listProjects() {
         return this._request('/projects');
     }
+    async getActiveProject() {
+        return this._request('/project/active');
+    }
+    async getSessionState() {
+        return this._request('/session');
+    }
     async loadProject(projectId) {
         return this._request('/project/load', 'POST', { project_id: projectId });
     }
