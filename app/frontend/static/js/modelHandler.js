@@ -1,8 +1,8 @@
 // project_root/app/frontend/static/js/modelHandler.js
 document.addEventListener('DOMContentLoaded', () => {
-    const loaderSection = document.getElementById('model-loader-expandable');
-    const header = loaderSection.querySelector('.expandable-header');
-    const content = loaderSection.querySelector('.expandable-content');
+    const managementBar = document.getElementById('model-management-bar');
+    const modelOverlay = document.getElementById('model-management-overlay');
+    const closeOverlayBtn = document.getElementById('close-model-overlay');
     const modelSelect = document.getElementById('model-select');
     const loadModelBtn = document.getElementById('load-model-btn');
     const applyPostprocessingCb = document.getElementById('apply-postprocessing-cb');
@@ -16,13 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ensure Utils is available
     const Utils = window.Utils || { dispatchCustomEvent: (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail })) };
 
-    function toggleSection() {
-        const isCollapsed = content.classList.toggle('collapsed');
-        header.classList.toggle('collapsed', isCollapsed);
-        header.querySelector('.expand-indicator').textContent = isCollapsed ? '▼' : '▲';
+    function showOverlay() {
+        if (modelOverlay) Utils.showElement(modelOverlay, 'flex');
     }
 
-    header.addEventListener('click', toggleSection);
+    function hideOverlay() {
+        if (modelOverlay) Utils.hideElement(modelOverlay);
+    }
+
+    if (managementBar) managementBar.addEventListener('click', showOverlay);
+    if (closeOverlayBtn) closeOverlayBtn.addEventListener('click', hideOverlay);
 
     async function fetchAvailableModels() {
         updateStatus('Fetching models...', 'loading');

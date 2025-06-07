@@ -652,8 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.expandable-section').forEach(section => {
             const header = section.querySelector('.expandable-header');
             if (header && uiManager && typeof uiManager.initializeExpandableSection === 'function') {
-                // Determine initial collapsed state. Model loader is expanded by default.
-                const isInitiallyCollapsed = !(section.id === 'model-loader-expandable' || section.id === 'auto-mask-section');
+                // Determine initial collapsed state. Auto mask section expanded by default.
+                const isInitiallyCollapsed = section.id !== 'auto-mask-section';
                 uiManager.initializeExpandableSection(header, isInitiallyCollapsed);
             }
         });
