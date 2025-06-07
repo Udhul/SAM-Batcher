@@ -311,21 +311,25 @@ Response: {
 
 ### 6.1. Prediction Visibility
 
-The canvas exposes a toggle list for each returned mask. Users can turn masks on
-or off individually. When a single box is used with `multimask_output=true`, the
-highest-scoring mask is shown by default while the others remain hidden but can
-be toggled on. For multiple boxes the masks for all boxes are visible by default.
-The last placed box corresponds to the last toggle in the list so mask order
-mirrors input order.
+The canvas exposes controls for selecting which predictions are visible. When a
+single box (or only point prompts) is used with `multimask_output=true`, the
+predictor returns three masks ranked by score. Exactly one of these masks is
+shown at a time and the user can switch between them via radio buttons labeled
+**High**, **Medium**, and **Low**. The chosen mask remains active for subsequent
+predictions until the inputs are cleared. When multiple boxes are provided,
+`multimask_output` is forced to `false` and one mask is returned for each box.
+In this case all masks are displayed automatically and the selector is hidden.
+The last placed box corresponds to the last mask in the returned list so mask
+order mirrors input order.
 
 ### 6.2. Individual Mask Toggling
 
 **Toggle Interface:**
-* **Checkbox Controls:** Individual toggles for each mask in the current prediction set. The list is regenerated whenever new predictions are received.
-* **Dynamic Labels:** If predictions correspond to multiple boxes, toggles are labeled `Box 1`, `Box 2`, …​. For multimask results from a single prompt the labels are `Mask 1`, `Mask 2`, etc. Scores may be shown as tooltips.
-* **Visual Indicators:** Clear on/off state indication
-* **Batch Operations:** Select all, deselect all, invert selection
-* **Keyboard Shortcuts:** Space to toggle, A for all, N for none
+* **Radio Selector (multimask results):** When a single box/point prompt is used the three score-ranked masks are presented as radio buttons (**High**, **Medium**, **Low**). Only one mask can be active at a time.
+* **Automatic Masks:** For masks from the automatic generator a list of checkboxes remains so each mask can be toggled individually.
+* **Multi-Box Predictions:** No toggle controls are shown. All returned masks are displayed simultaneously.
+* **Dynamic Labels:** Box-based predictions are ordered so that the last drawn box corresponds to the last mask.
+* **Keyboard Shortcuts:** Space to toggle, A for all (automatic masks), N for none
 
 **Toggle State Management:**
 * **Per-Mask State:** Track visibility for each individual mask

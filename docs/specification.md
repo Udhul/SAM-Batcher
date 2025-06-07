@@ -248,7 +248,7 @@ The system will employ a client-server architecture.
     *   Persists these masks as a new "predictions" layer in the Project State DB, including prompts used.
     *   Converts masks for client.
 *   **Server Response:** `{"success": true, "masks_data": [...raw mask arrays...], "scores": [...], "layer_id": "interactive_uuid"}` (Logits typically not sent to client unless needed for advanced features).
-*   **Client:** Displays the returned masks with a toggle list. Each mask can be individually shown or hidden. When multiple boxes are used the toggles correspond to each box. If `multimask_output` is true (single box), the toggles represent the different score-ranked masks.
+*   **Client:** Displays the returned masks. When `multimask_output` is true (points or a single box) a radio selector allows choosing between the three score-ranked masks (High, Medium, Low). When multiple boxes are used all masks are shown automatically and the selector is hidden.
 
 **4.5.4. Mask Refinement/Editing (Client-Side)**
 *   **Client:** User selects a mask (from automask or interactive prediction) and uses drawing tools (brush, eraser) on the canvas to modify it.
