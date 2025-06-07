@@ -48,18 +48,8 @@ class CanvasManager {
     constructor() {
         this.Utils = window.Utils || {
             debounce: (fn, delay) => fn,
-            generateDistinctColors: (c) => {
-                const cols = [];
-                if (!c || c <= 0) return cols;
-                for (let i = 0; i < c; i++) {
-                    const hue = (i * (360 / (c < 6 ? c * 1.6 : c * 1.1))) % 360;
-                    const saturation = 65 + Math.random() * 25;
-                    const lightness = 50 + Math.random() * 15;
-                    cols.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1)`);
-                }
-                return cols;
-            },
-            getRandomHexColor: () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+            generateDistinctColors: (count) => Array(count || 1).fill('rgba(255,0,0,1.0)'),
+            getRandomHexColor: () => '#FF0000'
         };
         this.initializeElements();
         this.initializeState();
