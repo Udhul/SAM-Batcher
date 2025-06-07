@@ -52,12 +52,15 @@ class ProjectHandler {
             projectOverlayClose: document.getElementById('close-project-overlay'),
             activeProjectDisplay: document.getElementById('active-project-display'),
 
-            addSourceBtn: document.getElementById('add-image-source-btn'),
-            sourceTypeSelect: document.getElementById('image-source-type-select'),
+            manageSourcesBtn: document.getElementById('manage-sources-btn'),
+            sourceOverlay: document.getElementById('source-management-overlay'),
+            sourceOverlayClose: document.getElementById('close-source-overlay'),
+            folderAddBtn: document.getElementById('add-folder-source-btn'),
+            urlAddBtn: document.getElementById('add-url-source-btn'),
+            azureAddBtn: document.getElementById('add-azure-source-btn'),
             folderPathInput: document.getElementById('image-source-folder-path'),
-            folderSourceGroup: document.getElementById('image-source-folder-inputs'),
             urlInput: document.getElementById('image-source-url-path'),
-            urlSourceGroup: document.getElementById('image-source-url-inputs'),
+            azureUriInput: document.getElementById('image-source-azure-uri'),
             imageSourcesListContainer: document.getElementById('image-sources-list-container'),
         };
         this._setupEventListeners();
@@ -85,11 +88,20 @@ class ProjectHandler {
         if (this.elements.downloadProjectDbBtn) {
             this.elements.downloadProjectDbBtn.addEventListener('click', () => this.handleDownloadProjectDb());
         }
-        if (this.elements.addSourceBtn) {
-            this.elements.addSourceBtn.addEventListener('click', () => this.handleAddImageSource());
+        if (this.elements.manageSourcesBtn) {
+            this.elements.manageSourcesBtn.addEventListener('click', () => this.showSourcesOverlay());
         }
-        if (this.elements.sourceTypeSelect) {
-            this.elements.sourceTypeSelect.addEventListener('change', (e) => this._handleSourceTypeChange(e.target.value));
+        if (this.elements.sourceOverlayClose) {
+            this.elements.sourceOverlayClose.addEventListener('click', () => this.hideSourcesOverlay());
+        }
+        if (this.elements.folderAddBtn) {
+            this.elements.folderAddBtn.addEventListener('click', () => this.handleAddImageSource('folder'));
+        }
+        if (this.elements.urlAddBtn) {
+            this.elements.urlAddBtn.addEventListener('click', () => this.handleAddImageSource('url'));
+        }
+        if (this.elements.azureAddBtn) {
+            this.elements.azureAddBtn.addEventListener('click', () => this.handleAddImageSource('azure'));
         }
         if (this.elements.projectManagementBar && this.elements.projectOverlay) {
             this.elements.projectManagementBar.addEventListener('click', () => this.showOverlay());
@@ -115,15 +127,7 @@ class ProjectHandler {
         }
     }
 
-    _handleSourceTypeChange(type) {
-        this.Utils.hideElement(this.elements.folderSourceGroup);
-        this.Utils.hideElement(this.elements.urlSourceGroup);
-        if (type === 'folder') {
-            this.Utils.showElement(this.elements.folderSourceGroup, 'block');
-        } else if (type === 'url') {
-            this.Utils.showElement(this.elements.urlSourceGroup, 'block');
-        }
-    }
+
 
     showOverlay() {
         if (this.elements.projectOverlay) {
@@ -134,6 +138,19 @@ class ProjectHandler {
     hideOverlay() {
         if (this.elements.projectOverlay) {
             this.Utils.hideElement(this.elements.projectOverlay);
+        }
+    }
+
+    showSourcesOverlay() {
+        if (this.elements.sourceOverlay) {
+            this.fetchAndDisplayImageSources();
+            this.Utils.showElement(this.elements.sourceOverlay, 'flex');
+        }
+    }
+
+    hideSourcesOverlay() {
+        if (this.elements.sourceOverlay) {
+            this.Utils.hideElement(this.elements.sourceOverlay);
         }
     }
 
@@ -275,13 +292,13 @@ class ProjectHandler {
         this.uiManager.showGlobalStatus("Project DB download initiated.", "success");
     }
 
-    async handleAddImageSource() {
+    async handleAddImageSource(type = null) {
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) {
             this.uiManager.showGlobalStatus("No active project. Create or load a project first.", "error");
             return;
         }
-        const sourceType = this.elements.sourceTypeSelect.value;
+        const sourceType = type || (this.elements.sourceTypeSelect ? this.elements.sourceTypeSelect.value : null);
         let responseData;
         try {
             this.uiManager.showGlobalStatus(`Adding image source (${sourceType})...`, 'loading', 0);
@@ -298,6 +315,11 @@ class ProjectHandler {
                 if(!urlPath) throw new Error("URL is required.");
                 responseData = await this.apiClient.addUrlSource(projectId, urlPath);
                 this.elements.urlInput.value = '';
+            } else if (sourceType === 'azure') {
+                const uri = this.elements.azureUriInput.value.trim();
+                if(!uri) throw new Error("Azure URI is required.");
+                responseData = await this.apiClient.addAzureSource(projectId, uri);
+                this.elements.azureUriInput.value = '';
             } // Add Azure cases if implemented
 
             if (responseData && responseData.success !== false) {

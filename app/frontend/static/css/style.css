@@ -269,9 +269,9 @@ header p {
 #create-project-btn:hover:not(:disabled) { background-color: #218838; }
 
 .source-input-group { /* For folder path, URL path, etc. */
-    display: flex; /* Overrides display:none from HTML when shown */
-    flex-direction: column; /* Stack label and input */
-    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 180px;
     gap: 5px;
     margin-bottom: 10px;
     padding: 10px;
@@ -595,4 +595,25 @@ input[type="file"]#image-upload {
     border: none;
     background: none;
     cursor: pointer;
+}
+
+.source-modal {
+    width: 80%;
+}
+
+.source-inputs-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 15px;
+}
+
+.sources-tree-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    border-radius: 4px;
 }

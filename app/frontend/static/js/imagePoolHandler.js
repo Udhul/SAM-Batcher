@@ -165,7 +165,11 @@ class ImagePoolHandler {
         const thumb = document.createElement('img');
         thumb.src = this.apiClient.getImageThumbnailUrl(this.stateManager.getActiveProjectId(), imgData.image_hash);
         thumb.alt = this.Utils.escapeHTML(imgData.original_filename) || 'Image Thumbnail';
-        thumb.onerror = () => { thumb.src = "{{ url_for('static', filename='assets/placeholder_thumb.png') }}"; }; // Placeholder path
+        thumb.onerror = () => {
+            if (thumb.src.indexOf('placeholder_thumb.png') === -1) {
+                thumb.src = '/static/assets/placeholder_thumb.png';
+            }
+        };
 
         const name = document.createElement('p');
         name.className = 'image-card-name';
