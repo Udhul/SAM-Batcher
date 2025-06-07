@@ -666,12 +666,25 @@ class SAMInference:
                         raise ValueError(f"Invalid box format. Expected shape (4,) or (N,4), got {box.shape}")
                     if box.shape[0] > 1:
                         multimask_output = False
+                    # Replicate point prompts for each box if points provided as a single set
+                    if point_coords is not None and point_labels is not None:
+                        if point_coords.ndim == 2:
+                            point_coords = np.tile(point_coords[None, :, :], (box.shape[0], 1, 1))
+                            point_labels = np.tile(point_labels[None, :], (box.shape[0], 1))
+                        elif point_coords.ndim == 3 and point_coords.shape[0] == 1:
+                            point_coords = np.tile(point_coords, (box.shape[0], 1, 1))
+                            point_labels = np.tile(point_labels, (box.shape[0], 1))
             if mask_input is not None:
                 mask_input = np.asarray(mask_input)
                 if mask_input.ndim == 2:
                     mask_input = np.where(mask_input > 0, 10.0, -10.0).astype(np.float32)
+                    mask_input = mask_input[None, :, :]
+                elif mask_input.ndim == 3:
+                    mask_input = np.where(mask_input > 0, 10.0, -10.0).astype(np.float32)
                 if mask_input.size == 0:
                     mask_input = None
+                if box is not None and box.shape[0] > 1 and mask_input is not None and mask_input.ndim == 3 and mask_input.shape[0] == 1:
+                    mask_input = np.tile(mask_input, (box.shape[0], 1, 1))
             
             # Run prediction with appropriate precision
             # TODO: Control precision cast from class attr. depeneding on device

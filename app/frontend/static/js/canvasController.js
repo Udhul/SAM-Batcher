@@ -228,24 +228,17 @@ class CanvasManager {
 
     setManualPredictions(predictionData) {
         this.manualPredictions = [];
-        if (predictionData && predictionData.masks_data && predictionData.scores &&
-            predictionData.masks_data.length === predictionData.scores.length) {
-            let maskList = predictionData.masks_data;
-            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
-                maskList = maskList[0];
+        if (predictionData && predictionData.masks_data) {
+            const unwrap = arr => { let r = arr; while (Array.isArray(r) && r.length === 1) r = r[0]; return r; };
+            let maskList = unwrap(predictionData.masks_data).map(unwrap);
+            let scoreList = [];
+            if (predictionData.scores) {
+                scoreList = unwrap(predictionData.scores).map(s => Array.isArray(s) ? unwrap(s) : s);
             }
             this.manualPredictions = maskList.map((seg, index) => ({
                 segmentation: seg,
-                score: predictionData.scores[index] || predictionData.scores[0]
+                score: scoreList[index] !== undefined ? scoreList[index] : (scoreList[0] || 0)
             })).sort((a, b) => b.score - a.score);
-        } else if (predictionData && predictionData.masks_data) { // Scores optional
-            let maskList = predictionData.masks_data;
-            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
-                maskList = maskList[0];
-            }
-            this.manualPredictions = maskList.map(seg => ({
-                segmentation: seg, score: 0
-            }));
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();

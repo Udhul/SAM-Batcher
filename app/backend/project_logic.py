@@ -457,19 +457,20 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
     db_mask_list = [] # List of RLEs for this layer
     client_mask_list = [] # List of binary arrays for client
 
+    flat_scores = []
     if masks_np is not None:
-        for i, mask_array_np in enumerate(masks_np):
-            binary_mask_list = mask_array_np.astype(np.uint8).tolist()  # For client
+        flat_masks = masks_np.reshape(-1, masks_np.shape[-2], masks_np.shape[-1])
+        flat_scores = scores_np.reshape(-1) if scores_np is not None else [None] * flat_masks.shape[0]
+        for i in range(flat_masks.shape[0]):
+            mask_arr = flat_masks[i]
+            binary_mask_list = mask_arr.astype(np.uint8).tolist()
             client_mask_list.append(binary_mask_list)
 
-            # Convert binary_mask_list to RLE for DB storage
             rle_for_db_entry = mask_utils.binary_mask_to_rle(binary_mask_list)
-            
+
             db_mask_list.append({
-                "segmentation_rle": rle_for_db_entry, # This should be actual RLE
-                "score": float(scores_np[i]) if scores_np is not None else None,
-                # If logits_np corresponds to this mask, it could be stored too, or its RLE.
-                # For now, logits_np is for the whole set and might be complex to store per mask.
+                "segmentation_rle": rle_for_db_entry,
+                "score": float(flat_scores[i]) if flat_scores[i] is not None else None,
             })
 
 
@@ -478,13 +479,13 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
         project_id, layer_id, image_hash, "interactive_prompt",
         model_details=sam_inference.get_model_info(),
         prompt_details={"prompts": prompts, "predict_params": predict_params},
-        mask_data_rle=json.dumps(db_mask_list), # Store as list of RLE dicts
-        metadata={"scores": scores_np.tolist() if scores_np is not None else []}
+        mask_data_rle=json.dumps(db_mask_list),
+        metadata={"scores": flat_scores.tolist() if isinstance(flat_scores, np.ndarray) else list(flat_scores)}
     )
     db_manager.update_image_status(project_id, image_hash, "in_progress_manual")
 
     # Client expects 'masks_data' as list of 2D binary arrays, and 'scores'
-    return {"success": True, "masks_data": client_mask_list, "scores": scores_np.tolist() if scores_np is not None else [], "layer_id": layer_id}
+    return {"success": True, "masks_data": client_mask_list, "scores": flat_scores.tolist() if isinstance(flat_scores, np.ndarray) else list(flat_scores), "layer_id": layer_id}
 
 
 def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[Dict], notes: Optional[str]) -> Dict[str, Any]:
