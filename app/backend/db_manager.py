@@ -309,23 +309,28 @@ def get_image_by_hash(project_id: str, image_hash: str) -> Optional[Dict[str, An
 def get_images_from_pool(project_id: str, page: int = 1, per_page: int = 50, status_filter: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
-    
-    base_query = "FROM Images"
-    count_query = "SELECT COUNT(*) " + base_query
-    data_query = "SELECT * " + base_query
-    
-    params = []
+
+    base_query = (
+        "FROM Images i "
+        "LEFT JOIN Source_Image_Exemptions e ON i.image_hash = e.image_hash "
+        "WHERE e.image_hash IS NULL"
+    )
+
+    params: List[Any] = []
     if status_filter:
-        data_query += " WHERE status = ?"
-        count_query += " WHERE status = ?"
+        base_query += " AND i.status = ?"
         params.append(status_filter)
-        
+
+    count_query = "SELECT COUNT(*) " + base_query
     cursor.execute(count_query, params)
     total_items = cursor.fetchone()[0]
-    
-    data_query += " ORDER BY added_to_pool_at DESC LIMIT ? OFFSET ?"
+
+    data_query = (
+        "SELECT i.* " + base_query +
+        " ORDER BY i.added_to_pool_at DESC LIMIT ? OFFSET ?"
+    )
     params.extend([per_page, (page - 1) * per_page])
-    
+
     cursor.execute(data_query, params)
     images = [dict(row) for row in cursor.fetchall()]
     conn.close()

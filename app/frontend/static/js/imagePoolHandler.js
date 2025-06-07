@@ -314,14 +314,14 @@ class ImagePoolHandler {
     }
 
     async handleDeleteImage(imageHash) {
-        if (!confirm('Remove this image from the pool?')) return;
+        if (!confirm('Exclude this image from the pool?')) return;
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) return;
         this.uiManager.showGlobalStatus('Removing image...', 'loading', 0);
         try {
             const data = await this.apiClient.setImageExempt(projectId, null, imageHash, true);
             if (data.success) {
-                this.uiManager.showGlobalStatus('Image removed.', 'success', 2000);
+                this.uiManager.showGlobalStatus('Image excluded.', 'success', 2000);
                 this.loadAndDisplayImagePool(this.currentPage, this.currentStatusFilter);
                 this.Utils.dispatchCustomEvent('sources-updated', {});
             } else {

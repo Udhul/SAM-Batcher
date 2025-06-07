@@ -384,8 +384,6 @@ def api_exempt_source_image(project_id, source_id):
         return jsonify({"success": False, "error": "Source not found for image."}), 400
     try:
         db_manager.set_image_exemption(project_id, source_id, image_hash, exempt)
-        if exempt:
-            db_manager.delete_image_from_pool(project_id, image_hash)
         return jsonify({"success": True})
     except Exception as e:
         app.logger.error(f"Error setting image exemption: {e}")
