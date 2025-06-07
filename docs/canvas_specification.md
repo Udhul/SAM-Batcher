@@ -325,7 +325,7 @@ order mirrors input order.
 ### 6.2. Individual Mask Toggling
 
 **Toggle Interface:**
-* **Radio Selector (multimask results):** When a single box/point prompt is used the three score-ranked masks are presented as radio buttons (**High**, **Medium**, **Low**). Only one mask can be active at a time.
+* **Radio Selector (multimask results):** When a single box and/or point prompt is used the three score-ranked masks are presented as radio buttons (**High**, **Medium**, **Low**). Only one mask can be active at a time.
 * **Automatic Masks:** For masks from the automatic generator a list of checkboxes remains so each mask can be toggled individually.
 * **Multi-Box Predictions:** No toggle controls are shown. All returned masks are displayed simultaneously.
 * **Dynamic Labels:** Box-based predictions are ordered so that the last drawn box corresponds to the last mask.
