@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.addEventListener('project-loaded', (event) => {
+    document.addEventListener('project-loaded', async (event) => {
         const { projectId, projectName, projectData } = event.detail;
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' loaded.`, 'success');
         canvasManager.clearAllCanvasInputs(true);
@@ -165,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             applyPostprocessing: settings.current_sam_apply_postprocessing === 'true'
         });
         if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool();
+        await restoreSessionFromServer();
     });
 
     document.addEventListener('project-load-failed', (event) => {

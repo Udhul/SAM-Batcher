@@ -147,6 +147,8 @@ def list_existing_projects() -> List[Dict[str, Any]]:
             "name": info.get("project_name", "Unknown Project"),
             "last_modified": info.get("last_modified_at_content", info.get("created_at"))
         })
+
+    projects_info.sort(key=lambda p: p.get("last_modified") or "", reverse=True)
     return projects_info
 
 def load_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:

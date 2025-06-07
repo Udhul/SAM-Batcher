@@ -108,7 +108,7 @@ The system will employ a client-server architecture.
 *   **Load Existing Project:**
     *   **Client:** User selects from a list of existing projects (server lists available DB files) or uploads a project state DB file.
     *   **Client Request (List):** `GET /api/projects`
-    *   **Server (List):** Scans `projects_data` directory for valid DB files.
+    *   **Server (List):** Scans `projects_data` for valid DB files and returns them ordered by most recently used.
     *   **Server Response (List):** `{"success": true, "projects": [{"id": "uuid", "name": "my_project", "last_modified": "timestamp"}, ...]}`
     *   **Client Request (Load by ID):** `POST /api/project/load` (Body: `{"project_id": "uuid"}`)
     *   **Server (Load by ID):** Sets the active project ID, validates the DB.
@@ -118,6 +118,7 @@ The system will employ a client-server architecture.
     *   **Server Response (Upload DB):** `{"success": true, "project_data": {...}}`
 *   **Client:** Loads project data into UI.
 *   **Server:** Automatically loads the project's last used SAM model and post-processing setting, replacing any currently loaded model if different.
+*   **Client:** After a project is loaded it queries `/api/session` to refresh the current model and image state.
 *   **Client Request (Get Active):** On page refresh the client calls `GET /api/session` to retrieve the current project, model, and image so the UI can restore the session. If no project is active, the project management overlay is shown.
 *   **Save Project (Implicit):** Changes are saved to the Project State DB as they occur (e.g., after mask generation, image status update).
 *   **Download Project State DB:**

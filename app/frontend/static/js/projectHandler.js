@@ -181,6 +181,7 @@ class ProjectHandler {
             if (data.success) {
                 this.elements.loadProjectSelect.innerHTML = '<option value="">Select a project to load...</option>';
                 if (data.projects && data.projects.length > 0) {
+                    data.projects.sort((a,b) => new Date(b.last_modified) - new Date(a.last_modified));
                     data.projects.forEach(p => {
                         const option = document.createElement('option');
                         option.value = p.id;

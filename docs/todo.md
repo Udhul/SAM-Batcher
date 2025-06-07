@@ -21,7 +21,7 @@
 ## Project Management
 * Implemented project management as a modal overlay triggered by the "Project" bar.
 * Overlay opens automatically when no project is active and closes after loading or creating a project.
-* The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically.
+* The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically. After loading a project the session state is refreshed as well so the model is ready without an extra click.
 
 ## Model Configuration
 * Make the model selection as an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Load Model" button-bar (this bar will show the currently loaded model, staying in sync even on page reload.)
