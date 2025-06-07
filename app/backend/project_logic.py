@@ -151,6 +151,17 @@ def list_existing_projects() -> List[Dict[str, Any]]:
     projects_info.sort(key=lambda p: p.get("last_modified") or "", reverse=True)
     return projects_info
 
+def rename_project(project_id: str, new_name: str) -> Dict[str, Any]:
+    db_manager.set_project_name(project_id, new_name)
+    return {"success": True, "project_id": project_id, "project_name": new_name}
+
+def delete_project(project_id: str) -> Dict[str, Any]:
+    try:
+        db_manager.delete_project_data(project_id)
+        return {"success": True, "message": "Project deleted."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def load_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
     if not os.path.exists(db_manager.get_db_path(project_id)):
         return None

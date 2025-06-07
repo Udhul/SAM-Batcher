@@ -119,6 +119,12 @@ class APIClient {
     async updateProjectSettings(projectId, settingsPayload) {
         return this._request(`/project/${projectId}/settings`, 'PUT', settingsPayload);
     }
+    async renameProject(projectId, newName) {
+        return this._request(`/project/${projectId}`, 'PUT', { project_name: newName });
+    }
+    async deleteProject(projectId) {
+        return this._request(`/project/${projectId}`, 'DELETE');
+    }
 
     // --- Model Management Endpoints ---
     async getAvailableModels() {

@@ -166,6 +166,23 @@ def get_project_name(project_id: str) -> Optional[str]:
     info = get_project_info(project_id)
     return info.get("project_name")
 
+def set_project_name(project_id: str, new_name: str) -> None:
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Project_Info SET value = ? WHERE key = 'project_name'", (new_name,))
+    conn.commit()
+    conn.close()
+    update_last_modified(project_id)
+
+def delete_project_data(project_id: str) -> None:
+    db_path = get_db_path(project_id)
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    project_dir = os.path.join(config.PROJECTS_DATA_DIR, project_id)
+    if os.path.isdir(project_dir):
+        import shutil
+        shutil.rmtree(project_dir, ignore_errors=True)
+
 # --- Project Settings ---
 def get_project_setting(project_id: str, setting_key: str) -> Optional[str]:
     conn = get_db_connection(project_id)

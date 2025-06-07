@@ -43,8 +43,7 @@ class ProjectHandler {
         this.elements = {
             createProjectBtn: document.getElementById('create-project-btn'),
             projectNameInput: document.getElementById('new-project-name'),
-            loadProjectSelect: document.getElementById('load-project-select'),
-            loadSelectedProjectBtn: document.getElementById('load-selected-project-btn'),
+            projectsListContainer: document.getElementById('projects-list-container'),
             uploadProjectDbInput: document.getElementById('upload-project-db-input'),
             downloadProjectDbBtn: document.getElementById('download-project-db-btn'),
             projectManagementBar: document.getElementById('project-management-bar'),
@@ -79,9 +78,6 @@ class ProjectHandler {
         if (this.elements.createProjectBtn) {
             this.elements.createProjectBtn.addEventListener('click', () => this.handleCreateProject());
         }
-        if (this.elements.loadSelectedProjectBtn) {
-            this.elements.loadSelectedProjectBtn.addEventListener('click', () => this.handleLoadSelectedProject());
-        }
         if (this.elements.uploadProjectDbInput) {
              this.elements.uploadProjectDbInput.addEventListener('change', (e) => this.handleUploadProjectDb(e.target.files[0]));
         }
@@ -108,6 +104,23 @@ class ProjectHandler {
         }
         if (this.elements.projectOverlayClose) {
             this.elements.projectOverlayClose.addEventListener('click', () => this.hideOverlay());
+        }
+        if (this.elements.projectsListContainer) {
+            this.elements.projectsListContainer.addEventListener('click', (e) => {
+                const li = e.target.closest('li[data-project-id]');
+                if (!li) return;
+                const pid = li.dataset.projectId;
+                const pname = li.dataset.projectName;
+                if (e.target.classList.contains('rename-project-btn')) {
+                    e.stopPropagation();
+                    this.handleRenameProject(pid, pname);
+                } else if (e.target.classList.contains('delete-project-btn')) {
+                    e.stopPropagation();
+                    this.handleDeleteProject(pid, pname);
+                } else {
+                    this.handleLoadProject(pid);
+                }
+            });
         }
     }
     
@@ -191,39 +204,52 @@ class ProjectHandler {
     }
 
     async fetchAndDisplayProjects() {
-        if (!this.elements.loadProjectSelect) return;
-        this.elements.loadProjectSelect.innerHTML = '<option value="">Fetching...</option>';
+        if (!this.elements.projectsListContainer) return;
+        this.elements.projectsListContainer.innerHTML = '<p><em>Loading projects...</em></p>';
         try {
             const data = await this.apiClient.listProjects();
             if (data.success) {
-                this.elements.loadProjectSelect.innerHTML = '<option value="">Select a project to load...</option>';
                 if (data.projects && data.projects.length > 0) {
                     data.projects.sort((a,b) => new Date(b.last_modified) - new Date(a.last_modified));
+                    const ul = document.createElement('ul');
+                    ul.className = 'projects-list';
                     data.projects.forEach(p => {
-                        const option = document.createElement('option');
-                        option.value = p.id;
-                        option.textContent = `${this.Utils.escapeHTML(p.name)} (ID: ${p.id.substring(0,6)}... Last Modified: ${new Date(p.last_modified).toLocaleDateString()})`;
-                        this.elements.loadProjectSelect.appendChild(option);
+                        const li = document.createElement('li');
+                        li.dataset.projectId = p.id;
+                        li.dataset.projectName = p.name;
+                        const label = document.createElement('span');
+                        label.textContent = `${this.Utils.escapeHTML(p.name)} (${p.id.substring(0,6)}...)`;
+                        const actions = document.createElement('span');
+                        actions.className = 'project-actions';
+                        const renameBtn = document.createElement('button');
+                        renameBtn.className = 'rename-project-btn';
+                        renameBtn.textContent = 'Rename';
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'delete-project-btn';
+                        delBtn.textContent = 'Delete';
+                        actions.appendChild(renameBtn);
+                        actions.appendChild(delBtn);
+                        li.appendChild(label);
+                        li.appendChild(actions);
+                        ul.appendChild(li);
                     });
+                    this.elements.projectsListContainer.innerHTML = '';
+                    this.elements.projectsListContainer.appendChild(ul);
                 } else {
-                     this.elements.loadProjectSelect.innerHTML = '<option value="">No projects found.</option>';
+                    this.elements.projectsListContainer.innerHTML = '<p><em>No projects found.</em></p>';
                 }
             } else {
-                this.elements.loadProjectSelect.innerHTML = '<option value="">Error fetching projects.</option>';
+                this.elements.projectsListContainer.innerHTML = '<p><em>Error loading projects.</em></p>';
                 this.uiManager.showGlobalStatus(`Error fetching projects: ${data.error}`, 'error');
             }
         } catch (error) {
-            this.elements.loadProjectSelect.innerHTML = '<option value="">Network error.</option>';
+            this.elements.projectsListContainer.innerHTML = '<p><em>Network error loading projects.</em></p>';
             this.uiManager.showGlobalStatus(`Network error fetching projects: ${error.message}`, 'error');
         }
     }
 
-    async handleLoadSelectedProject() {
-        const projectId = this.elements.loadProjectSelect.value;
-        if (!projectId) {
-            this.uiManager.showGlobalStatus("Please select a project to load.", 'info');
-            return;
-        }
+    async handleLoadProject(projectId) {
+        if (!projectId) return;
         this.uiManager.showGlobalStatus(`Loading project ${projectId.substring(0,6)}...`, 'loading', 0);
         try {
             const data = await this.apiClient.loadProject(projectId);
@@ -236,6 +262,7 @@ class ProjectHandler {
                     projectData: data.project_data
                 });
                 await this.fetchAndDisplayImageSources();
+                await this.fetchAndDisplayProjects();
                 this.hideOverlay();
             } else {
                 throw new Error(data.error || "Failed to load project.");
@@ -244,6 +271,50 @@ class ProjectHandler {
             this.uiManager.showGlobalStatus(`Error loading project: ${error.message}`, 'error');
             this.Utils.dispatchCustomEvent('project-load-failed', { error: error.message });
             console.error("ProjectHandler: Load project error", error);
+        }
+    }
+
+    async handleRenameProject(projectId, currentName) {
+        const newName = prompt('Enter new project name:', currentName || '');
+        if (!newName || newName.trim() === '' || newName === currentName) return;
+        this.uiManager.showGlobalStatus('Renaming project...', 'loading', 0);
+        try {
+            const data = await this.apiClient.renameProject(projectId, newName.trim());
+            if (data.success) {
+                if (this.stateManager.getActiveProjectId() === projectId) {
+                    this.stateManager.setActiveProject(projectId, newName.trim());
+                }
+                await this.fetchAndDisplayProjects();
+                this.uiManager.showGlobalStatus('Project renamed.', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to rename project');
+            }
+        } catch (error) {
+            this.uiManager.showGlobalStatus(`Error renaming project: ${error.message}`, 'error');
+        }
+    }
+
+    async handleDeleteProject(projectId, name) {
+        let msg = `Are you sure you want to delete project '${name}'?`;
+        if (this.stateManager.getActiveProjectId() === projectId) {
+            msg = `Delete active project '${name}'? It will be unloaded.`;
+        }
+        if (!confirm(msg)) return;
+        this.uiManager.showGlobalStatus('Deleting project...', 'loading', 0);
+        try {
+            const data = await this.apiClient.deleteProject(projectId);
+            if (data.success) {
+                if (this.stateManager.getActiveProjectId() === projectId) {
+                    this.stateManager.setActiveProject(null, null);
+                    await this.fetchAndDisplayImageSources();
+                }
+                await this.fetchAndDisplayProjects();
+                this.uiManager.showGlobalStatus('Project deleted.', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to delete project');
+            }
+        } catch (error) {
+            this.uiManager.showGlobalStatus(`Error deleting project: ${error.message}`, 'error');
         }
     }
 
