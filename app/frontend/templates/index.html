@@ -16,55 +16,21 @@
         </header>
 
         <div class="main-layout">
-            <div class="expandable-section" id="project-management-bar">
-                <div class="expandable-header">
-                    <span>Project</span>
-                    <span id="active-project-display" class="project-status-inline">No active project</span>
-                </div>
-            </div>
-
-            <div class="expandable-section" id="model-loader-expandable">
-                <div class="expandable-header">
-                    <span>Model Configuration</span>
-                    <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
-                    <span class="expand-indicator">▲</span>
-                </div>
-                    <div class="expandable-content">
-                        <div class="model-controls">
-                            <div class="model-selection">
-                                <label for="model-select">Model:</label>
-                                <select id="model-select">
-                                    <option value="">Loading available models...</option>
-                                    <!-- Options will be populated by modelHandler.js -->
-                                </select>
-                                <button id="load-model-btn" title="Load the selected model">Load Model</button>
-                            </div>
-                            <div id="custom-model-inputs" style="display: none;">
-                                <div class="custom-input-group">
-                                    <label for="custom-model-path">Model Path (.pth):</label>
-                                    <input type="text" id="custom-model-path" placeholder="e.g., /path/to/model.pth">
-                                </div>
-                                <div class="custom-input-group">
-                                    <label for="custom-config-path">Config Path (.yaml):</label>
-                                    <input type="text" id="custom-config-path" placeholder="e.g., /path/to/config.yaml">
-                                </div>
-                            </div>
-                            <div class="model-options">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="apply-postprocessing-cb" checked>
-                                    Apply SAM Post-processing
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="top-bars">
                 <div class="expandable-section" id="project-management-bar">
                     <div class="expandable-header">
                         <span>Project</span>
                         <span id="active-project-display" class="project-status-inline">No active project</span>
                     </div>
                 </div>
+
+                <div class="expandable-section" id="model-management-bar">
+                    <div class="expandable-header">
+                        <span>Model</span>
+                        <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
+                    </div>
+                </div>
+            </div>
 
                 <div id="project-management-overlay" class="modal-overlay" style="display:none;">
                     <div class="modal-content project-modal">
@@ -93,6 +59,39 @@
                             </div>
                             <div class="input-group">
                                 <button id="download-project-db-btn" title="Download current project data as SQLite file">Download Project DB</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="model-management-overlay" class="modal-overlay" style="display:none;">
+                    <div class="modal-content model-modal">
+                        <button id="close-model-overlay" class="modal-close">&times;</button>
+                        <h3>Model Management</h3>
+                        <div class="model-controls">
+                            <div class="model-selection">
+                                <label for="model-select">Model:</label>
+                                <select id="model-select">
+                                    <option value="">Loading available models...</option>
+                                    <!-- Options will be populated by modelHandler.js -->
+                                </select>
+                                <button id="load-model-btn" title="Load the selected model">Load Model</button>
+                            </div>
+                            <div id="custom-model-inputs" style="display: none;">
+                                <div class="custom-input-group">
+                                    <label for="custom-model-path">Model Path (.pth):</label>
+                                    <input type="text" id="custom-model-path" placeholder="e.g., /path/to/model.pth">
+                                </div>
+                                <div class="custom-input-group">
+                                    <label for="custom-config-path">Config Path (.yaml):</label>
+                                    <input type="text" id="custom-config-path" placeholder="e.g., /path/to/config.yaml">
+                                </div>
+                            </div>
+                            <div class="model-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="apply-postprocessing-cb" checked>
+                                    Apply SAM Post-processing
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -134,38 +133,31 @@
                     </div>
                 </div>
 
-                <div class="expandable-section" id="image-pool-expandable">
-                    <div class="expandable-header">
-                        <span>Image Pool</span>
-                        <span id="image-pool-status-inline" class="project-status-inline"></span>
-                        <span class="expand-indicator">▼</span>
+                <div id="image-pool-section" class="image-pool-section">
+                    <div class="image-pool-controls">
+                        <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
+                        <span id="current-image-info">No image loaded</span>
+                        <button id="next-image-btn" title="Load next image in pool">Next ></button>
+                        <button id="next-unprocessed-image-btn" title="Load next unprocessed image">Next Unprocessed</button>
                     </div>
-                    <div class="expandable-content collapsed">
-                        <div class="image-pool-controls">
-                            <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
-                            <span id="current-image-info">No image loaded</span>
-                            <button id="next-image-btn" title="Load next image in pool">Next ></button>
-                            <button id="next-unprocessed-image-btn" title="Load next unprocessed image">Next Unprocessed</button>
-                        </div>
-                        <div class="image-pool-filters">
-                            <label for="image-status-filter">Filter by status:</label>
-                            <select id="image-status-filter">
-                                <option value="">All</option>
-                                <option value="unprocessed">Unprocessed</option>
-                                <option value="in_progress_manual">In Progress (Manual)</option>
-                                <option value="in_progress_auto">In Progress (Auto)</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                            <button id="refresh-image-pool-btn">Refresh Pool</button>
-                            <button id="manage-sources-btn">Manage Sources</button>
-                        </div>
-                        <div id="image-gallery-container">
-                            <p><em>Load a project to see images.</em></p>
-                            <!-- Thumbnails will be populated here -->
-                        </div>
-                        <div id="image-pool-pagination">
-                            <!-- Pagination controls will go here -->
-                        </div>
+                    <div class="image-pool-filters">
+                        <label for="image-status-filter">Filter by status:</label>
+                        <select id="image-status-filter">
+                            <option value="">All</option>
+                            <option value="unprocessed">Unprocessed</option>
+                            <option value="in_progress_manual">In Progress (Manual)</option>
+                            <option value="in_progress_auto">In Progress (Auto)</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <button id="refresh-image-pool-btn">Refresh Pool</button>
+                        <button id="manage-sources-btn">Manage Sources</button>
+                    </div>
+                    <div id="image-gallery-container">
+                        <p><em>Load a project to see images.</em></p>
+                        <!-- Thumbnails will be populated here -->
+                    </div>
+                    <div id="image-pool-pagination">
+                        <!-- Pagination controls will go here -->
                     </div>
                 </div>
 

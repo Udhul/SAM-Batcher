@@ -59,6 +59,15 @@ header p {
     width: 100%;
 }
 
+.top-bars {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+.top-bars .expandable-section {
+    flex: 1;
+}
+
 .controls-column {
     flex: 0 0 380px; /* Fixed width for controls column */
     display: flex;
@@ -79,7 +88,8 @@ header p {
 .config-section,
 .image-section, /* This might become part of canvas-column or specific handlers */
 .results-section, /* This might be for mask lists, export buttons */
-.auto-mask-section {
+.auto-mask-section,
+.image-pool-section {
     background: white;
     padding: 20px;
     border-radius: 8px;
@@ -98,7 +108,7 @@ header p {
     font-size: 1.3em;
 }
 
-/* Expandable Section Base Styling (applied to #model-loader-expandable, #project-management-expandable, etc.) */
+/* Expandable Section Base Styling */
 .expandable-section {
     border: 1px solid #e0e0e0; /* Slightly softer border */
     border-radius: 8px;
@@ -163,7 +173,7 @@ header p {
 }
 
 
-/* Model Controls (inside #model-loader-expandable) */
+/* Model Controls (inside model overlay) */
 .model-controls {
     display: flex;
     flex-direction: column;
@@ -314,7 +324,7 @@ ul.image-sources-list li span { flex-grow: 1; }
 .remove-source-btn:hover { background-color: #c82333; }
 
 
-/* Image Pool Controls (inside #image-pool-expandable) */
+/* Image Pool Controls */
 .image-pool-controls, .image-pool-filters {
     display: flex;
     align-items: center;
