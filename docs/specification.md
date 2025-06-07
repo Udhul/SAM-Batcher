@@ -247,7 +247,7 @@ The system will employ a client-server architecture.
     *   Receives masks, scores, logits.
     *   Persists these masks as a new "predictions" layer in the Project State DB, including prompts used.
     *   Converts masks for client.
-*   **Server Response:** `{"success": true, "masks_data": [...raw mask arrays...], "scores": [...], "layer_id": "interactive_uuid"}` (Logits typically not sent to client unless needed for advanced features).
+*   **Server Response:** `{"success": true, "masks_data": [...raw mask arrays...], "scores": [...], "layer_id": "interactive_uuid", "multimask_output": bool, "num_boxes": int}` (Logits typically not sent to client unless needed for advanced features). The `multimask_output` and `num_boxes` values represent the final predictor settings after any server-side adjustments (e.g., multiple boxes force `multimask_output=false`).
 *   **Client:** Displays the returned masks. When `multimask_output` is true (points or a single box) a radio selector allows choosing between the three score-ranked masks (High, Medium, Low). When multiple boxes are used all masks are shown automatically and the selector is hidden.
 
 **4.5.4. Mask Refinement/Editing (Client-Side)**

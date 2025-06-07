@@ -402,6 +402,8 @@ order mirrors input order.
     "multimask_output": true,
     "num_boxes": 1
 }
+// `multimask_output` and `num_boxes` reflect the predictor settings actually
+// used by the server after adjusting for the provided prompts.
 ```
 
 **Outgoing Data (to main application):**

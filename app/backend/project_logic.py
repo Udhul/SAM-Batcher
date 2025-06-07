@@ -444,6 +444,8 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
         num_boxes = 0
 
     multimask_flag = predict_params.get('multimask_output', True)
+    if num_boxes > 1:
+        multimask_flag = False
 
     prediction_results = sam_inference.predict(
         point_coords=prompts.get('points'),
