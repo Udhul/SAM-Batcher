@@ -34,6 +34,21 @@
     background-color: white;
 }
 
+.mask-toggle-container {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.mask-toggle-container label {
+    font-size: 12px;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
 
 /* Opacity Controls within Canvas Toolbar */
 .opacity-controls {

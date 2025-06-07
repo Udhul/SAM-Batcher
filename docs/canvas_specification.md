@@ -334,7 +334,8 @@ Response: {
 ### 6.2. Individual Mask Toggling
 
 **Toggle Interface:**
-* **Checkbox Controls:** Individual toggles for each mask in prediction set
+* **Checkbox Controls:** Individual toggles for each mask in the current prediction set. The list is regenerated whenever new predictions are received.
+* **Dynamic Labels:** If predictions correspond to multiple boxes, toggles are labeled `Box 1`, `Box 2`, …​. For multimask results from a single prompt the labels are `Mask 1`, `Mask 2`, etc. Scores may be shown as tooltips.
 * **Visual Indicators:** Clear on/off state indication
 * **Batch Operations:** Select all, deselect all, invert selection
 * **Keyboard Shortcuts:** Space to toggle, A for all, N for none
@@ -406,7 +407,9 @@ Response: {
 {
     "masks_data": [/* 2D binary arrays */],
     "scores": [/* confidence scores */],
-    "layer_id": "prediction_uuid"
+    "layer_id": "prediction_uuid",
+    "multimask_output": true,
+    "num_boxes": 1
 }
 ```
 

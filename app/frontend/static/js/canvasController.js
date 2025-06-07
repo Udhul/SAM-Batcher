@@ -69,6 +69,7 @@ class CanvasManager {
         if (!this.maskDisplayModeSelect) {
             this.maskDisplayModeSelect = { value: 'best', addEventListener: () => {} };
         }
+        this.maskToggleContainer = document.getElementById('mask-toggle-container');
 
         this.imageOpacitySlider = document.getElementById('image-opacity');
         this.predictionOpacitySlider = document.getElementById('prediction-opacity');
@@ -152,7 +153,15 @@ class CanvasManager {
             this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         if (this.maskDisplayModeSelect) {
-            this.maskDisplayModeSelect.addEventListener('change', () => this.drawPredictionMaskLayer());
+            this.maskDisplayModeSelect.addEventListener('change', () => {
+                if (this.maskDisplayModeSelect.value === 'best') {
+                    this.manualPredictions.forEach((p, idx) => p.visible = idx === 0);
+                } else {
+                    this.manualPredictions.forEach(p => p.visible = true);
+                }
+                this.renderMaskToggleControls();
+                this.drawPredictionMaskLayer();
+            });
         }
         
         // Debounce resize for performance
@@ -244,10 +253,13 @@ class CanvasManager {
                 while (Array.isArray(scoreList[0])) scoreList = scoreList.flat();
             }
 
-            this.manualPredictions = maskList.map((seg, index) => ({
+            let preds = maskList.map((seg, index) => ({
                 segmentation: seg,
                 score: scoreList[index] !== undefined ? scoreList[index] : (scoreList[0] || 0)
-            })).sort((a, b) => b.score - a.score);
+            }));
+            preds.sort((a, b) => b.score - a.score);
+            const colors = this._generateDistinctColors(preds.length);
+            this.manualPredictions = preds.map((p, i) => ({ ...p, visible: true, color: colors[i] }));
 
             if (this.manualPredictions.length > 1) {
                 if (predictionData && !predictionData.multimask_output && predictionData.num_boxes > 1) {
@@ -256,14 +268,21 @@ class CanvasManager {
                     this.maskDisplayModeSelect.value = 'all';
                 }
             }
+            this.renderMaskToggleControls();
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();
     }
 
     setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
-        this.automaskPredictions = (predictionData && predictionData.masks_data) ? predictionData.masks_data : [];
+        if (predictionData && predictionData.masks_data) {
+            const colors = this._generateDistinctColors(predictionData.masks_data.length);
+            this.automaskPredictions = predictionData.masks_data.map((m, i) => ({ ...m, visible: true, color: colors[i] }));
+        } else {
+            this.automaskPredictions = [];
+        }
         this.manualPredictions = []; // Clear manual predictions
+        this.renderMaskToggleControls();
         this.drawPredictionMaskLayer();
     }
 
@@ -278,6 +297,8 @@ class CanvasManager {
 
         this.manualPredictions = [];
         this.automaskPredictions = [];
+
+        this.renderMaskToggleControls();
 
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
@@ -443,18 +464,10 @@ class CanvasManager {
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
         let activePredictions = [];
-        // Determine which set of predictions to use (automask or manual)
         if (this.automaskPredictions && this.automaskPredictions.length > 0) {
-            activePredictions = this.automaskPredictions;
+            activePredictions = this.automaskPredictions.filter(m => m.visible);
         } else if (this.manualPredictions && this.manualPredictions.length > 0) {
-            const mode = this.maskDisplayModeSelect ? this.maskDisplayModeSelect.value : 'best';
-            if (mode === 'best' && this.manualPredictions[0]) { // Assumes manualPredictions are sorted by score
-                activePredictions.push(this.manualPredictions[0]);
-            } else if (mode === 'all') {
-                activePredictions = this.manualPredictions;
-            } else { // Default or unknown mode
-                if(this.manualPredictions[0]) activePredictions.push(this.manualPredictions[0]);
-            }
+            activePredictions = this.manualPredictions.filter(m => m.visible);
         }
 
         if (activePredictions.length > 0) {
@@ -463,8 +476,6 @@ class CanvasManager {
                 this.tempMaskPixelCanvas.width = this.originalImageWidth;
                 this.tempMaskPixelCanvas.height = this.originalImageHeight;
             }
-
-            const generatedColors = this._generateDistinctColors(activePredictions.length);
 
             activePredictions.forEach((predictionItem, index) => {
                 // predictionItem is {segmentation: [[0,1,...]], score: 0.9, ...} or from AMG: {segmentation, area, bbox, ...}
@@ -482,7 +493,7 @@ class CanvasManager {
                 this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
                 const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
                 const pixelData = imageData.data;
-                const colorStr = generatedColors[index % generatedColors.length];
+                const colorStr = predictionItem.color || this._generateDistinctColors(1)[0];
                 const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
 
                 let pixelCount = 0;
@@ -760,6 +771,32 @@ class CanvasManager {
         // console.log(`Canvas dispatching: canvas-${eventType}`, data);
         const event = new CustomEvent(`canvas-${eventType}`, { detail: data });
         document.dispatchEvent(event);
+    }
+
+    renderMaskToggleControls() {
+        if (!this.maskToggleContainer) return;
+        this.maskToggleContainer.innerHTML = '';
+
+        let list = [];
+        if (this.automaskPredictions && this.automaskPredictions.length > 0) {
+            list = this.automaskPredictions;
+        } else if (this.manualPredictions && this.manualPredictions.length > 0) {
+            list = this.manualPredictions;
+        }
+
+        list.forEach((pred, idx) => {
+            const label = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = pred.visible !== false;
+            cb.addEventListener('change', () => {
+                pred.visible = cb.checked;
+                this.drawPredictionMaskLayer();
+            });
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(`M${idx + 1}`));
+            this.maskToggleContainer.appendChild(label);
+        });
     }
 
     // Public method to allow external modules to listen to canvas events

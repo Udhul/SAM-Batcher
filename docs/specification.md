@@ -248,7 +248,7 @@ The system will employ a client-server architecture.
     *   Persists these masks as a new "predictions" layer in the Project State DB, including prompts used.
     *   Converts masks for client.
 *   **Server Response:** `{"success": true, "masks_data": [...raw mask arrays...], "scores": [...], "layer_id": "interactive_uuid"}` (Logits typically not sent to client unless needed for advanced features).
-*   **Client:** Displays new predicted masks. If `multimask_output` is true, allows user to choose best one or cycle through.
+*   **Client:** Displays the returned masks with a toggle list. Each mask can be individually shown or hidden. When multiple boxes are used the toggles correspond to each box. If `multimask_output` is true (single box), the toggles represent the different score-ranked masks.
 
 **4.5.4. Mask Refinement/Editing (Client-Side)**
 *   **Client:** User selects a mask (from automask or interactive prediction) and uses drawing tools (brush, eraser) on the canvas to modify it.
@@ -258,6 +258,7 @@ The system will employ a client-server architecture.
 
 **4.5.5. Saving/Committing Masks**
 *   **Client:** User is satisfied with a set of masks (could be one final merged/edited mask, or a selection of automasks/interactive masks). Clicks "Save Masks" or "Commit Final Mask."
+    *   The UI maintains a "Saved Masks" panel showing previously committed masks. Each saved mask remembers the prompts that produced it and can be toggled, renamed or deleted.
 *   **Client Request:** `POST /api/project/<project_id>/images/<image_hash>/commit_masks` (Body: `{"final_masks": [ { "segmentation": [[0,1,...],...], "source_layer_ids": ["uuid1", "uuid2"], "name": "object_1" }, ... ], "notes": "user notes" }`)
     *   `final_masks`: An array of mask objects. Each `segmentation` is the binary mask array after client-side edits.
 *   **Server:**
