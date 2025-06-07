@@ -46,7 +46,21 @@
  */
 class CanvasManager {
     constructor() {
-        this.Utils = window.Utils || { debounce: (fn, delay) => fn }; // Fallback for Utils.debounce
+        this.Utils = window.Utils || {
+            debounce: (fn, delay) => fn,
+            generateDistinctColors: (c) => {
+                const cols = [];
+                if (!c || c <= 0) return cols;
+                for (let i = 0; i < c; i++) {
+                    const hue = (i * (360 / (c < 6 ? c * 1.6 : c * 1.1))) % 360;
+                    const saturation = 65 + Math.random() * 25;
+                    const lightness = 50 + Math.random() * 15;
+                    cols.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1)`);
+                }
+                return cols;
+            },
+            getRandomHexColor: () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+        };
         this.initializeElements();
         this.initializeState();
         this.initializeCanvases();
@@ -124,7 +138,7 @@ class CanvasManager {
         const sliders = [
             { el: this.imageOpacitySlider, layer: 'image', default: '1.0', action: () => this.drawImageLayer() },
             { el: this.predictionOpacitySlider, layer: 'prediction', default: '0.7', action: () => this.drawPredictionMaskLayer() },
-            { el: this.userInputOpacitySlider, layer: 'userInput', default: '0.8', action: () => this.drawUserInputLayer() }
+            { el: this.userInputOpacitySlider, layer: 'user-input', default: '0.8', action: () => this.drawUserInputLayer() }
         ];
 
         sliders.forEach(item => {
@@ -254,14 +268,14 @@ class CanvasManager {
                 preds.sort((a, b) => b.score - a.score);
             }
 
-            const colors = this._generateDistinctColors(preds.length);
+            const defaultColor = 'rgba(255,0,0,1.0)';
 
             if (multiBox) {
-                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: true, color: colors[i] }));
+                this.manualPredictions = preds.map((p) => ({ ...p, visible: true, color: defaultColor }));
                 this.selectedManualMaskIndex = 0;
             } else {
                 if (this.selectedManualMaskIndex >= preds.length) this.selectedManualMaskIndex = 0;
-                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: i === this.selectedManualMaskIndex, color: colors[i] }));
+                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: i === this.selectedManualMaskIndex, color: defaultColor }));
             }
 
             this.renderMaskToggleControls();
@@ -274,7 +288,7 @@ class CanvasManager {
 
     setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
         if (predictionData && predictionData.masks_data) {
-            const colors = this._generateDistinctColors(predictionData.masks_data.length);
+            const colors = this.Utils.generateDistinctColors(predictionData.masks_data.length);
             this.automaskPredictions = predictionData.masks_data.map((m, i) => ({ ...m, visible: true, color: colors[i] }));
         } else {
             this.automaskPredictions = [];
@@ -495,7 +509,7 @@ class CanvasManager {
                 this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
                 const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
                 const pixelData = imageData.data;
-                const colorStr = predictionItem.color || this._generateDistinctColors(1)[0];
+                const colorStr = predictionItem.color || this.Utils.generateDistinctColors(1)[0];
                 const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
 
                 let pixelCount = 0;
@@ -594,7 +608,7 @@ class CanvasManager {
             if (this.currentLassoPoints.length > 2) { // Need at least 3 points for a polygon
                 this.userDrawnMasks.push({
                     points: [...this.currentLassoPoints],
-                    color: `${this._getRandomHexColor()}7A`, // 40-50% alpha
+                    color: `${this.Utils.getRandomHexColor()}7A`, // 40-50% alpha
                     id: Date.now()
                 });
                 this._prepareCombinedUserMaskInput(); // Update the 256x256 mask_input
@@ -661,23 +675,12 @@ class CanvasManager {
 
 
     // --- Utility Methods ---
-    _generateDistinctColors(count) {
-        const colors = [];
-        if (count === 0) return colors;
-        for (let i = 0; i < count; i++) {
-            const hue = (i * (360 / (count < 6 ? count * 1.6 : count * 1.1))) % 360; // Adjusted factor for better spread with few items
-            const saturation = 65 + Math.random() * 25;
-            const lightness = 50 + Math.random() * 15;
-            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1)`); // Full opacity; slider controls transparency
-        }
-        return colors;
-    }
 
     _parseRgbaFromString(colorStr) { // Handles HSL(A) or RGB(A)
         if (typeof colorStr !== 'string') return [255,0,0,178]; // Fallback if not string
 
         if (colorStr.startsWith('hsl')) { // Convert HSL(A) to RGB(A)
-            const match = colorStr.match(/hsla?\((\d+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/);
+            const match = colorStr.match(/hsla?\(([\d.]+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/);
             if (!match) return [255,0,0,178];
             let [h, s, l, a] = match.slice(1).map(parseFloat);
             if (isNaN(a)) a = 1;
@@ -763,10 +766,6 @@ class CanvasManager {
             }
             this.combinedUserMaskInput256.push(row);
         }
-    }
-
-    _getRandomHexColor() {
-        return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     }
 
     _dispatchEvent(eventType, data) {
