@@ -189,22 +189,34 @@ def load_sam_model_for_project(project_id: str, sam_inference: SAMInference,
         return {"success": False, "error": "Failed to load SAM model."}
 
 def get_current_model_for_project(project_id: str, sam_inference: SAMInference) -> Dict[str, Any]:
-    # Optionally, try to load from project settings if current instance has no model
-    if not sam_inference.model:
-        model_key = db_manager.get_project_setting(project_id, "current_sam_model_key")
-        model_path = db_manager.get_project_setting(project_id, "current_sam_model_path")
-        config_path = db_manager.get_project_setting(project_id, "current_sam_config_path")
-        apply_postprocessing_str = db_manager.get_project_setting(project_id, "current_sam_apply_postprocessing")
-        apply_postprocessing = apply_postprocessing_str.lower() == 'true' if apply_postprocessing_str else True
+    """Ensure the SAM model associated with a project is loaded and return info."""
+    model_key = db_manager.get_project_setting(project_id, "current_sam_model_key")
+    model_path = db_manager.get_project_setting(project_id, "current_sam_model_path")
+    config_path = db_manager.get_project_setting(project_id, "current_sam_config_path")
+    apply_postprocessing_str = db_manager.get_project_setting(project_id, "current_sam_apply_postprocessing")
+    apply_postprocessing = apply_postprocessing_str.lower() == 'true' if apply_postprocessing_str else True
 
-        if model_path or model_key : # Prioritize path if both exist
-             print(f"Attempting to reload model for project {project_id} from DB settings...")
-             sam_inference.load_model(
-                model_size_key=model_key,
-                model_path_override=model_path,
-                config_path_override=config_path,
-                apply_postprocessing=apply_postprocessing
-            )
+    current_info = sam_inference.get_model_info()
+    need_reload = False
+    if not current_info.get("loaded"):
+        need_reload = True
+    else:
+        if model_path:
+            need_reload |= current_info.get("model_path") != model_path
+        elif model_key:
+            need_reload |= current_info.get("model_size_key") != model_key
+        if current_info.get("apply_postprocessing") != apply_postprocessing:
+            need_reload = True
+
+    if need_reload and (model_path or model_key):
+        print(f"Loading model for project {project_id} from stored settings...")
+        sam_inference.load_model(
+            model_size_key=model_key,
+            model_path_override=model_path,
+            config_path_override=config_path,
+            apply_postprocessing=apply_postprocessing
+        )
+
     return sam_inference.get_model_info()
 
 
