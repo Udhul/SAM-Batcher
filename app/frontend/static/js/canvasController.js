@@ -239,6 +239,10 @@ class CanvasManager {
                 segmentation: seg,
                 score: scoreList[index] !== undefined ? scoreList[index] : (scoreList[0] || 0)
             })).sort((a, b) => b.score - a.score);
+
+            if (this.manualPredictions.length > 1 && this.maskDisplayModeSelect && this.maskDisplayModeSelect.value === 'best') {
+                this.maskDisplayModeSelect.value = 'all';
+            }
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();
