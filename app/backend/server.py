@@ -98,6 +98,22 @@ def api_list_projects():
     projects = project_logic.list_existing_projects()
     return jsonify({"success": True, "projects": projects})
 
+@app.route('/api/project/<project_id>', methods=['PUT', 'DELETE'])
+def api_modify_project(project_id):
+    if request.method == 'PUT':
+        data = request.json or {}
+        new_name = data.get('project_name')
+        if not new_name:
+            return jsonify({"success": False, "error": "project_name is required."}), 400
+        result = project_logic.rename_project(project_id, new_name)
+        return jsonify(result)
+    else:
+        if project_id == get_active_project_id():
+            set_active_project_id(None)
+        result = project_logic.delete_project(project_id)
+        status = 200 if result.get('success') else 500
+        return jsonify(result), status
+
 # New endpoint: get currently active project
 @app.route('/api/project/active', methods=['GET'])
 def api_get_active_project():
