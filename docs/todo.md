@@ -18,13 +18,13 @@
 
 ## Project Management
 ### Active todos
-* Move image source management to image pool widget, in the form of a button that opens source management in a modal overlay.
 ### Finished
 * Implemented project management as a modal overlay triggered by the "Project" bar.
 * Overlay opens automatically when no project is active and closes after loading or creating a project.
 * The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically. After loading a project the session state is refreshed as well so the model is ready without an extra click.
 * Restoring session state also dispatches a `model-load-success` event so the canvas recognizes the loaded model without manual intervention.
 * The selected model key (if any) is stored with the project so the same dropdown option is chosen again when the project is reloaded. Custom paths are only used when no key was selected.
+* Move image source management to image pool widget, in the form of a button that opens source management in a modal overlay.
 
 
 ## Model Configuration
@@ -35,6 +35,8 @@
 * When updating the dropdown with the model options, ensure that the custom model path option appear last in the list, and as such that the custom model path won't be the default selection in the dropdown after the options have been initialized.
 
 ## Image Pool
+### Active todos
+### Finished
 * Add button to manage sources, which will open a modal overlay, with an intuitive ui to manage sources.
   * All source input forms are on display. For the source adders with input fields, when clicking add, the source will be added to the list of sources, and that input field cleared, ready for next input.
   * A wide, scrollable list of sources is shown, with a delete button next to each source.
@@ -42,7 +44,7 @@
   * Expandable list (collapsed by default) of images is shown for each sources, with a checkbox next to each image, allowing to excempt an image from the source by unchecking it. Excempting an image will also remove it from the image pool. And images deleted from the image pool will similarly uncheck an image from the source (they should modify the same underlying data entry).
 * Ability to delete one image from the pool (instead of deleting the whole source (which can be a collection of images)). This will add the image to the list of excempted images for a source, for sources where images are requested on demand, such that a deleted image is not just loaded again next time the project is loaded.
 * Actually updating the pool when an image or source is removed (currently, it doesn't seem to update the pool correctly, the images stay in the pool (at least visually) after removal). Investigate the behavior to understand how it is handled, and implement the correct behavior.
-* Some images fail to generate a thumbnail for the pool
+* Some images fail to generate a thumbnail for the pool. fixed with fallback to a default thumbnail.
 
 ## Status Messages
 * Should appear on the bottom of the visible page, fading in and out. (lightweight)
