@@ -230,18 +230,31 @@ class CanvasManager {
         this.manualPredictions = [];
         if (predictionData && predictionData.masks_data) {
             const unwrap = arr => { let r = arr; while (Array.isArray(r) && r.length === 1) r = r[0]; return r; };
-            let maskList = unwrap(predictionData.masks_data).map(unwrap);
+            let maskList = unwrap(predictionData.masks_data);
+            if (!Array.isArray(maskList[0]) || (Array.isArray(maskList[0]) && !Array.isArray(maskList[0][0]))) {
+                maskList = [maskList];
+            } else {
+                maskList = maskList.map(m => unwrap(m));
+            }
+
             let scoreList = [];
             if (predictionData.scores) {
-                scoreList = unwrap(predictionData.scores).map(s => Array.isArray(s) ? unwrap(s) : s);
+                scoreList = unwrap(predictionData.scores);
+                if (!Array.isArray(scoreList)) scoreList = [scoreList];
+                while (Array.isArray(scoreList[0])) scoreList = scoreList.flat();
             }
+
             this.manualPredictions = maskList.map((seg, index) => ({
                 segmentation: seg,
                 score: scoreList[index] !== undefined ? scoreList[index] : (scoreList[0] || 0)
             })).sort((a, b) => b.score - a.score);
 
-            if (this.manualPredictions.length > 1 && this.maskDisplayModeSelect && this.maskDisplayModeSelect.value === 'best') {
-                this.maskDisplayModeSelect.value = 'all';
+            if (this.manualPredictions.length > 1) {
+                if (predictionData && !predictionData.multimask_output && predictionData.num_boxes > 1) {
+                    if (this.maskDisplayModeSelect) this.maskDisplayModeSelect.value = 'all';
+                } else if (this.maskDisplayModeSelect && this.maskDisplayModeSelect.value === 'best') {
+                    this.maskDisplayModeSelect.value = 'all';
+                }
             }
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in

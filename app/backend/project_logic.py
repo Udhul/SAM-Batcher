@@ -436,12 +436,21 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
         if not result["success"]:
             return result
 
+    boxes_input = prompts.get('box')
+    if boxes_input is not None:
+        box_arr = np.asarray(boxes_input)
+        num_boxes = box_arr.shape[0] if box_arr.ndim == 2 else 1
+    else:
+        num_boxes = 0
+
+    multimask_flag = predict_params.get('multimask_output', True)
+
     prediction_results = sam_inference.predict(
         point_coords=prompts.get('points'),
         point_labels=prompts.get('labels'),
-        box=prompts.get('box'),
+        box=boxes_input,
         mask_input=prompts.get('mask_input'), # This should be low-res (e.g. 256x256)
-        multimask_output=predict_params.get('multimask_output', True)
+        multimask_output=multimask_flag
         # return_logits is handled by sam_inference, client doesn't specify
     )
 
@@ -485,7 +494,14 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
     db_manager.update_image_status(project_id, image_hash, "in_progress_manual")
 
     # Client expects 'masks_data' as list of 2D binary arrays, and 'scores'
-    return {"success": True, "masks_data": client_mask_list, "scores": flat_scores.tolist() if isinstance(flat_scores, np.ndarray) else list(flat_scores), "layer_id": layer_id}
+    return {
+        "success": True,
+        "masks_data": client_mask_list,
+        "scores": flat_scores.tolist() if isinstance(flat_scores, np.ndarray) else list(flat_scores),
+        "layer_id": layer_id,
+        "num_boxes": num_boxes,
+        "multimask_output": multimask_flag,
+    }
 
 
 def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[Dict], notes: Optional[str]) -> Dict[str, Any]:

@@ -704,8 +704,11 @@ class SAMInference:
                     return_logits=return_logits
                 )
             
-            # Sort results by score if multiple masks and scores available
-            if scores is not None and len(scores) > 1:
+            # Sort results only when scores is 1-D (i.e. multiple masks for a
+            # single prompt). When scores is 2-D (multiple boxes with one mask
+            # each) sorting would duplicate the first mask due to numpy's
+            # advanced indexing behaviour.
+            if scores is not None and scores.ndim == 1 and len(scores) > 1:
                 logger.debug(f"Sorting {len(scores)} masks by score: {scores}")
                 sorted_ind = np.argsort(scores)[::-1]
                 masks = masks[sorted_ind]
