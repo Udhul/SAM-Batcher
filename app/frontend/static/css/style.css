@@ -19,8 +19,8 @@ body {
 }
 
 .container {
-    width: 100%; /* Take full width up to max-width */
-    max-width: 1400px; /* Increased max-width for wider layout */
+    width: 95%;
+    max-width: 95%;
     /* margin: 0 auto; /* Centering handled by body flexbox */
     padding: 20px;
     display: flex; /* Use flexbox for layout within container */
@@ -30,10 +30,10 @@ body {
 
 /* Header */
 header {
-    width: 100%; /* Header takes full width of its parent (.container) */
+    width: 100%;
     text-align: center;
-    margin-bottom: 20px; /* Reduced margin */
-    padding: 20px;
+    margin-bottom: 10px;
+    padding: 10px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 10px;
@@ -41,20 +41,20 @@ header {
 }
 
 header h1 {
-    font-size: 2.2em; /* Slightly reduced */
-    margin-bottom: 8px;
+    font-size: 1.8em;
+    margin-bottom: 6px;
     font-weight: 300;
 }
 
 header p {
-    font-size: 1.0em; /* Slightly reduced */
+    font-size: 0.9em;
     opacity: 0.9;
 }
 
 /* Main Content Layout */
 .main-layout {
     display: flex;
-    flex-direction: row; /* Side-by-side layout */
+    flex-direction: column;
     gap: 20px;
     width: 100%;
 }
@@ -353,16 +353,16 @@ ul.image-sources-list li span { flex-grow: 1; }
 }
 
 #image-gallery-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Responsive grid */
+    display: flex;
     gap: 10px;
     padding: 10px;
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 4px;
     min-height: 100px;
-    max-height: 400px; /* Or adjust as needed */
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
 }
 #image-gallery-container p em { color: #6c757d; text-align: center; width: 100%; }
 
@@ -379,6 +379,9 @@ ul.image-sources-list li span { flex-grow: 1; }
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    flex: 0 0 auto;
+    width: 120px;
+    scroll-snap-align: center;
 }
 .image-card:hover {
     border-color: #007bff;

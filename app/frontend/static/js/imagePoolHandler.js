@@ -205,6 +205,13 @@ class ImagePoolHandler {
             card.classList.toggle('active', card.dataset.imageHash === imageHash);
         });
     }
+
+    _scrollSelectedImageIntoView(imageHash) {
+        const card = this.elements.imageGalleryContainer.querySelector(`.image-card[data-image-hash="${imageHash}"]`);
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }
     
     _updateNavigationButtons() {
         this.elements.prevImageBtn.disabled = this.currentImageIndex <= 0 || this.imageList.length === 0;
@@ -259,6 +266,7 @@ class ImagePoolHandler {
                 this.uiManager.clearGlobalStatus();
                 this.currentImageIndex = this.imageList.findIndex(img => img.image_hash === data.image_hash);
                 this._highlightSelectedImageCard(data.image_hash);
+                this._scrollSelectedImageIntoView(data.image_hash);
                 this._updateCurrentImageDisplay();
             } else {
                 throw new Error(data.error || "Failed to set active image.");

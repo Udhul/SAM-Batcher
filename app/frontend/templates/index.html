@@ -16,14 +16,19 @@
         </header>
 
         <div class="main-layout">
-            <!-- Controls Column (Left Side) -->
-            <div class="controls-column">
-                <div class="expandable-section" id="model-loader-expandable">
-                    <div class="expandable-header">
-                        <span>Model Configuration</span>
-                        <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
-                        <span class="expand-indicator">▲</span>
-                    </div>
+            <div class="expandable-section" id="project-management-bar">
+                <div class="expandable-header">
+                    <span>Project</span>
+                    <span id="active-project-display" class="project-status-inline">No active project</span>
+                </div>
+            </div>
+
+            <div class="expandable-section" id="model-loader-expandable">
+                <div class="expandable-header">
+                    <span>Model Configuration</span>
+                    <span id="model-status-inline" class="model-status-inline loading">Loading...</span>
+                    <span class="expand-indicator">▲</span>
+                </div>
                     <div class="expandable-content">
                         <div class="model-controls">
                             <div class="model-selection">
@@ -163,11 +168,21 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Canvas Column (Right Side) -->
-            <div class="canvas-column">
-                <div class="image-section">
+            <div class="image-section">
+                    <div class="image-display-area">
+                        <div class="canvas-container">
+                            <canvas id="image-canvas"></canvas>
+                            <canvas id="prediction-mask-canvas"></canvas>
+                            <canvas id="user-input-canvas"></canvas>
+                            <div id="canvas-lock" class="canvas-lock-overlay">
+                                <div class="canvas-lock-content">
+                                    <div class="spinner"></div>
+                                    <div class="canvas-lock-message">Processing...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="canvas-toolbar">
                         <div class="toolbar-section">
                             <button id="clear-inputs-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
@@ -204,19 +219,6 @@
                                             <li><strong>Remove Input:</strong> Click existing point, Shift-click box, Ctrl/Cmd-click lasso.</li>
                                         </ul>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="image-display-area">
-                        <div class="canvas-container">
-                            <canvas id="image-canvas"></canvas>
-                            <canvas id="prediction-mask-canvas"></canvas>
-                            <canvas id="user-input-canvas"></canvas>
-                            <div id="canvas-lock" class="canvas-lock-overlay">
-                                <div class="canvas-lock-content">
-                                    <div class="spinner"></div>
-                                    <div class="canvas-lock-message">Processing...</div>
                                 </div>
                             </div>
                         </div>
