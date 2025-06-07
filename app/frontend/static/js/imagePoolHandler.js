@@ -165,7 +165,11 @@ class ImagePoolHandler {
         const thumb = document.createElement('img');
         thumb.src = this.apiClient.getImageThumbnailUrl(this.stateManager.getActiveProjectId(), imgData.image_hash);
         thumb.alt = this.Utils.escapeHTML(imgData.original_filename) || 'Image Thumbnail';
-        thumb.onerror = () => { thumb.src = "{{ url_for('static', filename='assets/placeholder_thumb.png') }}"; }; // Placeholder path
+        thumb.onerror = () => {
+            if (thumb.src.indexOf('placeholder_thumb.png') === -1) {
+                thumb.src = '/static/assets/placeholder_thumb.png';
+            }
+        };
 
         const name = document.createElement('p');
         name.className = 'image-card-name';
@@ -178,6 +182,16 @@ class ImagePoolHandler {
         status.textContent = (imgData.status || 'unknown').replace(/_/g, ' ');
         status.title = `Status: ${status.textContent}`;
 
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-image-btn';
+        delBtn.textContent = '×';
+        delBtn.title = 'Remove image from pool';
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.handleDeleteImage(imgData.image_hash);
+        };
+
+        card.appendChild(delBtn);
         card.appendChild(thumb);
         card.appendChild(name);
         card.appendChild(status);
@@ -296,6 +310,25 @@ class ImagePoolHandler {
             }
         } catch (error) {
             this.uiManager.showGlobalStatus(`Error updating status: ${error.message}`, 'error');
+        }
+    }
+
+    async handleDeleteImage(imageHash) {
+        if (!confirm('Exclude this image from the pool?')) return;
+        const projectId = this.stateManager.getActiveProjectId();
+        if (!projectId) return;
+        this.uiManager.showGlobalStatus('Removing image...', 'loading', 0);
+        try {
+            const data = await this.apiClient.setImageExempt(projectId, null, imageHash, true);
+            if (data.success) {
+                this.uiManager.showGlobalStatus('Image excluded.', 'success', 2000);
+                this.loadAndDisplayImagePool(this.currentPage, this.currentStatusFilter);
+                this.Utils.dispatchCustomEvent('sources-updated', {});
+            } else {
+                throw new Error(data.error || 'Failed to remove image');
+            }
+        } catch (error) {
+            this.uiManager.showGlobalStatus(`Error removing image: ${error.message}`, 'error');
         }
     }
 

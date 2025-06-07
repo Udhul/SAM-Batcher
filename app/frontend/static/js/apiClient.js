@@ -154,6 +154,12 @@ class APIClient {
     async removeImageSource(projectId, sourceId) {
         return this._request(`/project/${projectId}/sources/${sourceId}`, 'DELETE');
     }
+    async listImagesForSource(projectId, sourceId) {
+        return this._request(`/project/${projectId}/sources/${sourceId}/images`);
+    }
+    async setImageExempt(projectId, sourceId, imageHash, exempt=true) {
+        return this._request(`/project/${projectId}/sources/${sourceId}/exempt_image`, 'POST', { image_hash: imageHash, exempt });
+    }
     async listImages(projectId, page = 1, perPage = 50, statusFilter = null) {
         let query = `?page=${page}&per_page=${perPage}`;
         if (statusFilter) query += `&status_filter=${statusFilter}`;
