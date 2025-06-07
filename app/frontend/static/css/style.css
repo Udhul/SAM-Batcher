@@ -616,13 +616,17 @@ input[type="file"]#image-upload {
     background: #fff;
     padding: 20px;
     border-radius: 8px;
+    border-color: #0700328a;
+    border-style: solid;
+    border-width: 1px;
+    box-shadow: 5px 5px 10px #21252968;
     max-height: 90%;
     overflow-y: auto;
 }
 
 .modal-close {
     float: right;
-    font-size: 20px;
+    font-size: 2em;
     border: none;
     background: none;
     cursor: pointer;
