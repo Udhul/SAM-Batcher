@@ -367,6 +367,7 @@ ul.image-sources-list li span { flex-grow: 1; }
 #image-gallery-container p em { color: #6c757d; text-align: center; width: 100%; }
 
 .image-card {
+    position: relative;
     background-color: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -415,6 +416,23 @@ ul.image-sources-list li span { flex-grow: 1; }
 .image-status-badge.in_progress_manual, .image-status-badge.in_progress_auto { background-color: #ffc107; color: #333; }
 .image-status-badge.completed { background-color: #28a745; }
 .image-status-badge.unknown { background-color: #adb5bd; }
+
+.delete-image-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    line-height: 16px;
+    font-size: 12px;
+    display: none;
+    cursor: pointer;
+}
+.image-card:hover .delete-image-btn { display: block; }
 
 
 /* File Upload Button (general styling) */
@@ -616,4 +634,28 @@ input[type="file"]#image-upload {
     border: 1px solid #e9ecef;
     background-color: #f8f9fa;
     border-radius: 4px;
+    width: 100%;
+}
+
+.sources-tree-list details {
+    border-bottom: 1px dashed #ccc;
+    padding: 4px 0;
+}
+.sources-tree-list summary {
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sources-tree-list ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 4px 0;
+}
+.sources-tree-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
 }

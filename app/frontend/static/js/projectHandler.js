@@ -342,35 +342,56 @@ class ProjectHandler {
         try {
             const data = await this.apiClient.listImageSources(projectId);
             if (data.success) {
-                this.elements.imageSourcesListContainer.innerHTML = ''; // Clear list
+                this.elements.imageSourcesListContainer.innerHTML = '';
                 if (data.sources.length === 0) {
                     this.elements.imageSourcesListContainer.innerHTML = '<p><em>No image sources added yet for this project.</em></p>';
                 } else {
-                    const ul = document.createElement('ul');
-                    ul.className = 'image-sources-list';
-                    data.sources.forEach(source => {
-                        const li = document.createElement('li');
-                        let detailsDisplay = this.Utils.escapeHTML(source.details.path || source.details.url || source.id);
-                        if (detailsDisplay.length > 50) detailsDisplay = detailsDisplay.substring(0, 47) + "...";
-                        
-                        li.innerHTML = `<span>Type: ${this.Utils.escapeHTML(source.type)}, Details: ${detailsDisplay}, Images: ${source.image_count || 0}</span>`;
-                        
+                    for (const source of data.sources) {
+                        const detailsEl = document.createElement('details');
+                        const summary = document.createElement('summary');
+                        const headerSpan = document.createElement('span');
+                        let info = this.Utils.escapeHTML(source.details.path || source.details.url || source.source_id);
+                        if (info.length > 50) info = info.substring(0,47) + '...';
+                        headerSpan.textContent = `${source.type}: ${info} (Images: ${source.image_count || 0})`;
                         const removeBtn = document.createElement('button');
                         removeBtn.textContent = 'Remove';
                         removeBtn.className = 'remove-source-btn';
-                        removeBtn.title = `Remove source ${source.source_id}`;
-                        removeBtn.onclick = (e) => {
-                            e.stopPropagation(); // Prevent li click if any
-                            this.handleRemoveImageSource(source.source_id);
-                        };
-                        li.appendChild(removeBtn);
-                        ul.appendChild(li);
-                    });
-                    this.elements.imageSourcesListContainer.appendChild(ul);
+                        removeBtn.onclick = (e) => { e.stopPropagation(); this.handleRemoveImageSource(source.source_id); };
+                        summary.appendChild(headerSpan);
+                        summary.appendChild(removeBtn);
+                        detailsEl.appendChild(summary);
+
+                        const imgList = document.createElement('ul');
+                        imgList.className = 'source-images';
+                        try {
+                            const imgData = await this.apiClient.listImagesForSource(projectId, source.source_id);
+                            if (imgData.success && Array.isArray(imgData.images)) {
+                                imgData.images.forEach(img => {
+                                    const li = document.createElement('li');
+                                    const cb = document.createElement('input');
+                                    cb.type = 'checkbox';
+                                    cb.checked = !img.exempted;
+                                    cb.onchange = (e) => this.handleToggleSourceImage(source.source_id, img.image_hash, e.target.checked);
+                                    const label = document.createElement('span');
+                                    const name = this.Utils.escapeHTML(img.original_filename || img.image_hash);
+                                    label.textContent = name.length > 40 ? name.substring(0,37) + '...' : name;
+                                    li.appendChild(cb);
+                                    li.appendChild(label);
+                                    imgList.appendChild(li);
+                                });
+                            } else {
+                                imgList.innerHTML = '<li><em>Error loading images</em></li>';
+                            }
+                        } catch (err) {
+                            imgList.innerHTML = '<li><em>Error loading images</em></li>';
+                        }
+                        detailsEl.appendChild(imgList);
+                        this.elements.imageSourcesListContainer.appendChild(detailsEl);
+                    }
                 }
                 this.Utils.dispatchCustomEvent('sources-updated', { sources: data.sources });
             } else {
-                 this.elements.imageSourcesListContainer.innerHTML = '<p><em>Error loading sources.</em></p>';
+                this.elements.imageSourcesListContainer.innerHTML = '<p><em>Error loading sources.</em></p>';
             }
         } catch (error) {
             this.elements.imageSourcesListContainer.innerHTML = '<p><em>Network error loading sources.</em></p>';
@@ -395,6 +416,17 @@ class ProjectHandler {
             }
         } catch (error) {
             this.uiManager.showGlobalStatus(`Error removing source: ${error.message}`, 'error');
+        }
+    }
+
+    async handleToggleSourceImage(sourceId, imageHash, include) {
+        const projectId = this.stateManager.getActiveProjectId();
+        if (!projectId) return;
+        try {
+            await this.apiClient.setImageExempt(projectId, sourceId, imageHash, !include);
+            this.Utils.dispatchCustomEvent('sources-updated', {});
+        } catch (err) {
+            this.uiManager.showGlobalStatus(`Error updating image: ${err.message}`, 'error');
         }
     }
 }
