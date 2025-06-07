@@ -25,7 +25,7 @@
    5.3. Coordinate System Management
    5.4. Event Handling and State Updates
 6. Mask Management and Selection
-   6.1. Prediction Display Modes
+   6.1. Prediction Visibility
    6.2. Individual Mask Toggling
    6.3. Multi-Region Mask Handling
    6.4. Selection State Management
@@ -144,11 +144,6 @@ The canvas system employs a three-layer architecture with independent rendering 
 * **Color Assignment:** Dynamic HSL-based color generation for optimal contrast
 * **Rendering:** Convert binary data to colored ImageData for canvas display
 * **Optimization:** Use offscreen canvases for complex compositions
-
-**Display Modes:**
-* **Best Mode:** Show highest-confidence mask from interactive predictions
-* **All Mode:** Display all masks from current prediction set
-* **Selection Mode:** Show only user-selected masks for editing
 
 **Toggle System:**
 * **Mask-Level Toggling:** Individual control over each prediction mask
@@ -314,22 +309,14 @@ Response: {
 
 ## 6. Mask Management and Selection
 
-### 6.1. Prediction Display Modes
+### 6.1. Prediction Visibility
 
-**Mode Specifications:**
-* **Best Mode:** Display highest-scoring mask from multimask predictions
-* **All Mode:** Show all masks from current prediction set
-* **Custom Mode:** Display user-selected subset of available masks
-
-**Mode Switching:**
-* **UI Control:** Dropdown or toggle buttons for mode selection
-* **Real-time Updates:** Immediate re-rendering on mode change
-* **State Persistence:** Remember mode preference within session
-
-**Interaction with Prediction Types:**
-* **Automask Results:** Always use "All" mode (show all generated regions)
-* **Interactive Results:** Support all modes based on multimask_output setting
-* **Mixed Predictions:** Handle transitions between prediction types
+The canvas exposes a toggle list for each returned mask. Users can turn masks on
+or off individually. When a single box is used with `multimask_output=true`, the
+highest-scoring mask is shown by default while the others remain hidden but can
+be toggled on. For multiple boxes the masks for all boxes are visible by default.
+The last placed box corresponds to the last toggle in the list so mask order
+mirrors input order.
 
 ### 6.2. Individual Mask Toggling
 
