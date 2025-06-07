@@ -268,14 +268,14 @@ class CanvasManager {
                 preds.sort((a, b) => b.score - a.score);
             }
 
-            const colors = this.Utils.generateDistinctColors(preds.length);
+            const defaultColor = 'rgba(255,0,0,0.7)';
 
             if (multiBox) {
-                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: true, color: colors[i] }));
+                this.manualPredictions = preds.map((p) => ({ ...p, visible: true, color: defaultColor }));
                 this.selectedManualMaskIndex = 0;
             } else {
                 if (this.selectedManualMaskIndex >= preds.length) this.selectedManualMaskIndex = 0;
-                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: i === this.selectedManualMaskIndex, color: colors[i] }));
+                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: i === this.selectedManualMaskIndex, color: defaultColor }));
             }
 
             this.renderMaskToggleControls();
@@ -680,7 +680,7 @@ class CanvasManager {
         if (typeof colorStr !== 'string') return [255,0,0,178]; // Fallback if not string
 
         if (colorStr.startsWith('hsl')) { // Convert HSL(A) to RGB(A)
-            const match = colorStr.match(/hsla?\((\d+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/);
+            const match = colorStr.match(/hsla?\(([\d.]+),\s*([\d.]+)%?,\s*([\d.]+)%?(?:,\s*([\d.]+))?\)/);
             if (!match) return [255,0,0,178];
             let [h, s, l, a] = match.slice(1).map(parseFloat);
             if (isNaN(a)) a = 1;
