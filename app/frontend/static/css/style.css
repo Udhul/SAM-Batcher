@@ -514,6 +514,14 @@ input[type="file"]#image-upload {
 }
 .file-upload-styled-btn:hover { background-color: #218838; }
 
+/* Manage Sources Button - Blue styling */
+#manage-sources-btn {
+    background-color: #007bff !important;
+}
+#manage-sources-btn:hover:not(:disabled) {
+    background-color: #0056b3 !important;
+}
+
 /* Progress Bar */
 .progress-bar-container {
     width: 100%; max-width: 300px; height: 20px; background-color: #e9ecef;
