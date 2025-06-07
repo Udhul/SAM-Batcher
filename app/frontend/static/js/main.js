@@ -451,6 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (amgParamsElements.statusEl) { amgParamsElements.statusEl.textContent = "No image loaded."; amgParamsElements.statusEl.className = 'status-message error small'; }
             return;
         }
+        canvasManager.clearAllCanvasInputs(false);
         try {
             const activeProjectId = stateManager.getActiveProjectId();
             const activeImageHash = stateManager.getActiveImageHash();

@@ -56,6 +56,31 @@ const Utils = {
     },
 
     /**
+     * Generates `count` visually distinct colors in HSLA format.
+     * @param {number} count - Number of colors to generate.
+     * @returns {string[]} Array of HSLA color strings.
+     */
+    generateDistinctColors: (count) => {
+        const colors = [];
+        if (!count || count <= 0) return colors;
+        for (let i = 0; i < count; i++) {
+            const hue = (i * (360 / (count < 6 ? count * 1.6 : count * 1.1))) % 360;
+            const saturation = 65 + Math.random() * 25;
+            const lightness = 50 + Math.random() * 15;
+            colors.push(`hsla(${hue}, ${saturation}%, ${lightness}%, 1)`);
+        }
+        return colors;
+    },
+
+    /**
+     * Generates a random hex color string (e.g. '#A1B2C3').
+     * @returns {string} Random hex color.
+     */
+    getRandomHexColor: () => {
+        return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    },
+
+    /**
      * Shows a DOM element.
      * @param {HTMLElement|string} elOrSelector - The element or its selector.
      * @param {string} displayStyle - The display style to apply (e.g., 'block', 'flex'). Defaults to 'block'.
