@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await apiClient.getSessionState();
             if (!data.success) return;
+
             if (data.model_info) {
                 stateManager.setCurrentLoadedModel(data.model_info);
                 utils.dispatchCustomEvent('project-model-settings-update', {
@@ -102,7 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     configPath: data.model_info.config_path,
                     applyPostprocessing: data.model_info.apply_postprocessing
                 });
+
+                if (data.model_info.loaded) {
+                    utils.dispatchCustomEvent('model-load-success', {
+                        model_info: data.model_info,
+                        message: 'Model ready.'
+                    });
+                }
             }
+
             if (data.active_image) {
                 stateManager.setActiveImage(data.active_image.image_hash, data.active_image.filename);
                 utils.dispatchCustomEvent('active-image-set', {
