@@ -2,11 +2,7 @@
 
 ## Canvas
 ### Active todos
-* "Drawings" slider change does not update the corresponding text in the canvas toolbar. Fix it.
-* When running prediction with only box(es) as inputs, we don't currently get any results back. This was working in a previous implementation, so we should be able to use the predictor with only a box or boxes as input, as well as the combination of box/boxes, points, masks. Fix running the predictor and getting the results even if only box(es) are provided as inputs.
 * Loading an image in progress after server restart or page reload does not restore its canvas state. It only works when within the same page session. Fix this
-
-
 ### Finished
 * Make opacity slider at 100% really mean 100%. currently, masks in the prediction layer, when set at 100% will not cover the image fully in the layer below. So correct the opacity interpretation, so it is fully controlled by the slider, and that it is not influenced by other values, giving the color an initial opacity before the slider adjustment.
 * Move "Load Image" button to the Image Sources element,
@@ -16,14 +12,18 @@
    * Bounding box(es) in xyxy format. Can be:
      - Single box: np.ndarray([x1, y1, x2, y2])
      - Multiple boxes: np.ndarray([[x1, y1, x2, y2], [x1, y1, x2, y2], ...])
+* "Drawings" slider change does not update the corresponding text in the canvas toolbar. Fix it.
+* When running prediction with only box(es) as inputs, we don't currently get any results back. This was working in a previous implementation, so we should be able to use the predictor with only a box or boxes as input, as well as the combination of box/boxes, points, masks. Fix running the predictor and getting the results even if only box(es) are provided as inputs.
 
 
 ## Project Management
+### Finished
 * Implemented project management as a modal overlay triggered by the "Project" bar.
 * Overlay opens automatically when no project is active and closes after loading or creating a project.
 * The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically. After loading a project the session state is refreshed as well so the model is ready without an extra click.
 * Restoring session state also dispatches a `model-load-success` event so the canvas recognizes the loaded model without manual intervention.
 * The selected model key (if any) is stored with the project so the same dropdown option is chosen again when the project is reloaded. Custom paths are only used when no key was selected.
+
 
 ## Model Configuration
 * Make the model selection as an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Load Model" button-bar (this bar will show the currently loaded model, staying in sync even on page reload.)
