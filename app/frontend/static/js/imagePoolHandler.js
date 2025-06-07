@@ -322,7 +322,6 @@ class ImagePoolHandler {
     }
 
     async handleDeleteImage(imageHash) {
-        if (!confirm('Exclude this image from the pool?')) return;
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) return;
         this.uiManager.showGlobalStatus('Removing image...', 'loading', 0);
