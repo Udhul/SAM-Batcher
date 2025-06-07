@@ -268,7 +268,7 @@ class CanvasManager {
                 preds.sort((a, b) => b.score - a.score);
             }
 
-            const defaultColor = 'rgba(255,0,0,0.7)';
+            const defaultColor = 'rgba(255,0,0,1.0)';
 
             if (multiBox) {
                 this.manualPredictions = preds.map((p) => ({ ...p, visible: true, color: defaultColor }));
