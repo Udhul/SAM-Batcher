@@ -23,6 +23,7 @@
 * Overlay opens automatically when no project is active and closes after loading or creating a project.
 * The client now calls the server for full session state on page reload using `/api/session`, restoring the project, model and active image automatically. After loading a project the session state is refreshed as well so the model is ready without an extra click.
 * Restoring session state also dispatches a `model-load-success` event so the canvas recognizes the loaded model without manual intervention.
+* The selected model key (if any) is stored with the project so the same dropdown option is chosen again when the project is reloaded. Custom paths are only used when no key was selected.
 
 ## Model Configuration
 * Make the model selection as an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Load Model" button-bar (this bar will show the currently loaded model, staying in sync even on page reload.)

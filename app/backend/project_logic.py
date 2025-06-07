@@ -212,12 +212,18 @@ def get_current_model_for_project(project_id: str, sam_inference: SAMInference) 
 
     if need_reload and (model_path or model_key):
         print(f"Loading model for project {project_id} from stored settings...")
-        sam_inference.load_model(
-            model_size_key=model_key,
-            model_path_override=model_path,
-            config_path_override=config_path,
-            apply_postprocessing=apply_postprocessing
-        )
+        if model_key:
+            sam_inference.load_model(
+                model_size_key=model_key,
+                config_path_override=config_path,
+                apply_postprocessing=apply_postprocessing
+            )
+        else:
+            sam_inference.load_model(
+                model_path_override=model_path,
+                config_path_override=config_path,
+                apply_postprocessing=apply_postprocessing
+            )
 
     return sam_inference.get_model_info()
 

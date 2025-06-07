@@ -117,7 +117,7 @@ The system will employ a client-server architecture.
     *   **Server (Upload DB):** Saves the DB file, validates it, sets it as active.
     *   **Server Response (Upload DB):** `{"success": true, "project_data": {...}}`
 *   **Client:** Loads project data into UI.
-*   **Server:** Automatically loads the project's last used SAM model and post-processing setting, replacing any currently loaded model if different.
+*   **Server:** Automatically loads the project's last used SAM model and post-processing setting, replacing any currently loaded model if different. When the model was selected via one of the predefined size keys the key is stored as well so it can be chosen again when the project is loaded.
 *   **Client:** After a project is loaded it queries `/api/session` to refresh the current model and image state.
 *   **Client Request (Get Active):** On page refresh the client calls `GET /api/session` to retrieve the current project, model, and image so the UI can restore the session. If no project is active, the project management overlay is shown.
 *   **Save Project (Implicit):** Changes are saved to the Project State DB as they occur (e.g., after mask generation, image status update).
