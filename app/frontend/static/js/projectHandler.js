@@ -47,7 +47,9 @@ class ProjectHandler {
             loadSelectedProjectBtn: document.getElementById('load-selected-project-btn'),
             uploadProjectDbInput: document.getElementById('upload-project-db-input'),
             downloadProjectDbBtn: document.getElementById('download-project-db-btn'),
-            projectManagementSection: document.getElementById('project-management-expandable'),
+            projectManagementBar: document.getElementById('project-management-bar'),
+            projectOverlay: document.getElementById('project-management-overlay'),
+            projectOverlayClose: document.getElementById('close-project-overlay'),
             activeProjectDisplay: document.getElementById('active-project-display'),
 
             addSourceBtn: document.getElementById('add-image-source-btn'),
@@ -60,7 +62,10 @@ class ProjectHandler {
         };
         this._setupEventListeners();
         this.fetchAndDisplayProjects(); // Initial fetch
-        this._updateActiveProjectDisplay(); // Initialize display
+        this.fetchActiveProject().then(() => {
+            this._updateActiveProjectDisplay();
+            if (!this.stateManager.getActiveProjectId()) this.showOverlay();
+        });
 
         // Listen for state changes to update active project display
         document.addEventListener('state-changed-activeProjectId', () => this._updateActiveProjectDisplay());
@@ -85,6 +90,12 @@ class ProjectHandler {
         }
         if (this.elements.sourceTypeSelect) {
             this.elements.sourceTypeSelect.addEventListener('change', (e) => this._handleSourceTypeChange(e.target.value));
+        }
+        if (this.elements.projectManagementBar && this.elements.projectOverlay) {
+            this.elements.projectManagementBar.addEventListener('click', () => this.showOverlay());
+        }
+        if (this.elements.projectOverlayClose) {
+            this.elements.projectOverlayClose.addEventListener('click', () => this.hideOverlay());
         }
     }
     
@@ -114,6 +125,18 @@ class ProjectHandler {
         }
     }
 
+    showOverlay() {
+        if (this.elements.projectOverlay) {
+            this.Utils.showElement(this.elements.projectOverlay, 'flex');
+        }
+    }
+
+    hideOverlay() {
+        if (this.elements.projectOverlay) {
+            this.Utils.hideElement(this.elements.projectOverlay);
+        }
+    }
+
     async handleCreateProject() {
         const projectName = this.elements.projectNameInput ? this.elements.projectNameInput.value.trim() : null;
         this.uiManager.showGlobalStatus('Creating project...', 'loading', 0);
@@ -127,6 +150,7 @@ class ProjectHandler {
                 await this.fetchAndDisplayProjects(); // Refresh project list
                 this.elements.projectNameInput.value = ''; // Clear input
                 await this.fetchAndDisplayImageSources(); // Clear/load sources for new project
+                this.hideOverlay();
             } else {
                 throw new Error(data.error || "Failed to create project.");
             }
@@ -134,6 +158,18 @@ class ProjectHandler {
             this.uiManager.showGlobalStatus(`Error creating project: ${error.message}`, 'error');
             this.Utils.dispatchCustomEvent('project-load-failed', { error: error.message });
             console.error("ProjectHandler: Create project error", error);
+        }
+    }
+
+    async fetchActiveProject() {
+        try {
+            const data = await this.apiClient.getActiveProject();
+            if (data.success && data.project_id) {
+                this.stateManager.setActiveProject(data.project_id, data.project_name);
+                await this.fetchAndDisplayImageSources();
+            }
+        } catch (error) {
+            console.error('ProjectHandler: fetchActiveProject error', error);
         }
     }
 
@@ -182,6 +218,7 @@ class ProjectHandler {
                     projectData: data.project_data
                 });
                 await this.fetchAndDisplayImageSources();
+                this.hideOverlay();
             } else {
                 throw new Error(data.error || "Failed to load project.");
             }
@@ -209,6 +246,7 @@ class ProjectHandler {
                 });
                 await this.fetchAndDisplayProjects(); // Refresh list
                 await this.fetchAndDisplayImageSources();
+                this.hideOverlay();
             } else {
                 throw new Error(data.error || "Failed to upload project DB.");
             }

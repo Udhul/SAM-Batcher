@@ -19,9 +19,9 @@
 
 
 ## Project Management
-* Make the project management as a an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Project" button.
-* If no project is loaded, the popup overlay will be shown automatically. (For example on first page load after server start, we start by showing the project Manager overlay)
-* When reloading the page, we will get the active project from the server, so we don't loose the state, and can continue working with the session that we had before reloading.
+* Implemented project management as a modal overlay triggered by the "Project" bar.
+* Overlay opens automatically when no project is active and closes after loading or creating a project.
+* The client now calls the server for the active project on page reload so the session is restored.
 
 ## Model Configuration
 * Make the model selection as an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Load Model" button-bar (this bar will show the currently loaded model, staying in sync even on page reload.)

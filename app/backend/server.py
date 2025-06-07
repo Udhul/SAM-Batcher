@@ -98,6 +98,15 @@ def api_list_projects():
     projects = project_logic.list_existing_projects()
     return jsonify({"success": True, "projects": projects})
 
+# New endpoint: get currently active project
+@app.route('/api/project/active', methods=['GET'])
+def api_get_active_project():
+    project_id = get_active_project_id()
+    if not project_id:
+        return jsonify({"success": True, "project_id": None, "project_name": None})
+    project_name = db_manager.get_project_name(project_id)
+    return jsonify({"success": True, "project_id": project_id, "project_name": project_name})
+
 @app.route('/api/project/load', methods=['POST'])
 def api_load_project():
     data = request.json
