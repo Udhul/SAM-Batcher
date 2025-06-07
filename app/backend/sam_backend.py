@@ -666,12 +666,25 @@ class SAMInference:
                         raise ValueError(f"Invalid box format. Expected shape (4,) or (N,4), got {box.shape}")
                     if box.shape[0] > 1:
                         multimask_output = False
+                    # Replicate point prompts for each box if points provided as a single set
+                    if point_coords is not None and point_labels is not None:
+                        if point_coords.ndim == 2:
+                            point_coords = np.tile(point_coords[None, :, :], (box.shape[0], 1, 1))
+                            point_labels = np.tile(point_labels[None, :], (box.shape[0], 1))
+                        elif point_coords.ndim == 3 and point_coords.shape[0] == 1:
+                            point_coords = np.tile(point_coords, (box.shape[0], 1, 1))
+                            point_labels = np.tile(point_labels, (box.shape[0], 1))
             if mask_input is not None:
                 mask_input = np.asarray(mask_input)
                 if mask_input.ndim == 2:
                     mask_input = np.where(mask_input > 0, 10.0, -10.0).astype(np.float32)
+                    mask_input = mask_input[None, :, :]
+                elif mask_input.ndim == 3:
+                    mask_input = np.where(mask_input > 0, 10.0, -10.0).astype(np.float32)
                 if mask_input.size == 0:
                     mask_input = None
+                if box is not None and box.shape[0] > 1 and mask_input is not None and mask_input.ndim == 3 and mask_input.shape[0] == 1:
+                    mask_input = np.tile(mask_input, (box.shape[0], 1, 1))
             
             # Run prediction with appropriate precision
             # TODO: Control precision cast from class attr. depeneding on device
@@ -691,8 +704,11 @@ class SAMInference:
                     return_logits=return_logits
                 )
             
-            # Sort results by score if multiple masks and scores available
-            if scores is not None and len(scores) > 1:
+            # Sort results only when scores is 1-D (i.e. multiple masks for a
+            # single prompt). When scores is 2-D (multiple boxes with one mask
+            # each) sorting would duplicate the first mask due to numpy's
+            # advanced indexing behaviour.
+            if scores is not None and scores.ndim == 1 and len(scores) > 1:
                 logger.debug(f"Sorting {len(scores)} masks by score: {scores}")
                 sorted_ind = np.argsort(scores)[::-1]
                 masks = masks[sorted_ind]

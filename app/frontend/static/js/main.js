@@ -270,19 +270,27 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasManager.lockCanvas("Predicting...");
         canvasManager.setAutomaskPredictions(null);
 
+        const boxPayload = (canvasInputs.boxes && canvasInputs.boxes.length > 0) ?
+            canvasInputs.boxes.map(b => [b.x1, b.y1, b.x2, b.y2]) : null;
+        const multiMask = !(boxPayload && boxPayload.length > 1);
         const payload = {
             points: canvasInputs.points.map(p => [p.x, p.y]),
             labels: canvasInputs.points.map(p => p.label),
-            box: (canvasInputs.boxes && canvasInputs.boxes.length > 0) ? canvasInputs.boxes.map(b => [b.x1, b.y1, b.x2, b.y2]) : null,
+            box: boxPayload,
             maskInput: canvasInputs.maskInput,
-            multimask_output: true
+            multimask_output: multiMask
         };
         const activeProjectId = stateManager.getActiveProjectId();
 
         try {
             const data = await apiClient.predictInteractive(activeProjectId, imageHashForAPI, payload);
             if (data.success) {
-                canvasManager.setManualPredictions({ masks_data: data.masks_data, scores: data.scores });
+                canvasManager.setManualPredictions({
+                    masks_data: data.masks_data,
+                    scores: data.scores,
+                    num_boxes: data.num_boxes,
+                    multimask_output: data.multimask_output
+                });
             } else {
                 throw new Error(data.error || "Interactive prediction API error.");
             }

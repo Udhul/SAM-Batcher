@@ -25,7 +25,7 @@
    5.3. Coordinate System Management
    5.4. Event Handling and State Updates
 6. Mask Management and Selection
-   6.1. Prediction Display Modes
+   6.1. Prediction Visibility
    6.2. Individual Mask Toggling
    6.3. Multi-Region Mask Handling
    6.4. Selection State Management
@@ -144,11 +144,6 @@ The canvas system employs a three-layer architecture with independent rendering 
 * **Color Assignment:** Dynamic HSL-based color generation for optimal contrast
 * **Rendering:** Convert binary data to colored ImageData for canvas display
 * **Optimization:** Use offscreen canvases for complex compositions
-
-**Display Modes:**
-* **Best Mode:** Show highest-confidence mask from interactive predictions
-* **All Mode:** Display all masks from current prediction set
-* **Selection Mode:** Show only user-selected masks for editing
 
 **Toggle System:**
 * **Mask-Level Toggling:** Individual control over each prediction mask
@@ -314,30 +309,27 @@ Response: {
 
 ## 6. Mask Management and Selection
 
-### 6.1. Prediction Display Modes
+### 6.1. Prediction Visibility
 
-**Mode Specifications:**
-* **Best Mode:** Display highest-scoring mask from multimask predictions
-* **All Mode:** Show all masks from current prediction set
-* **Custom Mode:** Display user-selected subset of available masks
-
-**Mode Switching:**
-* **UI Control:** Dropdown or toggle buttons for mode selection
-* **Real-time Updates:** Immediate re-rendering on mode change
-* **State Persistence:** Remember mode preference within session
-
-**Interaction with Prediction Types:**
-* **Automask Results:** Always use "All" mode (show all generated regions)
-* **Interactive Results:** Support all modes based on multimask_output setting
-* **Mixed Predictions:** Handle transitions between prediction types
+The canvas exposes controls for selecting which predictions are visible. When a
+single box (or only point prompts) is used with `multimask_output=true`, the
+predictor returns three masks ranked by score. Exactly one of these masks is
+shown at a time and the user can switch between them via radio buttons labeled
+**High**, **Medium**, and **Low**. The chosen mask remains active for subsequent
+predictions until the inputs are cleared. When multiple boxes are provided,
+`multimask_output` is forced to `false` and one mask is returned for each box.
+In this case all masks are displayed automatically and the selector is hidden.
+The last placed box corresponds to the last mask in the returned list so mask
+order mirrors input order.
 
 ### 6.2. Individual Mask Toggling
 
 **Toggle Interface:**
-* **Checkbox Controls:** Individual toggles for each mask in prediction set
-* **Visual Indicators:** Clear on/off state indication
-* **Batch Operations:** Select all, deselect all, invert selection
-* **Keyboard Shortcuts:** Space to toggle, A for all, N for none
+* **Radio Selector (multimask results):** When a single box/point prompt is used the three score-ranked masks are presented as radio buttons (**High**, **Medium**, **Low**). Only one mask can be active at a time.
+* **Automatic Masks:** For masks from the automatic generator a list of checkboxes remains so each mask can be toggled individually.
+* **Multi-Box Predictions:** No toggle controls are shown. All returned masks are displayed simultaneously.
+* **Dynamic Labels:** Box-based predictions are ordered so that the last drawn box corresponds to the last mask.
+* **Keyboard Shortcuts:** Space to toggle, A for all (automatic masks), N for none
 
 **Toggle State Management:**
 * **Per-Mask State:** Track visibility for each individual mask
@@ -406,8 +398,12 @@ Response: {
 {
     "masks_data": [/* 2D binary arrays */],
     "scores": [/* confidence scores */],
-    "layer_id": "prediction_uuid"
+    "layer_id": "prediction_uuid",
+    "multimask_output": true,
+    "num_boxes": 1
 }
+// `multimask_output` and `num_boxes` reflect the predictor settings actually
+// used by the server after adjusting for the provided prompts.
 ```
 
 **Outgoing Data (to main application):**

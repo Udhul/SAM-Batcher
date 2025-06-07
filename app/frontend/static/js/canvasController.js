@@ -65,10 +65,7 @@ class CanvasManager {
         this.predictionCtx = this.predictionMaskCanvas ? this.predictionMaskCanvas.getContext('2d', { willReadFrequently: true }) : null;
         this.userCtx = this.userInputCanvas ? this.userInputCanvas.getContext('2d') : null;
 
-        this.maskDisplayModeSelect = document.getElementById('mask-display-mode');
-        if (!this.maskDisplayModeSelect) {
-            this.maskDisplayModeSelect = { value: 'best', addEventListener: () => {} };
-        }
+        this.maskToggleContainer = document.getElementById('mask-toggle-container');
 
         this.imageOpacitySlider = document.getElementById('image-opacity');
         this.predictionOpacitySlider = document.getElementById('prediction-opacity');
@@ -105,6 +102,9 @@ class CanvasManager {
 
         this.manualPredictions = []; // [{segmentation: [[0,1,...]], score: 0.9}, ...]
         this.automaskPredictions = []; // From AMG, same structure or raw AMG output
+
+        this.currentPredictionMultiBox = false;
+        this.selectedManualMaskIndex = 0;
 
         this.interactionState = {
             isDrawingBox: false,
@@ -151,9 +151,7 @@ class CanvasManager {
             this.userInputCanvas.addEventListener('mouseleave', (e) => this._handleMouseLeave(e));
             this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
-        if (this.maskDisplayModeSelect) {
-            this.maskDisplayModeSelect.addEventListener('change', () => this.drawPredictionMaskLayer());
-        }
+
         
         // Debounce resize for performance
         this.debouncedResizeHandler = this.Utils.debounce(() => this._handleWindowResize(), 250);
@@ -228,32 +226,63 @@ class CanvasManager {
 
     setManualPredictions(predictionData) {
         this.manualPredictions = [];
-        if (predictionData && predictionData.masks_data && predictionData.scores &&
-            predictionData.masks_data.length === predictionData.scores.length) {
-            let maskList = predictionData.masks_data;
-            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
-                maskList = maskList[0];
+        this.currentPredictionMultiBox = false;
+        if (predictionData && predictionData.masks_data) {
+            const unwrap = arr => { let r = arr; while (Array.isArray(r) && r.length === 1) r = r[0]; return r; };
+            let maskList = unwrap(predictionData.masks_data);
+            if (!Array.isArray(maskList[0]) || (Array.isArray(maskList[0]) && !Array.isArray(maskList[0][0]))) {
+                maskList = [maskList];
+            } else {
+                maskList = maskList.map(m => unwrap(m));
             }
-            this.manualPredictions = maskList.map((seg, index) => ({
+
+            let scoreList = [];
+            if (predictionData.scores) {
+                scoreList = unwrap(predictionData.scores);
+                if (!Array.isArray(scoreList)) scoreList = [scoreList];
+                while (Array.isArray(scoreList[0])) scoreList = scoreList.flat();
+            }
+
+            let preds = maskList.map((seg, index) => ({
                 segmentation: seg,
-                score: predictionData.scores[index] || predictionData.scores[0]
-            })).sort((a, b) => b.score - a.score);
-        } else if (predictionData && predictionData.masks_data) { // Scores optional
-            let maskList = predictionData.masks_data;
-            if (Array.isArray(maskList[0]) && Array.isArray(maskList[0][0][0])) {
-                maskList = maskList[0];
-            }
-            this.manualPredictions = maskList.map(seg => ({
-                segmentation: seg, score: 0
+                score: scoreList[index] !== undefined ? scoreList[index] : (scoreList[0] || 0)
             }));
+
+            const multiBox = predictionData && !predictionData.multimask_output && predictionData.num_boxes > 1;
+            this.currentPredictionMultiBox = multiBox;
+            if (!multiBox) {
+                preds.sort((a, b) => b.score - a.score);
+            }
+
+            const colors = this._generateDistinctColors(preds.length);
+
+            if (multiBox) {
+                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: true, color: colors[i] }));
+                this.selectedManualMaskIndex = 0;
+            } else {
+                if (this.selectedManualMaskIndex >= preds.length) this.selectedManualMaskIndex = 0;
+                this.manualPredictions = preds.map((p, i) => ({ ...p, visible: i === this.selectedManualMaskIndex, color: colors[i] }));
+            }
+
+            this.renderMaskToggleControls();
+
+            this.renderMaskToggleControls();
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();
     }
 
     setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
-        this.automaskPredictions = (predictionData && predictionData.masks_data) ? predictionData.masks_data : [];
+        if (predictionData && predictionData.masks_data) {
+            const colors = this._generateDistinctColors(predictionData.masks_data.length);
+            this.automaskPredictions = predictionData.masks_data.map((m, i) => ({ ...m, visible: true, color: colors[i] }));
+        } else {
+            this.automaskPredictions = [];
+        }
         this.manualPredictions = []; // Clear manual predictions
+        this.currentPredictionMultiBox = false;
+        this.selectedManualMaskIndex = 0;
+        this.renderMaskToggleControls();
         this.drawPredictionMaskLayer();
     }
 
@@ -268,6 +297,10 @@ class CanvasManager {
 
         this.manualPredictions = [];
         this.automaskPredictions = [];
+        this.currentPredictionMultiBox = false;
+        this.selectedManualMaskIndex = 0;
+
+        this.renderMaskToggleControls();
 
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
@@ -433,18 +466,10 @@ class CanvasManager {
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
         let activePredictions = [];
-        // Determine which set of predictions to use (automask or manual)
         if (this.automaskPredictions && this.automaskPredictions.length > 0) {
-            activePredictions = this.automaskPredictions;
+            activePredictions = this.automaskPredictions.filter(m => m.visible);
         } else if (this.manualPredictions && this.manualPredictions.length > 0) {
-            const mode = this.maskDisplayModeSelect ? this.maskDisplayModeSelect.value : 'best';
-            if (mode === 'best' && this.manualPredictions[0]) { // Assumes manualPredictions are sorted by score
-                activePredictions.push(this.manualPredictions[0]);
-            } else if (mode === 'all') {
-                activePredictions = this.manualPredictions;
-            } else { // Default or unknown mode
-                if(this.manualPredictions[0]) activePredictions.push(this.manualPredictions[0]);
-            }
+            activePredictions = this.manualPredictions.filter(m => m.visible);
         }
 
         if (activePredictions.length > 0) {
@@ -453,8 +478,6 @@ class CanvasManager {
                 this.tempMaskPixelCanvas.width = this.originalImageWidth;
                 this.tempMaskPixelCanvas.height = this.originalImageHeight;
             }
-
-            const generatedColors = this._generateDistinctColors(activePredictions.length);
 
             activePredictions.forEach((predictionItem, index) => {
                 // predictionItem is {segmentation: [[0,1,...]], score: 0.9, ...} or from AMG: {segmentation, area, bbox, ...}
@@ -472,7 +495,7 @@ class CanvasManager {
                 this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
                 const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
                 const pixelData = imageData.data;
-                const colorStr = generatedColors[index % generatedColors.length];
+                const colorStr = predictionItem.color || this._generateDistinctColors(1)[0];
                 const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
 
                 let pixelCount = 0;
@@ -752,6 +775,55 @@ class CanvasManager {
         document.dispatchEvent(event);
     }
 
+    renderMaskToggleControls() {
+        if (!this.maskToggleContainer) return;
+        this.maskToggleContainer.innerHTML = '';
+
+        if (this.automaskPredictions && this.automaskPredictions.length > 0) {
+            this.maskToggleContainer.style.display = 'flex';
+            this.automaskPredictions.forEach((pred, idx) => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = pred.visible !== false;
+                cb.addEventListener('change', () => {
+                    pred.visible = cb.checked;
+                    this.drawPredictionMaskLayer();
+                });
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(`M${idx + 1}`));
+                this.maskToggleContainer.appendChild(label);
+            });
+            return;
+        }
+
+        if (this.currentPredictionMultiBox || !this.manualPredictions || this.manualPredictions.length === 0) {
+            this.maskToggleContainer.style.display = 'none';
+            return;
+        }
+
+        this.maskToggleContainer.style.display = 'flex';
+        const labels = ['High', 'Medium', 'Low'];
+        this.manualPredictions.forEach((pred, idx) => {
+            const label = document.createElement('label');
+            const rb = document.createElement('input');
+            rb.type = 'radio';
+            rb.name = 'mask-select';
+            rb.value = idx;
+            rb.checked = pred.visible !== false;
+            rb.addEventListener('change', () => {
+                if (rb.checked) {
+                    this.selectedManualMaskIndex = idx;
+                    this.manualPredictions.forEach((p, i) => { p.visible = i === idx; });
+                    this.drawPredictionMaskLayer();
+                }
+            });
+            label.appendChild(rb);
+            label.appendChild(document.createTextNode(labels[idx] || `M${idx + 1}`));
+            this.maskToggleContainer.appendChild(label);
+        });
+    }
+
     // Public method to allow external modules to listen to canvas events
     addEventListener(eventType, callback) {
         document.addEventListener(`canvas-${eventType}`, callback);
@@ -777,7 +849,9 @@ class CanvasManager {
             drawnMasks: JSON.parse(JSON.stringify(this.userDrawnMasks)),
             maskInput: this.combinedUserMaskInput256 ? JSON.parse(JSON.stringify(this.combinedUserMaskInput256)) : null,
             manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
-            automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions))
+            automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions)),
+            selectedManualMaskIndex: this.selectedManualMaskIndex,
+            currentPredictionMultiBox: this.currentPredictionMultiBox
         };
     }
 
@@ -790,6 +864,8 @@ class CanvasManager {
         this.combinedUserMaskInput256 = state.maskInput || null;
         this.manualPredictions = state.manualPredictions || [];
         this.automaskPredictions = state.automaskPredictions || [];
+        this.selectedManualMaskIndex = state.selectedManualMaskIndex || 0;
+        this.currentPredictionMultiBox = state.currentPredictionMultiBox || false;
         if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
