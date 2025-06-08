@@ -28,14 +28,14 @@ Or with optional build arguments for device and model settings:
 docker build \
   --build-arg CUDA_DEVICE=3 \
   --build-arg MODEL_SIZE=base_plus \
-  --build-arg PORT=5005 \
+  --build-arg PORT=5000 \
   -t sam-batcher .
 ```
 
 Run the container with volume mounts for data persistence:
 
 ```bash
-docker run -d --name sam-batcher-production -p 5005:5005 \
+docker run -d --name sam-batcher-production -p 5000:5000 \
   -v /mnt/storage/sam-projects:/data \
   sam-batcher
 ```
@@ -51,16 +51,25 @@ The container includes pre-downloaded SAM 2.1 model checkpoints, so no additiona
 
 ```bash
 # Simple run with automatic data persistence
-docker run -p 5005:5005 sam-batcher
+docker run -p 5000:5000 sam-batcher
 
 # Production run with explicit volume mount
-docker run -d --name sam-batcher -p 5005:5005 \
+docker run -d --name sam-batcher -p 5000:5000 \
   -v ~/sam-projects:/data \
   sam-batcher
 
 # With custom checkpoints directory
-docker run -d --name sam-batcher -p 5005:5005 \
+docker run -d --name sam-batcher -p 5000:5000 \
   -v ~/sam-projects:/data \
   -v ~/custom-models:/checkpoints \
+  sam-batcher
+
+# Full runtime configuration example
+docker run -d --name sam-batcher-custom -p 7000:5005 \
+  -e PORT=5005 \
+  -e CUDA_DEVICE=3 \
+  -e MODEL_SIZE=large \
+  -v /mnt/storage/sam-projects:/data \
+  -v /mnt/models:/checkpoints \
   sam-batcher
 ```
