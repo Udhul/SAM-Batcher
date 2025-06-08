@@ -799,7 +799,9 @@ input[type="file"]#image-upload {
 }
 #status-console.latest-line {
     overflow-y: hidden;
-    height: auto;
+}
+#status-console.latest-line .status-entry:not(:last-child) {
+    display: none;
 }
 #status-console.expanded {
     height: 25vh;
