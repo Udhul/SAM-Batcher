@@ -592,7 +592,7 @@ input[type="file"]#image-upload {
 }
 
 /* Help icon and tooltip styles */
-.help-section { position: relative; display: flex; align-items: center; justify-content: flex-end; }
+.help-section { position: relative; display: flex; align-items: center; justify-content: center; }
 .help-icon {
     display: inline-block; width: 24px; height: 24px; background-color: #007bff; color: white;
     border-radius: 50%; text-align: center; line-height: 24px; font-size: 14px;

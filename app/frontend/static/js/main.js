@@ -424,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (recoverAutoMaskBtn) recoverAutoMaskBtn.addEventListener('click', handleRecoverAutoMask);
 
     async function handleRunAutoMask() {
+        if (autoMaskOverlay) utils.hideElement(autoMaskOverlay);
         const currentCanvasState = canvasManager.getCurrentCanvasInputs();
         if (!currentCanvasState.imagePresent) {
             uiManager.showGlobalStatus("Please load an image first for AutoMask.", "error"); return;
@@ -494,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleRecoverAutoMask() {
+        if (autoMaskOverlay) utils.hideElement(autoMaskOverlay);
         const currentCanvasState = canvasManager.getCurrentCanvasInputs();
         if (!currentCanvasState.imagePresent || !currentCanvasState.filename) {
             uiManager.showGlobalStatus("No image loaded to recover automask for.", "error");
