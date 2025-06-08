@@ -27,6 +27,7 @@
 class UIManager {
     constructor() {
         this.elements = {
+            statusArea: document.getElementById('status-area'),
             statusMessage: document.getElementById('status-message'),
             statusText: document.getElementById('status-text'),
             statusProgress: document.getElementById('status-progress'),
@@ -50,11 +51,16 @@ class UIManager {
         if (this.elements.statusDismiss) {
             this.elements.statusDismiss.addEventListener('click', () => this.clearGlobalStatus());
         }
-        if (this.elements.statusToggle && this.elements.statusConsole) {
+        if (this.elements.statusToggle && this.elements.statusConsole && this.elements.statusArea) {
             this.elements.statusToggle.addEventListener('click', () => {
-                this.elements.statusConsole.classList.toggle('hidden');
-                const expanded = !this.elements.statusConsole.classList.contains('hidden');
-                this.elements.statusToggle.textContent = expanded ? '\u25BC' : '\u25B2';
+                const expanded = this.elements.statusArea.classList.toggle('expanded');
+                if (expanded) {
+                    Utils.showElement(this.elements.statusConsole, 'block');
+                    this.elements.statusToggle.textContent = '\u25BC';
+                } else {
+                    Utils.hideElement(this.elements.statusConsole);
+                    this.elements.statusToggle.textContent = '\u25B2';
+                }
             });
         }
 
