@@ -9,11 +9,11 @@ environment variables so that container users can map data and model
 directories from the host.
 
 Supported environment variables:
-``SAM_BATCHER_PROJECTS_DATA_DIR``
+``PROJECTS_DATA_DIR``
     Absolute path for project data storage.
-``SAM_BATCHER_CHECKPOINTS_DIR``
+``CHECKPOINTS_DIR``
     Absolute path to SAM checkpoints.
-``SAM_BATCHER_CUDA_DEVICE``
+``CUDA_DEVICE``
     Default CUDA device index used when instantiating :class:`SAMInference`.
 ```
 """
@@ -22,17 +22,20 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))  # Project r
 
 # Directory to store all project-related data (databases, uploads)
 PROJECTS_DATA_DIR = os.getenv(
-    "SAM_BATCHER_PROJECTS_DATA_DIR",
+    "PROJECTS_DATA_DIR",
     os.path.join(BASE_DIR, "projects_data"),
 )
 PROJECTS_DATA_DIR = os.path.abspath(PROJECTS_DATA_DIR)
 
 # Directory to store all SAM checkpoints
 CHECKPOINTS_DIR = os.getenv(
-    "SAM_BATCHER_CHECKPOINTS_DIR",
+    "CHECKPOINTS_DIR",
     os.path.join(BASE_DIR, "Modules/sam2/checkpoints"),
 )
 CHECKPOINTS_DIR = os.path.abspath(CHECKPOINTS_DIR)
+
+# CUDA device index (None means auto-detect)
+CUDA_DEVICE = os.getenv("CUDA_DEVICE")
 
 # Default SAM model settings (can be overridden by user)
 DEFAULT_SAM_MODEL_KEY = "tiny"

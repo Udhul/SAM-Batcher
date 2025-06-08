@@ -9,6 +9,12 @@ import ssl
 from typing import Optional, Union, Callable
 import time
 
+try:
+    import config
+except ImportError:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    import config
+
 # Expose model options, mapping them to a simpler alias
 MODEL_FILES = {
     'tiny': 'sam2.1_hiera_tiny.pt',
@@ -34,7 +40,7 @@ def download_checkpoint(
     
     Args:
         model_size: Size of the model ('tiny', 'small', 'base_plus', or 'large')
-        output_dir: Directory to save the checkpoint (default: Modules/sam2/checkpoints)
+        output_dir: Directory to save the checkpoint (default: config.CHECKPOINTS_DIR)
         progress_callback: Optional callback function for progress updates
                           Args: (progress_percentage, downloaded_bytes, total_bytes)
     
@@ -43,7 +49,7 @@ def download_checkpoint(
     """
     # Set default output directory if not provided
     if output_dir is None:
-        output_dir = os.path.join("Modules", "sam2", "checkpoints")
+        output_dir = config.CHECKPOINTS_DIR
     
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -122,7 +128,7 @@ def main():
     parser.add_argument('model', choices=MODEL_FILES.keys(),
                         help='Model size to download (' + ', '.join(MODEL_FILES.keys()) + ')')
     parser.add_argument('--output-dir', default=None,
-                        help='Directory to save the checkpoint (default: Modules/sam2/checkpoints)')
+                        help='Directory to save the checkpoint (default: config.CHECKPOINTS_DIR)')
     
     args = parser.parse_args()
     

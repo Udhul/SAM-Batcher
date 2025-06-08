@@ -7,6 +7,12 @@ import sys
 from typing import Optional, Callable
 
 try:
+    import config
+except ImportError:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    import config
+
+try:
     # Try to import from utils package
     from utils.check_local_model import check_local_model
     from utils.download_model import download_checkpoint, MODEL_FILES
@@ -29,7 +35,7 @@ def get_model(
     
     Args:
         model_size: Size of the model ('tiny', 'small', 'base', 'base_plus', or 'large')
-        output_dir: Directory to save/search for the checkpoint (default: Modules/sam2/checkpoints)
+        output_dir: Directory to save/search for the checkpoint (default: config.CHECKPOINTS_DIR)
         expanded_search: Whether to perform an expanded search across the repository
         force_download: Whether to force download even if the model exists locally
         progress_callback: Optional callback function for download progress updates
@@ -44,7 +50,7 @@ def get_model(
     
     # Default output directory
     if output_dir is None:
-        output_dir = os.path.join("Modules", "sam2", "checkpoints")
+        output_dir = config.CHECKPOINTS_DIR
     
     # First, check if the model exists locally (unless force_download is True)
     model_path = None
@@ -94,7 +100,7 @@ def main():
     parser.add_argument('model', choices=list(MODEL_FILES.keys()),
                         help='Model size to get')
     parser.add_argument('--output-dir', default=None,
-                        help='Directory to save/search for the checkpoint (default: Modules/sam2/checkpoints)')
+                        help='Directory to save/search for the checkpoint (default: config.CHECKPOINTS_DIR)')
     parser.add_argument('--no-expanded-search', action='store_true',
                         help='Disable expanded search across the repository')
     parser.add_argument('--force-download', action='store_true',

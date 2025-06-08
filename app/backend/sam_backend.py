@@ -63,11 +63,15 @@ class InferenceObjectNotAvailableError(Exception):
     pass
 
 class SAMInference:
-    def __init__(self, model_size_key: Optional[str] = None, 
-                 model_path_override: Optional[str] = None, 
-                 config_path_override: Optional[str] = None, 
-                 device: Optional[str] = None,
-                 exclusive_mode: bool = False):
+    def __init__(
+        self,
+        model_size_key: Optional[str] = None,
+        model_path_override: Optional[str] = None,
+        config_path_override: Optional[str] = None,
+        device: Optional[str] = None,
+        cuda_device_index: Optional[int] = None,
+        exclusive_mode: bool = False,
+    ):
         """
         Initialize SAM inference backend with support for both interactive prediction and automatic mask generation.
         
@@ -76,6 +80,7 @@ class SAMInference:
             model_path_override: Direct path to model file (overrides model_size_key's checkpoint)
             config_path_override: Direct path to config file (overrides model_size_key's config)
             device: Device to run inference on (cuda, mps, cpu). If None, will be auto-detected.
+            cuda_device_index: Preferred CUDA device index when multiple GPUs are present.
             exclusive_mode: If True, only one of predictor or automask generator can be loaded at a time.
                            When one is created, the other is automatically unloaded to save memory.
                            If False, both can coexist simultaneously.
@@ -98,8 +103,9 @@ class SAMInference:
         # Mode control
         self.exclusive_mode = exclusive_mode
         self.active_inference_type = None  # 'predictor' or 'automask' or None
-        
+
         # Device management
+        self.cuda_device_index = cuda_device_index
         self.device = self._get_device() if device is None else torch.device(device)
         self.autocast_dtype = self._select_autocast_dtype()
         logger.info(f"Using device: {self.device}")
@@ -126,21 +132,26 @@ class SAMInference:
     def _get_device(self) -> torch.device:
         """Auto-detect the best available device for inference."""
         if torch.cuda.is_available():
-            cuda_env = os.getenv("SAM_BATCHER_CUDA_DEVICE")
-            index = 0
-            if cuda_env is not None:
-                try:
-                    idx = int(cuda_env)
-                    if 0 <= idx < torch.cuda.device_count():
-                        index = idx
-                    else:
+            index = self.cuda_device_index
+            if index is None:
+                cuda_env = os.getenv("CUDA_DEVICE")
+                if cuda_env is not None:
+                    try:
+                        idx = int(cuda_env)
+                        if 0 <= idx < torch.cuda.device_count():
+                            index = idx
+                        else:
+                            logger.warning(
+                                f"Requested CUDA device {idx} out of range. Using device 0."
+                            )
+                            index = 0
+                    except ValueError:
                         logger.warning(
-                            f"Requested CUDA device {idx} out of range. Using device 0."
+                            f"Invalid CUDA_DEVICE='{cuda_env}'. Using device 0."
                         )
-                except ValueError:
-                    logger.warning(
-                        f"Invalid SAM_BATCHER_CUDA_DEVICE='{cuda_env}'. Using device 0."
-                    )
+                        index = 0
+            if index is None:
+                index = 0
             device = torch.device(f"cuda:{index}")
             logger.debug(f"CUDA device detected: {torch.cuda.get_device_name(index)}")
             props = torch.cuda.get_device_properties(index)

@@ -45,7 +45,8 @@ app = Flask(__name__, template_folder='../frontend/templates', static_folder='..
 # Global SAMInference instance (consider if this should be per-project or managed differently for scalability)
 # For now, one global instance implies one active model and image across all projects.
 # The spec implies the SAMInference instance is singular and its active image is managed.
-sam_inference_instance: SAMInference = SAMInference()
+_cuda_idx = int(config.CUDA_DEVICE) if getattr(config, "CUDA_DEVICE", None) is not None else None
+sam_inference_instance: SAMInference = SAMInference(cuda_device_index=_cuda_idx)
 
 # Active project ID for the server session.
 # This is a simplification. In a multi-user or more robust setup,
