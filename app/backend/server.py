@@ -45,7 +45,8 @@ app = Flask(__name__, template_folder='../frontend/templates', static_folder='..
 # Global SAMInference instance (consider if this should be per-project or managed differently for scalability)
 # For now, one global instance implies one active model and image across all projects.
 # The spec implies the SAMInference instance is singular and its active image is managed.
-sam_inference_instance: SAMInference = SAMInference()
+_cuda_idx = int(config.CUDA_DEVICE) if getattr(config, "CUDA_DEVICE", None) is not None else None
+sam_inference_instance: SAMInference = SAMInference(cuda_device_index=_cuda_idx)
 
 # Active project ID for the server session.
 # This is a simplification. In a multi-user or more robust setup,
@@ -428,7 +429,7 @@ def api_get_image_thumbnail(project_id, image_hash):
     # This is a placeholder for actual thumbnail generation and serving.
     # For now, it could return the full image resized by the browser, or a 404.
     # A real implementation would:
-    # 1. Check if thumbnail exists in `projects_data/<project_id>/thumbnails/...`
+    # 1. Check if thumbnail exists in `<PROJECTS_DATA_DIR>/<project_id>/thumbnails/...`
     # 2. If not, generate it from the original image, save it.
     # 3. Serve the thumbnail file.
     
@@ -624,11 +625,11 @@ def api_export_data(project_id):
 
 
 # --- main.py will call this ---
-def run_server(serve_ui=True, host='0.0.0.0', port=5000, debug=True):
+def run_server(serve_ui=True, host=config.SERVER_HOST, port=config.SERVER_PORT, debug=True):
     global ui_enabled_flag
     ui_enabled_flag = serve_ui
     
-    # Initialize projects_data directory from config
+    # Initialize <PROJECTS_DATA_DIR> directory from config
     if not os.path.exists(config.PROJECTS_DATA_DIR):
         os.makedirs(config.PROJECTS_DATA_DIR)
         print(f"Created projects data directory: {config.PROJECTS_DATA_DIR}")

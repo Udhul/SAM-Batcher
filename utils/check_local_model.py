@@ -8,6 +8,12 @@ import argparse
 import sys
 from typing import Optional, List, Union
 
+try:
+    import config
+except ImportError:
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    import config
+
 # Valid model file extensions
 VALID_EXTENSIONS = [".pt", ".pth", ".ckpt", ".safetensors", ".bin", ".model"]
 
@@ -60,7 +66,7 @@ def check_local_model(
         raise ValueError(f"Invalid model size: {model_size}. Expected one of: tiny, small, base_plus, large")
     
     # Default search directory is relative to the current working directory (project root)
-    default_dir = os.path.join("Modules", "sam2", "checkpoints")
+    default_dir = config.CHECKPOINTS_DIR
     
     # If a search directory is provided as a file path, get its directory
     if search_dir and os.path.isfile(search_dir):

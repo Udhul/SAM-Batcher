@@ -7,5 +7,6 @@ inactive
 SAM-Batcher.code-workspace
 images
 uploads
-checkpoints/*.ckpt
+checkpoints/*
 projects_data/*
+data/*

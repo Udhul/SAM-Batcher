@@ -47,7 +47,7 @@ project_root/
   │   ├── get_model.py
   │   └── get_model_config.py
   │
-  └── projects_data/              # Dynamically created: stores project databases and uploaded images
+  └── <PROJECTS_DATA_DIR>/              # Dynamically created: stores project databases and uploaded images
       # Example:
       # ├── project_alpha_120725.sqlite
       # └── project_alpha_120725/
