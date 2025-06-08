@@ -77,7 +77,7 @@ The system will employ a client-server architecture.
 
 **2.3. Data Persistence**
 *   **Project State Database:** A file-based database (e.g., SQLite initially, potentially JSON for very simple cases, but SQLite offers better querying) or a more robust DB (e.g., PostgreSQL) if scalability is a concern. Stores metadata about projects, images, masks, and settings.
-*   **Uploaded Images:** Stored in the designated project directory on the server (e.g., `projects_data/<project_id>/uploads/<image_hash_prefix>/<image_hash>.<ext>`).
+*   **Uploaded Images:** Stored in the designated project directory on the server (e.g., `<PROJECTS_DATA_DIR>/<project_id>/uploads/<image_hash_prefix>/<image_hash>.<ext>`).
 *   **Temporary/Cached Data:** Server might cache image embeddings for the active image.
 
 ---
@@ -102,13 +102,13 @@ The system will employ a client-server architecture.
 *   **Create New Project:**
     *   **Client:** User clicks "New Project," provides a project name. Default unique project name provided with python-petname or haikunator, extended with "-DDMMYY"
     *   **Client Request:** `POST /api/project` (Body: `{"project_name": "my_project"}`)
-    *   **Server:** Creates a new unique project ID, initializes a new project state DB (e.g., `projects_data/<project_id>.sqlite`), creates an upload directory (`projects_data/<project_id>/uploads/`).
+    *   **Server:** Creates a new unique project ID, initializes a new project state DB (e.g., `<PROJECTS_DATA_DIR>/<project_id>.sqlite`), creates an upload directory (`<PROJECTS_DATA_DIR>/<project_id>/uploads/`).
     *   **Server Response:** `{"success": true, "project_id": "uuid", "message": "Project created"}`
     *   **Client:** Updates UI, loads the new (empty) project.
 *   **Load Existing Project:**
     *   **Client:** User selects from a list of existing projects (server lists available DB files) or uploads a project state DB file.
     *   **Client Request (List):** `GET /api/projects`
-    *   **Server (List):** Scans `projects_data` for valid DB files and returns them ordered by most recently used.
+    *   **Server (List):** Scans `<PROJECTS_DATA_DIR>` for valid DB files and returns them ordered by most recently used.
     *   **Server Response (List):** `{"success": true, "projects": [{"id": "uuid", "name": "my_project", "last_modified": "timestamp"}, ...]}`
     *   **Client Request (Load by ID):** `POST /api/project/load` (Body: `{"project_id": "uuid"}`)
     *   **Server (Load by ID):** Sets the active project ID, validates the DB.

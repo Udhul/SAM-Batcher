@@ -19,7 +19,6 @@ Supported environment variables:
     Default SAM model size key used if no model is selected in the UI.
 ``PORT``
     Default server port when running ``main.py``.
-```
 """
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))  # Project root
@@ -27,14 +26,14 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))  # Project r
 # Directory to store all project-related data (databases, uploads)
 PROJECTS_DATA_DIR = os.getenv(
     "PROJECTS_DATA_DIR",
-    os.path.join(BASE_DIR, "projects_data"),
+    os.path.join(BASE_DIR, "data"),
 )
 PROJECTS_DATA_DIR = os.path.abspath(PROJECTS_DATA_DIR)
 
 # Directory to store all SAM checkpoints
 CHECKPOINTS_DIR = os.getenv(
     "CHECKPOINTS_DIR",
-    os.path.join(BASE_DIR, "Modules/sam2/checkpoints"),
+    os.path.join(BASE_DIR, "checkpoints"),
 )
 CHECKPOINTS_DIR = os.path.abspath(CHECKPOINTS_DIR)
 
@@ -42,7 +41,7 @@ CHECKPOINTS_DIR = os.path.abspath(CHECKPOINTS_DIR)
 CUDA_DEVICE = os.getenv("CUDA_DEVICE")
 
 # Default SAM model settings (can be overridden by user)
-DEFAULT_SAM_MODEL_KEY = os.getenv("MODEL_SIZE", "tiny")
+DEFAULT_SAM_MODEL_KEY = os.getenv("MODEL_SIZE", "base_plus")
 DEFAULT_APPLY_POSTPROCESSING = True
 
 # Image hashing algorithm
@@ -54,9 +53,9 @@ DEFAULT_MASK_LAYERS_TO_EXPORT = ["final_edited"]
 
 # Server parameters
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-SERVER_PORT = int(os.getenv("PORT", "7860"))
+SERVER_PORT = int(os.getenv("PORT", "5000"))
 
-# Ensure projects_data directory exists
+# Ensure data directory exists
 if not os.path.exists(PROJECTS_DATA_DIR):
     os.makedirs(PROJECTS_DATA_DIR)
 

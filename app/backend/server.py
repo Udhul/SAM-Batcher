@@ -429,7 +429,7 @@ def api_get_image_thumbnail(project_id, image_hash):
     # This is a placeholder for actual thumbnail generation and serving.
     # For now, it could return the full image resized by the browser, or a 404.
     # A real implementation would:
-    # 1. Check if thumbnail exists in `projects_data/<project_id>/thumbnails/...`
+    # 1. Check if thumbnail exists in `<PROJECTS_DATA_DIR>/<project_id>/thumbnails/...`
     # 2. If not, generate it from the original image, save it.
     # 3. Serve the thumbnail file.
     
@@ -629,7 +629,7 @@ def run_server(serve_ui=True, host=config.SERVER_HOST, port=config.SERVER_PORT, 
     global ui_enabled_flag
     ui_enabled_flag = serve_ui
     
-    # Initialize projects_data directory from config
+    # Initialize <PROJECTS_DATA_DIR> directory from config
     if not os.path.exists(config.PROJECTS_DATA_DIR):
         os.makedirs(config.PROJECTS_DATA_DIR)
         print(f"Created projects data directory: {config.PROJECTS_DATA_DIR}")
