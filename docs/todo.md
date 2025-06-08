@@ -28,11 +28,12 @@
 
 
 ## Model Configuration
+### Active todos
+### Finished
 * Make the model selection as an overlay on the page, which fades the background. Like a popup dialogue on page. This popup can be shown by clicking on the "Load Model" button-bar (this bar will show the currently loaded model, staying in sync even on page reload.)
-* Change text "Apply SAM Post-processing" To "Post-processing" And move the checkbox and text on the same line as the model dropdown and "Load Model" button (more compact). 
 * Post processing checked by default
 * Dont sort model size keys prior to building the list of available model keys (They are already listed in the correct order from MODEL_FILES dict).
-* When updating the dropdown with the model options, ensure that the custom model path option appear last in the list, and as such that the custom model path won't be the default selection in the dropdown after the options have been initialized.
+* When updating the dropdown with the model options, ensure that one of the models, not the custom model path option, is selected by default.
 
 ## Image Pool
 ### Active todos
@@ -60,4 +61,4 @@
 * Should be shown in the center-bottom of the visible page, so it doesn't obstruct the user's view.
 * Should be shown with a half-transparent background color, so it doesn't obstruct the user's view.
 * Should be shown with a small font size that it does not take too much space.
-* Should be able to disable status messages, or expand to see the "terminal" wit hall status messages
+* Should be able to disable status messages, or expand to see the "terminal" with all status messages
