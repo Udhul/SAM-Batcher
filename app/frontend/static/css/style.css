@@ -659,20 +659,29 @@ input[type="file"]#image-upload {
 
 
 /* Global Status Messages */
-#status-message {
-    padding: 12px 20px; border-radius: 6px; margin-top: 10px; margin-bottom: 10px;
-    font-weight: 500; text-align: center; transition: all 0.3s ease;
-    width: 100%; max-width: 800px; margin-left: auto; margin-right: auto;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+#status-area {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; pointer-events: none; text-align: center;
 }
-.status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-.status-message.error   { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-.status-message.info    { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-.status-message.loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } /* Added loading style */
+#status-message {
+    padding: 6px 12px; border-radius: 6px; font-weight: 500; text-align: center;
+    font-size: 14px; color: #fff; background: rgba(0,0,0,0.6);
+    display: none; gap: 8px; align-items: center; opacity: 0;
+    transition: opacity 0.5s; pointer-events: auto;
+}
+#status-message.visible { display: flex; opacity: 1; }
+#status-message progress { height: 6px; margin-left: 8px; }
+#status-message button { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; }
+.status-console { max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.8); color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 4px; margin-top: 4px; display: none; text-align: left; }
+.status-console.hidden { display: none; }
+.status-message.success { background-color: rgba(40,167,69,0.8); }
+.status-message.error   { background-color: rgba(220,53,69,0.8); }
+.status-message.info    { background-color: rgba(23,162,184,0.8); }
+.status-message.loading { background-color: rgba(255,193,7,0.8); }
 
 .status-message.small { /* For #auto-mask-status */
     padding: 6px 10px; font-size: 13px; margin-top: 5px; margin-bottom: 5px;
-    text-align: left; width: auto; display: inline-block; box-shadow: none;
+    text-align: left; width: auto; display: inline-block; box-shadow: none; color: #333; background: #f1f1f1;
 }
 
 

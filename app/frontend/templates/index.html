@@ -261,7 +261,15 @@
             </div>
         </div>
 
-        <div id="status-message" class="status-message" role="alert" aria-live="polite"></div>
+        <div id="status-area">
+            <div id="status-message" class="status-message" role="alert" aria-live="polite">
+                <span id="status-text"></span>
+                <progress id="status-progress" max="100" value="0" style="display:none;"></progress>
+                <button id="status-dismiss" title="Dismiss">&times;</button>
+                <button id="status-toggle" title="Show log">&#9650;</button>
+            </div>
+            <div id="status-console" class="status-console hidden"></div>
+        </div>
     </div>
 
     <!-- Ordered JavaScript Modules import -->

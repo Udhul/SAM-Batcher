@@ -27,28 +27,40 @@
 class UIManager {
     constructor() {
         this.elements = {
-            // Global status message element (if distinct from main.js one, or if this takes over)
-            globalStatusMessage: document.getElementById('status-message'), // Assumes main.js might use this too
+            statusMessage: document.getElementById('status-message'),
+            statusText: document.getElementById('status-text'),
+            statusProgress: document.getElementById('status-progress'),
+            statusDismiss: document.getElementById('status-dismiss'),
+            statusToggle: document.getElementById('status-toggle'),
+            statusConsole: document.getElementById('status-console'),
             // Modal elements (example structure)
             // modalOverlay: document.getElementById('modal-overlay'),
             // modalTitle: document.getElementById('modal-title'),
             // modalContent: document.getElementById('modal-content'),
             // modalCloseBtn: document.getElementById('modal-close-btn'),
         };
+        this.logs = [];
+        this.statusEnabled = true;
+        this._statusTimeout = null;
         this._setupEventListeners();
         console.log("UIManager initialized");
     }
 
     _setupEventListeners() {
+        if (this.elements.statusDismiss) {
+            this.elements.statusDismiss.addEventListener('click', () => this.clearGlobalStatus());
+        }
+        if (this.elements.statusToggle && this.elements.statusConsole) {
+            this.elements.statusToggle.addEventListener('click', () => {
+                this.elements.statusConsole.classList.toggle('hidden');
+                const expanded = !this.elements.statusConsole.classList.contains('hidden');
+                this.elements.statusToggle.textContent = expanded ? '\u25BC' : '\u25B2';
+            });
+        }
+
         // Example: Close modal on close button click
         // if (this.elements.modalCloseBtn) {
         //     this.elements.modalCloseBtn.addEventListener('click', () => this.hideModal());
-        // }
-        // Example: Close modal on overlay click
-        // if (this.elements.modalOverlay) {
-        //     this.elements.modalOverlay.addEventListener('click', (e) => {
-        //         if (e.target === this.elements.modalOverlay) this.hideModal();
-        //     });
         // }
 
         // Generic handler for expandable sections (can be called by main.js for specific sections)
@@ -79,30 +91,56 @@ class UIManager {
      * @param {'success'|'error'|'info'|'loading'} type - The type of message for styling.
      * @param {number|null} duration - Duration in ms. Null for default, 0 for persistent.
      */
-    showGlobalStatus(message, type = 'info', duration = null) {
-        if (!this.elements.globalStatusMessage) return;
+    showGlobalStatus(message, type = 'info', duration = null, progress = null) {
+        if (!this.statusEnabled || !this.elements.statusMessage) return;
 
-        this.elements.globalStatusMessage.textContent = message;
-        // Clear previous types
-        this.elements.globalStatusMessage.classList.remove('success', 'error', 'info', 'loading');
-        this.elements.globalStatusMessage.classList.add(type);
-        Utils.showElement(this.elements.globalStatusMessage);
+        clearTimeout(this._statusTimeout);
+        const {statusMessage, statusText, statusProgress, statusConsole} = this.elements;
 
-        if (duration !== 0) {
-            setTimeout(() => {
-                // Clear only if the message hasn't changed
-                if (this.elements.globalStatusMessage.textContent === message) {
-                    Utils.hideElement(this.elements.globalStatusMessage);
-                    this.elements.globalStatusMessage.className = 'status-message'; // Reset class
-                }
-            }, duration === null ? (type === 'error' ? 8000 : 4000) : duration);
+        if (statusText) statusText.textContent = message;
+        statusMessage.classList.remove('success', 'error', 'info', 'loading');
+        statusMessage.classList.add('visible', type);
+
+        if (progress !== null && statusProgress) {
+            statusProgress.style.display = 'block';
+            statusProgress.value = progress;
+        } else if (statusProgress) {
+            statusProgress.style.display = 'none';
+        }
+
+        Utils.showElement(statusMessage, 'flex');
+
+        const logEntry = `[${new Date().toLocaleTimeString()}] ${message}`;
+        this.logs.push(logEntry);
+        if (statusConsole) {
+            const div = document.createElement('div');
+            div.textContent = logEntry;
+            div.className = type;
+            statusConsole.appendChild(div);
+            statusConsole.scrollTop = statusConsole.scrollHeight;
+        }
+
+        if (duration && duration > 0) {
+            this._statusTimeout = setTimeout(() => this.clearGlobalStatus(), duration);
         }
     }
 
     clearGlobalStatus() {
-         if (!this.elements.globalStatusMessage) return;
-         Utils.hideElement(this.elements.globalStatusMessage);
-         this.elements.globalStatusMessage.className = 'status-message';
+         if (!this.elements.statusMessage) return;
+         this.elements.statusMessage.classList.remove('visible', 'success', 'error', 'info', 'loading');
+         this.elements.statusMessage.style.display = 'none';
+    }
+
+    updateStatusProgress(value) {
+         if (this.elements.statusProgress) {
+             this.elements.statusProgress.style.display = 'block';
+             this.elements.statusProgress.value = value;
+         }
+    }
+
+    disableStatusMessages(flag = true) {
+         this.statusEnabled = !flag;
+         if (flag) this.clearGlobalStatus();
     }
 
 
