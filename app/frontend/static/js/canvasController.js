@@ -269,8 +269,6 @@ class CanvasManager {
             }
 
             this.renderMaskToggleControls();
-
-            this.renderMaskToggleControls();
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
         this.drawPredictionMaskLayer();
@@ -786,31 +784,47 @@ class CanvasManager {
             return;
         }
 
-        if (this.currentPredictionMultiBox || !this.manualPredictions || this.manualPredictions.length === 0) {
+        if (!this.manualPredictions || this.manualPredictions.length === 0) {
             this.maskToggleContainer.style.display = 'none';
             return;
         }
 
         this.maskToggleContainer.style.display = 'flex';
-        const labels = ['High', 'Medium', 'Low'];
-        this.manualPredictions.forEach((pred, idx) => {
-            const label = document.createElement('label');
-            const rb = document.createElement('input');
-            rb.type = 'radio';
-            rb.name = 'mask-select';
-            rb.value = idx;
-            rb.checked = pred.visible !== false;
-            rb.addEventListener('change', () => {
-                if (rb.checked) {
-                    this.selectedManualMaskIndex = idx;
-                    this.manualPredictions.forEach((p, i) => { p.visible = i === idx; });
+        if (this.currentPredictionMultiBox) {
+            this.manualPredictions.forEach((pred, idx) => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = pred.visible !== false;
+                cb.addEventListener('change', () => {
+                    pred.visible = cb.checked;
                     this.drawPredictionMaskLayer();
-                }
+                });
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(`M${idx + 1}`));
+                this.maskToggleContainer.appendChild(label);
             });
-            label.appendChild(rb);
-            label.appendChild(document.createTextNode(labels[idx] || `M${idx + 1}`));
-            this.maskToggleContainer.appendChild(label);
-        });
+        } else {
+            const labels = ['High', 'Medium', 'Low'];
+            this.manualPredictions.forEach((pred, idx) => {
+                const label = document.createElement('label');
+                const rb = document.createElement('input');
+                rb.type = 'radio';
+                rb.name = 'mask-select';
+                rb.value = idx;
+                rb.checked = pred.visible !== false;
+                rb.addEventListener('change', () => {
+                    if (rb.checked) {
+                        this.selectedManualMaskIndex = idx;
+                        this.manualPredictions.forEach((p, i) => { p.visible = i === idx; });
+                        this.drawPredictionMaskLayer();
+                    }
+                });
+                label.appendChild(rb);
+                label.appendChild(document.createTextNode(labels[idx] || `M${idx + 1}`));
+                this.maskToggleContainer.appendChild(label);
+            });
+        }
     }
 
     // Public method to allow external modules to listen to canvas events
