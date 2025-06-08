@@ -15,6 +15,10 @@ Supported environment variables:
     Absolute path to SAM checkpoints.
 ``CUDA_DEVICE``
     Default CUDA device index used when instantiating :class:`SAMInference`.
+``MODEL_SIZE``
+    Default SAM model size key used if no model is selected in the UI.
+``PORT``
+    Default server port when running ``main.py``.
 ```
 """
 
@@ -38,7 +42,7 @@ CHECKPOINTS_DIR = os.path.abspath(CHECKPOINTS_DIR)
 CUDA_DEVICE = os.getenv("CUDA_DEVICE")
 
 # Default SAM model settings (can be overridden by user)
-DEFAULT_SAM_MODEL_KEY = "tiny"
+DEFAULT_SAM_MODEL_KEY = os.getenv("MODEL_SIZE", "tiny")
 DEFAULT_APPLY_POSTPROCESSING = True
 
 # Image hashing algorithm
@@ -47,6 +51,10 @@ IMAGE_HASH_ALGORITHM = "md5"
 # Default export parameters
 DEFAULT_EXPORT_FORMAT = "coco_rle_json"
 DEFAULT_MASK_LAYERS_TO_EXPORT = ["final_edited"]
+
+# Server parameters
+SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.getenv("PORT", "7860"))
 
 # Ensure projects_data directory exists
 if not os.path.exists(PROJECTS_DATA_DIR):

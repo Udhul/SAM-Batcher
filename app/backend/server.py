@@ -625,7 +625,7 @@ def api_export_data(project_id):
 
 
 # --- main.py will call this ---
-def run_server(serve_ui=True, host='0.0.0.0', port=5000, debug=True):
+def run_server(serve_ui=True, host=config.SERVER_HOST, port=config.SERVER_PORT, debug=True):
     global ui_enabled_flag
     ui_enabled_flag = serve_ui
     
