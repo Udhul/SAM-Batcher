@@ -130,11 +130,11 @@ class ProjectHandler {
         if (this.elements.activeProjectDisplay) {
             if (projectId && projectName) {
                 this.elements.activeProjectDisplay.textContent = `Active: ${this.Utils.escapeHTML(projectName)} (${projectId.substring(0,6)}...)`;
-                this.elements.activeProjectDisplay.classList.remove('error');
+                this.elements.activeProjectDisplay.className = 'status-inline loaded';
                 this.elements.downloadProjectDbBtn.disabled = false;
             } else {
                 this.elements.activeProjectDisplay.textContent = 'No active project';
-                this.elements.activeProjectDisplay.classList.add('error'); // Or some other style
+                this.elements.activeProjectDisplay.className = 'status-inline error';
                 this.elements.downloadProjectDbBtn.disabled = true;
             }
         }

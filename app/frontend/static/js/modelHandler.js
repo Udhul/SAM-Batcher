@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateStatus(text, statusClass) { // statusClass can be 'loading', 'loaded', 'error', 'idle'
         modelStatusInline.textContent = text;
-        modelStatusInline.className = `model-status-inline ${statusClass}`;
+        modelStatusInline.className = `status-inline ${statusClass}`;
     }
 
     modelSelect.addEventListener('change', () => {
