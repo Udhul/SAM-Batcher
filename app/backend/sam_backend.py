@@ -101,7 +101,8 @@ class SAMInference:
         
         # Device management
         self.device = self._get_device() if device is None else torch.device(device)
-        logger.info(f"Using device: {self.device}")      
+        self.autocast_dtype = self._select_autocast_dtype()
+        logger.info(f"Using device: {self.device}")
 
         # Image state
         self.image_np: Optional[np.ndarray] = None
@@ -125,9 +126,25 @@ class SAMInference:
     def _get_device(self) -> torch.device:
         """Auto-detect the best available device for inference."""
         if torch.cuda.is_available():
-            device = torch.device("cuda")
-            logger.debug(f"CUDA device detected: {torch.cuda.get_device_name(0)}")  
-            if torch.cuda.get_device_properties(0).major >= 8: # Ampere and newer
+            cuda_env = os.getenv("SAM_BATCHER_CUDA_DEVICE")
+            index = 0
+            if cuda_env is not None:
+                try:
+                    idx = int(cuda_env)
+                    if 0 <= idx < torch.cuda.device_count():
+                        index = idx
+                    else:
+                        logger.warning(
+                            f"Requested CUDA device {idx} out of range. Using device 0."
+                        )
+                except ValueError:
+                    logger.warning(
+                        f"Invalid SAM_BATCHER_CUDA_DEVICE='{cuda_env}'. Using device 0."
+                    )
+            device = torch.device(f"cuda:{index}")
+            logger.debug(f"CUDA device detected: {torch.cuda.get_device_name(index)}")
+            props = torch.cuda.get_device_properties(index)
+            if props.major >= 8:
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
                 logger.debug("Enabled TF32 for Ampere+ GPU")
@@ -141,6 +158,15 @@ class SAMInference:
         else:
             device = torch.device("cpu")
         return device
+
+    def _select_autocast_dtype(self) -> Optional[torch.dtype]:
+        """Determine optimal autocast precision for the current device."""
+        if self.device.type == "cuda":
+            if torch.cuda.is_bf16_supported():
+                return torch.bfloat16
+            else:
+                return torch.float16
+        return None
 
     def load_model(self, model_size_key: Optional[str] = None, 
                    model_path_override: Optional[str] = None, 
@@ -238,13 +264,16 @@ class SAMInference:
                     logger.error(f"Progress callback error during model building notification: {e}")
             
             # Build the model
-            if self.device.type == "cuda":
-                # TODO: Control precision cast from class attr. depeneding on device
-                with torch.autocast(self.device.type, dtype=torch.bfloat16):
-                    new_model = build_sam2(resolved_config_path, resolved_model_path, 
-                                           device=self.device, apply_postprocessing=apply_postprocessing)
+            if self.device.type == "cuda" and self.autocast_dtype is not None:
+                with torch.autocast(self.device.type, dtype=self.autocast_dtype):
+                    new_model = build_sam2(
+                        resolved_config_path,
+                        resolved_model_path,
+                        device=self.device,
+                        apply_postprocessing=apply_postprocessing,
+                    )
             else:
-                new_model = build_sam2(resolved_config_path, resolved_model_path, 
+                new_model = build_sam2(resolved_config_path, resolved_model_path,
                                        device=self.device, apply_postprocessing=apply_postprocessing)
             
             # Update model state
@@ -542,10 +571,9 @@ class SAMInference:
             self.image_hash = self._calculate_image_hash(image_data)
 
             # Set image on predictor if it exists
-            # TODO: Control precision cast from class attr. depeneding on device
             if self.predictor is not None:
-                if self.device.type == "cuda":
-                    with torch.autocast(self.device.type, dtype=torch.bfloat16):
+                if self.device.type == "cuda" and self.autocast_dtype is not None:
+                    with torch.autocast(self.device.type, dtype=self.autocast_dtype):
                         self.predictor.set_image(self.image_np)
                 else:
                     self.predictor.set_image(self.image_np)
@@ -687,14 +715,16 @@ class SAMInference:
                     mask_input = np.tile(mask_input, (box.shape[0], 1, 1))
             
             # Run prediction with appropriate precision
-            # TODO: Control precision cast from class attr. depeneding on device
-            if self.device.type == "cuda":
-                with torch.autocast(self.device.type, dtype=torch.bfloat16):
+            if self.device.type == "cuda" and self.autocast_dtype is not None:
+                with torch.autocast(self.device.type, dtype=self.autocast_dtype):
                     masks, scores, logits = self.predictor.predict(
-                        point_coords=point_coords, point_labels=point_labels,
-                        box=box, mask_input=mask_input,
-                        multimask_output=multimask_output, normalize_coords=normalize_coords,
-                        return_logits=return_logits
+                        point_coords=point_coords,
+                        point_labels=point_labels,
+                        box=box,
+                        mask_input=mask_input,
+                        multimask_output=multimask_output,
+                        normalize_coords=normalize_coords,
+                        return_logits=return_logits,
                     )
             else:
                 masks, scores, logits = self.predictor.predict(
@@ -806,9 +836,8 @@ class SAMInference:
         
         try:
             # Generate masks with appropriate precision
-            # TODO: Control precision cast from class attr. depeneding on device
-            if self.device.type == "cuda":
-                with torch.autocast(self.device.type, dtype=torch.bfloat16):
+            if self.device.type == "cuda" and self.autocast_dtype is not None:
+                with torch.autocast(self.device.type, dtype=self.autocast_dtype):
                     generated_masks = generator_to_use.generate(target_image_np)
             else:
                 generated_masks = generator_to_use.generate(target_image_np)
