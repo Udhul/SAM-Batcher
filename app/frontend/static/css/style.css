@@ -592,7 +592,7 @@ input[type="file"]#image-upload {
 }
 
 /* Help icon and tooltip styles */
-.help-section { position: relative; display: flex; align-items: center; margin-left: auto; }
+.help-section { position: relative; display: flex; align-items: center; justify-content: flex-end; }
 .help-icon {
     display: inline-block; width: 24px; height: 24px; background-color: #007bff; color: white;
     border-radius: 50%; text-align: center; line-height: 24px; font-size: 14px;
@@ -740,6 +740,11 @@ input[type="file"]#image-upload {
     max-width: 640px;
     overflow: hidden;
     white-space: nowrap;
+}
+
+.auto-mask-modal {
+    width: 40%;
+    max-width: 520px;
 }
 
 .source-inputs-row {

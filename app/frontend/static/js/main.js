@@ -75,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoMaskBtn = document.getElementById('auto-mask-btn');
     const cancelAutoMaskBtn = document.getElementById('cancel-auto-mask-btn');
     const recoverAutoMaskBtn = document.getElementById('recover-auto-mask-btn');
+    const openAutoMaskOverlayBtn = document.getElementById('open-auto-mask-overlay');
+    const autoMaskOverlay = document.getElementById('auto-mask-overlay');
+    const closeAutoMaskOverlayBtn = document.getElementById('close-auto-mask-overlay');
     const amgParamsElements = {
         pointsPerSideEl: document.getElementById('amg-points-per-side'),
         predIouThreshEl: document.getElementById('amg-pred-iou-thresh'),
@@ -84,6 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveOverlayBtn = document.getElementById('save-masks-btn');
     const commitMasksBtn = document.getElementById('commit-masks-btn');
     const exportCocoBtn = document.getElementById('export-coco-btn');
+
+    if (openAutoMaskOverlayBtn && autoMaskOverlay) {
+        openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
+    }
+    if (closeAutoMaskOverlayBtn && autoMaskOverlay) {
+        closeAutoMaskOverlayBtn.addEventListener('click', () => utils.hideElement(autoMaskOverlay));
+    }
 
 
     // --- Global State Variables for main.js orchestration ---
@@ -652,9 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.expandable-section').forEach(section => {
             const header = section.querySelector('.expandable-header');
             if (header && uiManager && typeof uiManager.initializeExpandableSection === 'function') {
-                // Determine initial collapsed state. Auto mask section expanded by default.
-                const isInitiallyCollapsed = section.id !== 'auto-mask-section';
-                uiManager.initializeExpandableSection(header, isInitiallyCollapsed);
+                uiManager.initializeExpandableSection(header, true);
             }
         });
         
