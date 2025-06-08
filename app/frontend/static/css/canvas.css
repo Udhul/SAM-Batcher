@@ -4,7 +4,7 @@
 /* Canvas Toolbar (specific to canvas interactions) */
 .canvas-toolbar {
     display: grid;
-    grid-template-columns: 10% 30% 20% 30% 10%;
+    grid-template-columns: 10% 30% 15% 30% 10%; /* Make room for gap */
     gap: 10px;
     padding: 10px 15px;
     background-color: #f8f9fa;
@@ -37,6 +37,7 @@
     display: flex;
     gap: 6px;
     align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
 }
 
@@ -54,6 +55,8 @@
     display: flex;
     gap: 15px; /* Spacing between individual opacity controls */
     flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
 }
 
 .opacity-control {
