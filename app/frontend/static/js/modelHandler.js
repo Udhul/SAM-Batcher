@@ -176,6 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.canvasManager.setAutomaskPredictions(null);
                 }
 
+                // Close overlay after successful model load
+                hideOverlay();
+
             } else {
                 updateStatus(`Failed to load: ${data.error || 'Unknown server error'}`, 'error');
                 Utils.dispatchCustomEvent('model-load-error', { error: data.error || 'Unknown server error' });
@@ -226,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
              if (modelSelect.options.length > 2) { // Beyond "Custom" and "Separator"
                 let defaultIdx = 2; // First actual model
                 // Try to find a default like 'base_plus' or 'hiera_b_plus'
-                const preferredDefaults = ['hiera_b_plus', 'base_plus', 'sam_vit_h_4b8939.pth'];
+                const preferredDefaults = ['base_plus', 'base', 'tiny'];
                 for (const prefKey of preferredDefaults) {
                     for(let i=0; i<modelSelect.options.length; i++){
                         if(modelSelect.options[i].value === prefKey){
