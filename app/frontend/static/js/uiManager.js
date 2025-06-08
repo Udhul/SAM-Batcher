@@ -28,9 +28,6 @@ class UIManager {
     constructor() {
         this.elements = {
             statusArea: document.getElementById('status-area'),
-            statusMessage: document.getElementById('status-message'),
-            statusText: document.getElementById('status-text'),
-            statusProgress: document.getElementById('status-progress'),
             statusToggle: document.getElementById('status-toggle'),
             statusConsole: document.getElementById('status-console'),
             // Modal elements (example structure)
@@ -91,24 +88,13 @@ class UIManager {
      * @param {number|null} duration - Duration in ms. Null for default, 0 for persistent.
      */
     showGlobalStatus(message, type = 'info', duration = null, progress = null) {
-        if (!this.statusEnabled || !this.elements.statusMessage) return;
+        if (!this.statusEnabled || !this.elements.statusConsole) return;
 
-        const {statusMessage, statusText, statusProgress, statusConsole} = this.elements;
-
-        if (statusText) statusText.textContent = message;
-        statusMessage.classList.remove('success', 'error', 'info', 'loading');
-        statusMessage.classList.add(type);
-
-        if (progress !== null && statusProgress) {
-            statusProgress.style.display = 'block';
-            statusProgress.value = progress;
-        } else if (statusProgress) {
-            statusProgress.style.display = 'none';
-        }
-
+        const { statusConsole } = this.elements;
 
         const logEntry = `[${new Date().toLocaleTimeString()}] ${message}`;
         this.logs.push(logEntry);
+
         if (statusConsole) {
             const div = document.createElement('div');
             div.textContent = logEntry;
@@ -119,20 +105,14 @@ class UIManager {
     }
 
     clearGlobalStatus() {
-         if (!this.elements.statusMessage) return;
-         this.elements.statusMessage.classList.remove('success', 'error', 'info', 'loading');
-         this.elements.statusMessage.style.display = 'none';
-         if (this.elements.statusProgress) {
-             this.elements.statusProgress.style.display = 'none';
-         }
+        if (this.elements.statusConsole) {
+            this.elements.statusConsole.innerHTML = '';
+        }
+        this.logs = [];
+        this.setStatusMode('collapsed');
     }
 
-    updateStatusProgress(value) {
-         if (this.elements.statusProgress) {
-             this.elements.statusProgress.style.display = 'block';
-             this.elements.statusProgress.value = value;
-         }
-    }
+    updateStatusProgress(value) { /* deprecated */ }
 
     disableStatusMessages(flag = true) {
          this.statusEnabled = !flag;
@@ -140,18 +120,16 @@ class UIManager {
     }
 
     setStatusMode(mode) {
-        const {statusArea, statusConsole, statusMessage, statusToggle} = this.elements;
+        const { statusArea, statusToggle } = this.elements;
         if (!statusArea) return;
 
-        statusArea.classList.remove('latest', 'expanded');
-        if (mode === 'latest') {
-            statusArea.classList.add('latest');
-        } else if (mode === 'expanded') {
-            statusArea.classList.add('expanded');
-        }
+        statusArea.classList.remove('collapsed', 'latest', 'expanded');
+        statusArea.classList.add(mode);
 
         if (statusToggle) {
-            statusToggle.textContent = (mode === 'expanded') ? '\u25BC' : '\u25B2';
+            if (mode === 'collapsed') statusToggle.textContent = '\u25BC';
+            else if (mode === 'latest') statusToggle.textContent = '\u25C4';
+            else statusToggle.textContent = '\u25B2';
         }
 
         this.statusMode = mode;

@@ -662,67 +662,48 @@ input[type="file"]#image-upload {
 #status-area {
     position: fixed;
     bottom: 0;
-    right: 0;
+    left: 0;
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    padding: 0 10px 10px;
     pointer-events: none;
     z-index: 1000;
+    --console-height: 0;
 }
 
-#status-area.latest #status-message,
-#status-area.expanded #status-message {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+#status-area.latest { --console-height: 1.4em; }
+#status-area.expanded { --console-height: 25vh; }
 
-#status-area.expanded #status-console {
-    display: block;
-}
-
-#status-message {
-    font-size: 14px;
-    color: #fff;
-    background: rgba(0,0,0,0.6);
-    padding: 6px 12px;
-    border-radius: 4px;
-    margin-bottom: 4px;
-    display: none;
-    pointer-events: auto;
+#status-console {
     width: 100%;
-    box-sizing: border-box;
-}
-
-#status-message progress {
-    height: 6px;
-    margin-left: 8px;
-}
-
-.status-console {
-    width: 100%;
-    max-height: 25vh;
-    overflow-y: auto;
     background: rgba(0,0,0,0.8);
     color: #fff;
     font-size: 12px;
     padding: 6px 8px;
     box-sizing: border-box;
-    border-radius: 4px 4px 0 0;
-    margin-bottom: 4px;
+    text-align: left;
     display: none;
     pointer-events: auto;
-    text-align: left;
+    overflow: hidden;
 }
 
-.status-message.success { background-color: rgba(40,167,69,0.8); }
-.status-message.error   { background-color: rgba(220,53,69,0.8); }
-.status-message.info    { background-color: rgba(23,162,184,0.8); }
-.status-message.loading { background-color: rgba(255,193,7,0.8); }
+#status-area.latest #status-console,
+#status-area.expanded #status-console {
+    display: block;
+    height: var(--console-height);
+}
+
+#status-area.expanded #status-console {
+    overflow-y: auto;
+}
+
+#status-console .success { background-color: rgba(40,167,69,0.5); }
+#status-console .error   { background-color: rgba(220,53,69,0.5); }
+#status-console .info    { background-color: rgba(23,162,184,0.5); }
+#status-console .loading { background-color: rgba(255,193,7,0.5); }
 
 .status-toggle {
+    position: fixed;
+    right: 10px;
+    bottom: calc(10px + var(--console-height));
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -734,6 +715,7 @@ input[type="file"]#image-upload {
     align-items: center;
     justify-content: center;
     pointer-events: auto;
+    z-index: 1001;
 }
 
 .status-message.small { /* For #auto-mask-status */
