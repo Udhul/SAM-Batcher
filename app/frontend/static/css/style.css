@@ -824,16 +824,16 @@ input[type="file"]#image-upload {
 #status-toggle {
     position: fixed;
     right: 20px;
-    bottom: 10px;
-    width: 36px;
-    height: 36px;
+    bottom: 5px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: #333;
+    background: #4e4e4e;
     color: #fff;
     border: none;
     cursor: pointer;
     z-index: 1000;
-    font-size: 18px;
-    line-height: 36px;
+    font-size: 14px;
+    line-height: 24px;
     text-align: center;
 }

@@ -31,7 +31,7 @@ class UIManager {
             statusLog: document.getElementById('status-log'),
             statusToggle: document.getElementById('status-toggle'),
         };
-        this.consoleState = 0; // 0: collapsed, 1: latest line, 2: expanded
+        this.consoleState = 1; // 0: collapsed, 1: latest line, 2: expanded
         this._setupEventListeners();
         console.log("UIManager initialized");
     }
@@ -82,15 +82,12 @@ class UIManager {
         if (this.consoleState === 0) {
             c.classList.add('collapsed');
             t.textContent = '▼';
-            t.style.bottom = '10px';
         } else if (this.consoleState === 1) {
             c.classList.add('latest-line');
             t.textContent = '◄';
-            t.style.bottom = c.offsetHeight + 10 + 'px';
         } else {
             c.classList.add('expanded');
             t.textContent = '▲';
-            t.style.bottom = 'calc(25vh + 10px)';
         }
     }
 
