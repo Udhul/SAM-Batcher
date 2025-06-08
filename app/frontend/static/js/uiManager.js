@@ -27,19 +27,19 @@
 class UIManager {
     constructor() {
         this.elements = {
-            // Global status message element (if distinct from main.js one, or if this takes over)
-            globalStatusMessage: document.getElementById('status-message'), // Assumes main.js might use this too
-            // Modal elements (example structure)
-            // modalOverlay: document.getElementById('modal-overlay'),
-            // modalTitle: document.getElementById('modal-title'),
-            // modalContent: document.getElementById('modal-content'),
-            // modalCloseBtn: document.getElementById('modal-close-btn'),
+            statusConsole: document.getElementById('status-console'),
+            statusLog: document.getElementById('status-log'),
+            statusToggle: document.getElementById('status-toggle'),
         };
+        this.consoleState = 0; // 0: collapsed, 1: latest line, 2: expanded
         this._setupEventListeners();
         console.log("UIManager initialized");
     }
 
     _setupEventListeners() {
+        if (this.elements.statusToggle) {
+            this.elements.statusToggle.addEventListener('click', () => this._cycleConsoleState());
+        }
         // Example: Close modal on close button click
         // if (this.elements.modalCloseBtn) {
         //     this.elements.modalCloseBtn.addEventListener('click', () => this.hideModal());
@@ -73,6 +73,27 @@ class UIManager {
         // });
     }
 
+    _cycleConsoleState() {
+        this.consoleState = (this.consoleState + 1) % 3;
+        const c = this.elements.statusConsole;
+        const t = this.elements.statusToggle;
+        if (!c || !t) return;
+        c.classList.remove('collapsed', 'latest-line', 'expanded');
+        if (this.consoleState === 0) {
+            c.classList.add('collapsed');
+            t.textContent = '▼';
+            t.style.bottom = '10px';
+        } else if (this.consoleState === 1) {
+            c.classList.add('latest-line');
+            t.textContent = '◄';
+            t.style.bottom = c.offsetHeight + 10 + 'px';
+        } else {
+            c.classList.add('expanded');
+            t.textContent = '▲';
+            t.style.bottom = 'calc(25vh + 10px)';
+        }
+    }
+
     /**
      * Shows a global status message.
      * @param {string} message - The message text.
@@ -80,29 +101,24 @@ class UIManager {
      * @param {number|null} duration - Duration in ms. Null for default, 0 for persistent.
      */
     showGlobalStatus(message, type = 'info', duration = null) {
-        if (!this.elements.globalStatusMessage) return;
-
-        this.elements.globalStatusMessage.textContent = message;
-        // Clear previous types
-        this.elements.globalStatusMessage.classList.remove('success', 'error', 'info', 'loading');
-        this.elements.globalStatusMessage.classList.add(type);
-        Utils.showElement(this.elements.globalStatusMessage);
-
-        if (duration !== 0) {
-            setTimeout(() => {
-                // Clear only if the message hasn't changed
-                if (this.elements.globalStatusMessage.textContent === message) {
-                    Utils.hideElement(this.elements.globalStatusMessage);
-                    this.elements.globalStatusMessage.className = 'status-message'; // Reset class
-                }
-            }, duration === null ? (type === 'error' ? 8000 : 4000) : duration);
-        }
+        // duration parameter kept for backward compatibility but ignored
+        this.addStatusMessage(message, type);
     }
 
     clearGlobalStatus() {
-         if (!this.elements.globalStatusMessage) return;
-         Utils.hideElement(this.elements.globalStatusMessage);
-         this.elements.globalStatusMessage.className = 'status-message';
+        // No-op with new console based system
+    }
+
+    addStatusMessage(message, type = 'info') {
+        if (!this.elements.statusLog) return;
+        const ts = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = `status-entry ${type}`;
+        entry.textContent = `[${ts}] ${message}`;
+        this.elements.statusLog.appendChild(entry);
+        if (this.elements.statusConsole) {
+            this.elements.statusConsole.scrollTop = this.elements.statusConsole.scrollHeight;
+        }
     }
 
 
