@@ -889,7 +889,7 @@ class SAMInference:
             # Hide the alias "base" if both "base" and "base_plus" exist
             if "base" in model_sizes and "base_plus" in model_sizes:
                 model_sizes.remove("base")
-            return sorted(model_sizes)
+            return model_sizes
         except Exception as e:
             logger.exception(f"Error getting available model keys: {e}")
             return []
