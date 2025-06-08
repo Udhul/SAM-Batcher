@@ -31,7 +31,6 @@ class UIManager {
             statusMessage: document.getElementById('status-message'),
             statusText: document.getElementById('status-text'),
             statusProgress: document.getElementById('status-progress'),
-            statusDismiss: document.getElementById('status-dismiss'),
             statusToggle: document.getElementById('status-toggle'),
             statusConsole: document.getElementById('status-console'),
             // Modal elements (example structure)
@@ -42,25 +41,19 @@ class UIManager {
         };
         this.logs = [];
         this.statusEnabled = true;
-        this._statusTimeout = null;
         this._setupEventListeners();
         console.log("UIManager initialized");
     }
 
     _setupEventListeners() {
-        if (this.elements.statusDismiss) {
-            this.elements.statusDismiss.addEventListener('click', () => this.clearGlobalStatus());
-        }
-        if (this.elements.statusToggle && this.elements.statusConsole && this.elements.statusArea) {
+        if (this.elements.statusToggle && this.elements.statusArea) {
+            this.statusModes = ['collapsed', 'latest', 'expanded'];
+            this.statusModeIndex = 1; // start in 'latest' mode
+            this.setStatusMode(this.statusModes[this.statusModeIndex]);
+
             this.elements.statusToggle.addEventListener('click', () => {
-                const expanded = this.elements.statusArea.classList.toggle('expanded');
-                if (expanded) {
-                    Utils.showElement(this.elements.statusConsole, 'block');
-                    this.elements.statusToggle.textContent = '\u25BC';
-                } else {
-                    Utils.hideElement(this.elements.statusConsole);
-                    this.elements.statusToggle.textContent = '\u25B2';
-                }
+                this.statusModeIndex = (this.statusModeIndex + 1) % this.statusModes.length;
+                this.setStatusMode(this.statusModes[this.statusModeIndex]);
             });
         }
 
@@ -100,12 +93,11 @@ class UIManager {
     showGlobalStatus(message, type = 'info', duration = null, progress = null) {
         if (!this.statusEnabled || !this.elements.statusMessage) return;
 
-        clearTimeout(this._statusTimeout);
         const {statusMessage, statusText, statusProgress, statusConsole} = this.elements;
 
         if (statusText) statusText.textContent = message;
         statusMessage.classList.remove('success', 'error', 'info', 'loading');
-        statusMessage.classList.add('visible', type);
+        statusMessage.classList.add(type);
 
         if (progress !== null && statusProgress) {
             statusProgress.style.display = 'block';
@@ -114,7 +106,6 @@ class UIManager {
             statusProgress.style.display = 'none';
         }
 
-        Utils.showElement(statusMessage, 'flex');
 
         const logEntry = `[${new Date().toLocaleTimeString()}] ${message}`;
         this.logs.push(logEntry);
@@ -125,16 +116,15 @@ class UIManager {
             statusConsole.appendChild(div);
             statusConsole.scrollTop = statusConsole.scrollHeight;
         }
-
-        if (duration && duration > 0) {
-            this._statusTimeout = setTimeout(() => this.clearGlobalStatus(), duration);
-        }
     }
 
     clearGlobalStatus() {
          if (!this.elements.statusMessage) return;
-         this.elements.statusMessage.classList.remove('visible', 'success', 'error', 'info', 'loading');
+         this.elements.statusMessage.classList.remove('success', 'error', 'info', 'loading');
          this.elements.statusMessage.style.display = 'none';
+         if (this.elements.statusProgress) {
+             this.elements.statusProgress.style.display = 'none';
+         }
     }
 
     updateStatusProgress(value) {
@@ -147,6 +137,24 @@ class UIManager {
     disableStatusMessages(flag = true) {
          this.statusEnabled = !flag;
          if (flag) this.clearGlobalStatus();
+    }
+
+    setStatusMode(mode) {
+        const {statusArea, statusConsole, statusMessage, statusToggle} = this.elements;
+        if (!statusArea) return;
+
+        statusArea.classList.remove('latest', 'expanded');
+        if (mode === 'latest') {
+            statusArea.classList.add('latest');
+        } else if (mode === 'expanded') {
+            statusArea.classList.add('expanded');
+        }
+
+        if (statusToggle) {
+            statusToggle.textContent = (mode === 'expanded') ? '\u25BC' : '\u25B2';
+        }
+
+        this.statusMode = mode;
     }
 
 
