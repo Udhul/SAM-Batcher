@@ -209,7 +209,48 @@ header p {
 .custom-input-group input[type="text"] {
     padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;
 }
-.model-options { display: flex; align-items: center; margin-top: 10px; }
+
+/* Model options help tooltip - inherits from existing help tooltip styles */
+.model-options {
+    display: flex; 
+    align-items: center; 
+    margin-top: 10px; 
+    position: relative;
+}
+
+.model-options .help-tooltip {
+    position: absolute; 
+    bottom: calc(100% + 8px); 
+    left: 0;
+    background-color: #333333f0; 
+    color: white; 
+    padding: 12px; 
+    border-radius: 6px;
+    text-align: left; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1001; 
+    opacity: 0; 
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    min-width: 300px; 
+    max-width: 400px;
+}
+
+.model-options .help-tooltip::after {
+    content: ''; 
+    position: absolute; 
+    top: 100%; 
+    left: 20px;
+    border-width: 6px; 
+    border-style: solid; 
+    border-color: #333 transparent transparent transparent;
+}
+
+.checkbox-label:hover + .help-tooltip {
+    opacity: 1; 
+    visibility: visible;
+}
+
 .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
 .checkbox-label input[type="checkbox"] { transform: scale(1.1); margin-right: 5px; }
 .model-status-inline {
