@@ -167,6 +167,20 @@ class ProjectHandler {
         }
     }
 
+    _checkAndShowModelOverlay() {
+        // Check if model is already loaded by looking at the model status
+        const modelStatusInline = document.getElementById('model-status-inline');
+        const isModelLoaded = modelStatusInline && modelStatusInline.classList.contains('loaded');
+        
+        if (!isModelLoaded) {
+            // Show model overlay
+            const modelOverlay = document.getElementById('model-management-overlay');
+            if (modelOverlay && this.Utils.showElement) {
+                this.Utils.showElement(modelOverlay, 'flex');
+            }
+        }
+    }
+
     async handleCreateProject() {
         const projectName = this.elements.projectNameInput ? this.elements.projectNameInput.value.trim() : null;
         this.uiManager.showGlobalStatus('Creating project...', 'loading', 0);
@@ -181,6 +195,9 @@ class ProjectHandler {
                 this.elements.projectNameInput.value = ''; // Clear input
                 await this.fetchAndDisplayImageSources(); // Clear/load sources for new project
                 this.hideOverlay();
+                
+                // Check if a model is already loaded, if not, show model overlay
+                this._checkAndShowModelOverlay();
             } else {
                 throw new Error(data.error || "Failed to create project.");
             }
@@ -264,6 +281,9 @@ class ProjectHandler {
                 await this.fetchAndDisplayImageSources();
                 await this.fetchAndDisplayProjects();
                 this.hideOverlay();
+                
+                // Check if a model is already loaded, if not, show model overlay
+                this._checkAndShowModelOverlay();
             } else {
                 throw new Error(data.error || "Failed to load project.");
             }
@@ -336,6 +356,9 @@ class ProjectHandler {
                 await this.fetchAndDisplayProjects(); // Refresh list
                 await this.fetchAndDisplayImageSources();
                 this.hideOverlay();
+
+                // Check if a model is already loaded, if not, show model overlay
+                this._checkAndShowModelOverlay();
             } else {
                 throw new Error(data.error || "Failed to upload project DB.");
             }
