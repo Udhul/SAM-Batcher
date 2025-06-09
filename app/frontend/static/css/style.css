@@ -667,11 +667,18 @@ input[type="file"]#image-upload {
 /* Layer View */
 .layer-view-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .layer-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.layer-item { display: flex; align-items: center; gap: 6px; }
+.layer-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.layer-item.selected { background-color: #f0f4ff; }
 .layer-vis-toggle { border: none; background: none; cursor: pointer; }
 .layer-color-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #ccc; }
 .layer-name-input { flex: 1 1 auto; padding: 2px 4px; font-size: 13px; }
+.layer-class-input { flex: 0 0 70px; padding: 2px 4px; font-size: 11px; }
 .layer-status-tag { font-size: 11px; padding: 2px 4px; border-radius: 4px; background-color: #eee; text-transform: capitalize; }
+.layer-status-tag.prediction { background-color: #007bff; color: #fff; }
+.layer-status-tag.edited { background-color: #ffc107; color: #333; }
+.layer-status-tag.approved { background-color: #28a745; color: #fff; }
+.layer-status-tag.rejected { background-color: #dc3545; color: #fff; }
+.layer-delete-btn { border: none; background: none; cursor: pointer; color: #dc3545; }
 
 
 /* Inline and small status messages */
