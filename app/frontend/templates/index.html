@@ -212,6 +212,7 @@
                         <div class="toolbar-col-1 toolbar-col left-controls">
                             <button id="clear-inputs-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
                             <button id="open-auto-mask-overlay">AutoMask</button>
+                            <button id="commit-masks-btn" title="Add the current predictions to the Layer View">Add to Layers</button>
                         </div>
                         <div class="toolbar-col-2 toolbar-col">
                             <div id="mask-toggle-container" class="mask-toggle-container"></div>
@@ -254,20 +255,15 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div id="layer-view-section" class="layer-view-section">
-                    <h2>Layer View <button id="add-empty-layer-btn" title="Create empty layer">+</button></h2>
-                    <div id="layer-view-container">
-                        <p><em>No layers yet. Use "Add to Layers".</em></p>
-                    </div>
-                </div>
-                <div class="results-section">
-                    <h2>Final Masks & Export</h2>
-                    <div class="export-controls">
-                        <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
-                         <button id="commit-masks-btn" title="Add the current predictions to the Layer View">Add to Layers</button>
-                         <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
-                        <p style="margin-top: 10px; font-size: 14px; color: #666;"><i>More export options and mask list will be added.</i></p>
+                    <div id="layer-view-section" class="layer-view-section">
+                        <h2>Layer View <button id="add-empty-layer-btn" title="Create empty layer">+</button></h2>
+                        <div id="layer-view-container">
+                            <p><em>No layers yet. Use "Add to Layers".</em></p>
+                        </div>
+                        <div class="export-controls">
+                            <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
+                            <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
+                        </div>
                     </div>
                 </div>
             </div>

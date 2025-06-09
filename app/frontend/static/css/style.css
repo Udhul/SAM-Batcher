@@ -87,7 +87,6 @@ header p {
 /* Section Styles */
 .config-section,
 .image-section, /* This might become part of canvas-column or specific handlers */
-.results-section, /* This might be for mask lists, export buttons */
 .auto-mask-section,
 .image-pool-section {
     background: white;
@@ -98,7 +97,8 @@ header p {
 
 .image-section { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .image-display-area {
-    flex: 2 1 0;
+    flex: 0 0 67%;
+    max-width: 67%;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -109,13 +109,12 @@ header p {
     order: 2;
 }
 .layer-view-section {
-    flex: 1 1 0;
+    flex: 0 0 33%;
     max-width: 33%;
 }
 
 .config-section h2,
 .image-section h2,
-.results-section h2,
 .auto-mask-section h2 { /* Combined for consistency */
     margin-top: 0; /* Remove default h2 margin if it's the first child */
     margin-bottom: 15px;
@@ -664,8 +663,8 @@ input[type="file"]#image-upload {
 /* Results & Export Controls */
 .export-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
 .export-controls button {
-    padding: 10px 20px; color: white; border: none; border-radius: 4px;
-    font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;
+    padding: 6px 12px; color: white; border: none; border-radius: 4px;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;
 }
 /* Individual button colors */
 #save-masks-btn { background-color: #007bff; } /* Blue for preview */
@@ -680,12 +679,12 @@ input[type="file"]#image-upload {
 /* Layer View */
 .layer-view-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .layer-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.layer-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.layer-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; flex-wrap: wrap; }
 .layer-item.selected { background-color: #f0f4ff; }
 .layer-vis-toggle { border: none; background: none; cursor: pointer; }
 .layer-color-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #ccc; }
-.layer-name-input { flex: 1 1 auto; padding: 2px 4px; font-size: 13px; }
-.layer-class-input { flex: 0 0 70px; padding: 2px 4px; font-size: 11px; }
+.layer-name-input { flex: 1 1 45%; padding: 2px 4px; font-size: 13px; }
+.layer-class-input { flex: 1 1 25%; min-width: 60px; padding: 2px 4px; font-size: 11px; }
 .layer-status-tag { font-size: 11px; padding: 2px 4px; border-radius: 4px; background-color: #eee; text-transform: capitalize; }
 .layer-status-tag.prediction { background-color: #007bff; color: #fff; }
 .layer-status-tag.edited { background-color: #ffc107; color: #333; }
