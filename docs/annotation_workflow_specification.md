@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-This document outlines the design and specification for a major feature enhancement to the SAM2 Interactive Segmenter. The goal is to evolve the application from a single-shot mask generation tool into a robust, multi-layer annotation platform with distinct modes for **Creation**, **Editing**, and **Review**.
+This document outlines the design and specification for a major feature enhancement to the SAM2 Interactive Segmenter.  The current code base (see `docs/project_structure.md`) already implements project management, image pools and a canvas system driven by `main.js`, `imagePoolHandler.js` and `canvasController.js`.  The goal is to evolve this implementation from a single-shot mask generation tool into a robust, multi-layer annotation platform with distinct modes for **Creation**, **Editing**, and **Review**.
 
 This enhancement introduces a **Layer View**, providing users with fine-grained control over individual masks within an image. The new workflow is designed to be intuitive, efficient, and scalable, enabling the creation of high-quality, complex datasets. It prioritizes a smooth user experience by leveraging a reactive frontend state, minimizing blocking operations and server latency.
 
@@ -101,7 +101,7 @@ The canvas interaction will be modal, determined by whether a layer is selected 
 **A. Creation Mode (No layer selected):**
 *   This is the default mode.
 *   The UI remains largely the same as the current implementation.
-*   **Key Change:** The `Commit Current Masks` button is renamed to `Add to Layers`.
+*   **Key Change:** The existing `Commit Current Masks` button (`#commit-masks-btn` in `index.html`) is renamed to **Add to Layers** and retains its location in the "Final Masks & Export" section.
     *   **Functionality:** When clicked, all *visible* masks from the current prediction set (`manualPredictions` or `automaskPredictions`) are converted into new layers in the Layer View.
     *   After adding, all canvas inputs (points, boxes) and current predictions are cleared, returning the user to a clean slate to create the next mask.
 
@@ -129,6 +129,8 @@ The canvas interaction will be modal, determined by whether a layer is selected 
     *   `approved`
     *   `rejected` (sent back for edits)
     *   `skip` (user explicitly marks to ignore)
+    
+    Existing projects use `unprocessed`, `in_progress_auto`, `in_progress_manual` and `completed`.  During migration these map respectively to `unprocessed`, `in_progress`, `in_progress` and `approved`.
 *   The **Image Pool** (`#image-gallery-container`) and its filter (`#image-status-filter`) must be updated to reflect and filter by these new statuses. The `image-status-badge` CSS should be updated with new colors for these states.
 *   An `Update Status` dropdown should be added in the main annotation view, perhaps near the image name or in the "Final Masks & Export" section, to allow the user to manually change the image status (e.g., to `Ready for Review`).
 
@@ -237,12 +239,14 @@ This table will be significantly refactored to represent a single, unique mask l
 *   `metadata`: This generic field can be absorbed into `source_metadata` or kept for other layer-specific properties if needed. For clarity, we'll start by moving its contents (like `scores`) into `source_metadata`.
 *   `is_selected_for_final`: Replaced by the layer and image `status` system.
 
+Existing databases will need a migration script to split any rows that stored multiple masks in a single `mask_data_rle` list.  Each mask becomes its own row with a generated `layer_id`, carrying over the original metadata.
+
 #### 3.2.3. Data Synchronization Strategy
 
 The synergy between the `ActiveImageState` object and the backend API is key to a smooth user experience.
 
 1.  **Load:**
-    *   When a user selects an image from the pool, the frontend sends a request to a new endpoint: `GET /api/project/{id}/image/{hash}/state`.
+    *   When a user selects an image from the pool, the frontend currently calls `/api/project/{id}/images/set_active` and `/api/project/{id}/images/{hash}/masks` to obtain mask data.  These will be replaced by a single endpoint: `GET /api/project/{id}/image/{hash}/state`.
     *   The backend retrieves the image's row from the `Images` table and all associated rows from the refactored `mask_layers` table.
     *   It assembles and returns a JSON object matching the `ActiveImageState` structure (without the ephemeral `creation` and `edit` parts).
     *   The frontend populates its local `ActiveImageState` with this data.
@@ -252,7 +256,7 @@ The synergy between the `ActiveImageState` object and the backend API is key to 
     *   The UI components (Canvas, Layer View) are rendered reactively based on this local state, ensuring instant feedback.
 
 3.  **Save:**
-    *   Changes are persisted to the backend via a `PUT /api/project/{id}/image/{hash}/state` endpoint. This endpoint receives the relevant parts of the `ActiveImageState` object.
+    *   Changes are persisted to the backend via a `PUT /api/project/{id}/image/{hash}/state` endpoint.  This replaces the current `POST /api/project/{id}/images/{hash}/commit_masks` flow.  The new endpoint receives the relevant parts of the `ActiveImageState` object.
     *   **Adding Layers:** When the user clicks "Add to Layers", the frontend takes the `predictions` from `ActiveImageState.creation`, formats them into new layer objects, and sends them to the backend. The backend is responsible for unpacking this and creating **multiple new rows** in the `mask_layers` table, one for each added mask.
     *   **Updating Layers:** Changing a layer's name, label, or saving an edit sends the updated layer object to the backend, which performs an `UPDATE` on the corresponding row in `mask_layers`.
     *   **Deleting a Layer:** This triggers a `DELETE` request for the specific `layer_id`.
@@ -426,8 +430,8 @@ The placeholder `_convert_rle_to_bbox_and_area` function is insufficient and err
 
 1.  **Modularize:** Do not bloat `canvasController.js`. Create new modules:
     *   `layerViewController.js`: Manages the Layer View panel, its state, and events.
-    *   `editModeController.js`: Manages the edit toolbar and canvas interactions specific to editing a mask. It would be activated by `canvasController`.
-    *   `stateManager.js` will become even more critical for managing the `currentImageState`.
+    *   `editModeController.js`: Manages the edit toolbar and canvas interactions specific to editing a mask. It is invoked from `canvasController.js`.
+    *   `stateManager.js` already holds global state; extend it with helpers for the `currentImageState` object.
 
 2.  **Performance:**
     *   **Canvas:** When editing a mask, use an offscreen canvas. Draw the original mask onto it, perform all edits (brush, eraser) on this offscreen canvas, and only when "Save Edit" is clicked, re-encode the result to RLE and update the `ImageState`. This prevents costly re-rendering of all layers on every mouse move.
