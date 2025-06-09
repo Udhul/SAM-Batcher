@@ -96,6 +96,10 @@ header p {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.image-section { display: flex; gap: 20px; align-items: flex-start; }
+.image-display-area { flex: 1 1 auto; }
+.layer-view-section { flex: 0 0 240px; }
+
 .config-section h2,
 .image-section h2,
 .results-section h2,
@@ -522,8 +526,11 @@ ul.image-sources-list li span { flex-grow: 1; }
     text-transform: capitalize;
 }
 .image-status-badge.unprocessed { background-color: #6c757d; }
-.image-status-badge.in_progress_manual, .image-status-badge.in_progress_auto { background-color: #ffc107; color: #333; }
-.image-status-badge.completed { background-color: #28a745; }
+.image-status-badge.in_progress { background-color: #ffc107; color: #333; }
+.image-status-badge.ready_for_review { background-color: #17a2b8; color: #fff; }
+.image-status-badge.approved { background-color: #28a745; }
+.image-status-badge.rejected { background-color: #dc3545; }
+.image-status-badge.skip { background-color: #6c757d; }
 .image-status-badge.unknown { background-color: #adb5bd; }
 
 .delete-image-btn {
@@ -656,6 +663,15 @@ input[type="file"]#image-upload {
 #export-coco-btn:hover:not(:disabled) { background-color: #e06200; }
 
 .export-controls button:disabled { background-color: #adb5bd; cursor: not-allowed; }
+
+/* Layer View */
+.layer-view-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.layer-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.layer-item { display: flex; align-items: center; gap: 6px; }
+.layer-vis-toggle { border: none; background: none; cursor: pointer; }
+.layer-color-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #ccc; }
+.layer-name-input { flex: 1 1 auto; padding: 2px 4px; font-size: 13px; }
+.layer-status-tag { font-size: 11px; padding: 2px 4px; border-radius: 4px; background-color: #eee; text-transform: capitalize; }
 
 
 /* Inline and small status messages */

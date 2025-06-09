@@ -176,9 +176,11 @@
                         <select id="image-status-filter">
                             <option value="">All</option>
                             <option value="unprocessed">Unprocessed</option>
-                            <option value="in_progress_manual">In Progress (Manual)</option>
-                            <option value="in_progress_auto">In Progress (Auto)</option>
-                            <option value="completed">Completed</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="ready_for_review">Ready for Review</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="skip">Skip</option>
                         </select>
                         <button id="refresh-image-pool-btn">Refresh Pool</button>
                         <button id="manage-sources-btn">Manage Sources</button>
@@ -253,11 +255,17 @@
                         </div>
                     </div>
                 </div>
+                <div id="layer-view-section" class="layer-view-section">
+                    <h2>Layer View</h2>
+                    <div id="layer-view-container">
+                        <p><em>No layers yet. Use "Add to Layers".</em></p>
+                    </div>
+                </div>
                 <div class="results-section">
                     <h2>Final Masks & Export</h2>
                     <div class="export-controls">
                         <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
-                         <button id="commit-masks-btn" title="Commit current masks to the project for this image">Commit Current Masks</button>
+                         <button id="commit-masks-btn" title="Add the current predictions to the Layer View">Add to Layers</button>
                          <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
                         <p style="margin-top: 10px; font-size: 14px; color: #666;"><i>More export options and mask list will be added.</i></p>
                     </div>
@@ -278,6 +286,7 @@
     <script src="{{ url_for('static', filename='js/modelHandler.js') }}"></script> <!-- Model loading UI -->
     <script src="{{ url_for('static', filename='js/projectHandler.js') }}"></script> <!-- Project management UI -->
     <script src="{{ url_for('static', filename='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
+    <script src="{{ url_for('static', filename='js/layerViewController.js') }}"></script> <!-- Layer view management -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>

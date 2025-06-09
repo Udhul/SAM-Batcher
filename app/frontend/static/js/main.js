@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Assuming they are classes as per the plan:
     const projectHandler = (typeof ProjectHandler === 'function') ? new ProjectHandler(apiClient, stateManager, uiManager, utils) : null;
     const imagePoolHandler = (typeof ImagePoolHandler === 'function') ? new ImagePoolHandler(apiClient, stateManager, uiManager, utils) : null;
+    const layerViewController = (typeof LayerViewController === 'function') ? new LayerViewController('#layer-view-container', stateManager) : null;
 
 
     // --- (Optional) Make instances globally accessible for debugging ---
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // window.modelHandler = modelHandler; // Not an instance here
     window.projectHandler = projectHandler;
     window.imagePoolHandler = imagePoolHandler;
+    window.layerViewController = layerViewController;
 
     console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
     if (projectHandler) console.log("Main.js: ProjectHandler instantiated.");
@@ -99,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State Variables for main.js orchestration ---
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
+    let activeImageState = null; // {imageHash, filename, layers: []}
 
     async function restoreSessionFromServer() {
         try {
@@ -220,6 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const { imageHash, filename, width, height, imageDataBase64, existingMasks } = event.detail;
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
+        activeImageState = { imageHash, filename, width, height, layers: [] };
+
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
@@ -234,7 +239,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
+        if (activeImageState) activeImageState.layers = [];
         if (existingMasks && existingMasks.length > 0) {
+            activeImageState.layers = existingMasks.map((m, idx) => ({
+                layerId: m.layer_id || `layer_${idx}`,
+                name: m.name || `Layer ${idx + 1}`,
+                classLabel: m.class_label || '',
+                status: m.layer_type || 'prediction',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: m.mask_data_rle
+            }));
+
             const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');
             const autoMaskLayers = existingMasks.filter(m => m.layer_type === 'automask');
             let loadedMaskMessage = null;
@@ -278,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } catch (e) { console.error("Error parsing automask layer data:", e); }
             }
+            if (layerViewController) layerViewController.setLayers(activeImageState.layers);
             if(loadedMaskMessage) uiManager.showGlobalStatus(loadedMaskMessage, 'info', 4000);
         }
     }
@@ -565,63 +582,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (commitMasksBtn) {
-        commitMasksBtn.addEventListener('click', async () => {
-            const activeProjectId = stateManager.getActiveProjectId();
-            const activeImageHash = stateManager.getActiveImageHash();
-            const canvasState = canvasManager.getCurrentCanvasInputs();
+        commitMasksBtn.addEventListener('click', () => {
+            if (!activeImageState) return;
+            const predictions = canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0
+                ? canvasManager.manualPredictions
+                : (canvasManager.automaskPredictions || []);
 
-            if (!activeProjectId || !activeImageHash || !canvasState.imagePresent) {
-                uiManager.showGlobalStatus("No active project/image or masks to commit.", "error");
+            if (!predictions || predictions.length === 0) {
+                uiManager.showGlobalStatus('No predictions to add.', 'info');
                 return;
             }
 
-            // Decide which masks to commit:
-            // Option 1: Commit currently displayed predictions (could be manual or auto)
-            // Option 2: Allow user to select from a list (more complex UI needed)
-            // For now, let's assume we commit the "best" manual prediction if available,
-            // or all automasks if those are active.
-            // This logic needs to be refined based on actual UI for mask selection.
-            
-            let masksToCommit = [];
-            if (canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0) {
-                // Example: commit the "best" mask from manual predictions
-                // For a real app, you'd likely have a way for the user to explicitly select THE final mask.
-                const bestMask = canvasManager.manualPredictions[0]; // Assumes sorted by score
-                if (bestMask && bestMask.segmentation) {
-                     masksToCommit.push({ segmentation: bestMask.segmentation, source_layer_ids: ["manual_interactive"], name: "final_mask_0" });
-                }
-            } else if (canvasManager.automaskPredictions && canvasManager.automaskPredictions.length > 0) {
-                // Example: commit all automasks currently displayed
-                masksToCommit = canvasManager.automaskPredictions.map((mask, idx) => ({
-                    segmentation: mask.segmentation,
-                    source_layer_ids: ["automask_generation"],
-                    name: `automask_${idx}`
-                }));
-            }
+            const newLayers = predictions.map((mask, idx) => ({
+                layerId: crypto.randomUUID(),
+                name: `Mask ${activeImageState.layers.length + idx + 1}`,
+                classLabel: '',
+                status: 'prediction',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: mask.segmentation || mask
+            }));
 
-            if (masksToCommit.length === 0) {
-                uiManager.showGlobalStatus("No masks available on canvas to commit.", "info");
-                return;
-            }
+            activeImageState.layers.push(...newLayers);
+            if (layerViewController) layerViewController.addLayers(newLayers);
 
-            const payload = {
-                final_masks: masksToCommit, // These should be binary arrays as per current canvasController
-                notes: `Committed on ${new Date().toLocaleString()}`
-            };
-
-            uiManager.showGlobalStatus("Committing masks...", "loading", 0);
-            try {
-                const data = await apiClient.commitMasks(activeProjectId, activeImageHash, payload);
-                if (data.success) {
-                    uiManager.showGlobalStatus(data.message || "Masks committed successfully.", "success");
-                    // Optionally, update image status in the pool
-                    if (imagePoolHandler) imagePoolHandler.handleUpdateImageStatus(activeImageHash, 'completed');
-                } else {
-                    throw new Error(data.error || "Failed to commit masks.");
-                }
-            } catch (error) {
-                uiManager.showGlobalStatus(`Error committing masks: ${utils.escapeHTML(error.message)}`, "error");
-            }
+            canvasManager.clearAllCanvasInputs(false);
+            canvasManager.setManualPredictions(null);
+            canvasManager.setAutomaskPredictions(null);
+            uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
         });
     }
 
