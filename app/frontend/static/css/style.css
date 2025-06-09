@@ -96,9 +96,22 @@ header p {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.image-section { display: flex; gap: 20px; align-items: flex-start; }
-.image-display-area { flex: 1 1 auto; }
-.layer-view-section { flex: 0 0 240px; }
+.image-section { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.image-display-area {
+    flex: 2 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+.canvas-toolbar {
+    flex: 0 0 100%;
+    order: 2;
+}
+.layer-view-section {
+    flex: 1 1 0;
+    max-width: 33%;
+}
 
 .config-section h2,
 .image-section h2,
