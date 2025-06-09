@@ -105,12 +105,11 @@ header p {
     min-width: 0;
 }
 .canvas-toolbar {
-    flex: 0 0 100%;
-    order: 2;
+    margin-top: 10px;
 }
 .layer-view-section {
-    flex: 0 0 33%;
-    max-width: 33%;
+    flex: 1 1 0;
+    max-width: none;
 }
 
 .config-section h2,

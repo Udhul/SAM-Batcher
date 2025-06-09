@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasManager = new CanvasManager();
 
     const canvasStateCache = {};
+    const imageLayerCache = {};
     
     // modelHandler.js is a script that self-initializes its DOM listeners.
     // We don't instantiate it as a class here, but we will need its functions if we were to call them.
@@ -152,6 +153,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state) canvasManager.importState(state);
     }
 
+    function syncLayerCache(hash) {
+        if (!activeImageState) return;
+        const key = hash || activeImageState.imageHash;
+        if (!key) return;
+        imageLayerCache[key] = activeImageState.layers.slice();
+    }
+
 
     // --- Setup Event Listeners for Inter-Module Communication ---
 
@@ -224,7 +232,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const { imageHash, filename, width, height, imageDataBase64, existingMasks } = event.detail;
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
+        syncLayerCache();
         activeImageState = { imageHash, filename, width, height, layers: [] };
+        if (imageLayerCache[imageHash]) {
+            activeImageState.layers = imageLayerCache[imageHash].map(l => ({ ...l }));
+        } else if (existingMasks && existingMasks.length > 0) {
+            activeImageState.layers = existingMasks.map((m, idx) => ({
+                layerId: m.layer_id || `layer_${idx}`,
+                name: m.name || `Layer ${idx + 1}`,
+                classLabel: m.class_label || '',
+                status: m.layer_type || 'prediction',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: m.mask_data_rle
+            }));
+            imageLayerCache[imageHash] = activeImageState.layers.map(l => ({ ...l }));
+        }
+        if (layerViewController) layerViewController.setLayers(activeImageState.layers);
 
         const imageElement = new Image();
         imageElement.onload = () => {
@@ -240,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
-        if (activeImageState) activeImageState.layers = [];
         if (existingMasks && existingMasks.length > 0) {
 
             const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');
@@ -381,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             activeImageState.layers.push(newLayer);
             if (layerViewController) layerViewController.addLayers([newLayer]);
+            syncLayerCache();
         });
     }
 
@@ -635,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 activeImageState.layers.push(...newLayers);
                 if (layerViewController) layerViewController.addLayers(newLayers);
+                syncLayerCache();
                 uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
             } catch (err) {
                 uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
@@ -690,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         canvasManager.setManualPredictions(null);
+        syncLayerCache();
     });
 
     
