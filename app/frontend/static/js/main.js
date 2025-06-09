@@ -633,13 +633,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // For simplicity, exporting all 'completed' images with 'final_edited' masks
-            // A more complex UI would allow selection of images and mask layers.
             const payload = {
-                image_hashes: ["all_completed"], // Special keyword for backend
                 format: "coco_rle_json",
-                mask_layers_to_export: ["final_edited"],
-                export_schema: "coco_instance_segmentation"
+                export_schema: "coco_instance_segmentation",
+                filters: {
+                    image_statuses: ["approved"],
+                    layer_statuses: ["edited", "approved"]
+                }
             };
             
             uiManager.showGlobalStatus("Preparing COCO export...", "loading", 0);

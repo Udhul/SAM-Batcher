@@ -390,6 +390,50 @@ def get_next_unprocessed_image(project_id: str, current_image_hash: Optional[str
     conn.close()
     return dict(row) if row else None
 
+def get_image_hashes_by_statuses(project_id: str, statuses: List[str]) -> List[str]:
+    """Returns image hashes for images whose status is in the provided list."""
+    if not statuses:
+        return []
+    placeholders = ",".join(["?"] * len(statuses))
+    query = f"SELECT image_hash FROM Images WHERE status IN ({placeholders})"
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(query, statuses)
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["image_hash"] for row in rows]
+
+def get_layers_by_image_and_statuses(project_id: str, image_hashes: List[str], layer_statuses: List[str]) -> List[Dict[str, Any]]:
+    """Returns mask layers for given images filtered by layer_type/status."""
+    if not image_hashes:
+        return []
+    placeholders_imgs = ",".join(["?"] * len(image_hashes))
+    query = f"SELECT * FROM Mask_Layers WHERE image_hash_ref IN ({placeholders_imgs})"
+    params: List[Any] = list(image_hashes)
+    if layer_statuses:
+        placeholders_layers = ",".join(["?"] * len(layer_statuses))
+        query += f" AND layer_type IN ({placeholders_layers})"
+        params.extend(layer_statuses)
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    layers = []
+    for row in cursor.fetchall():
+        layer = dict(row)
+        if layer['model_details']:
+            layer['model_details'] = json.loads(layer['model_details'])
+        if layer['prompt_details']:
+            layer['prompt_details'] = json.loads(layer['prompt_details'])
+        try:
+            layer['mask_data_rle'] = json.loads(layer['mask_data_rle'])
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if layer['metadata']:
+            layer['metadata'] = json.loads(layer['metadata'])
+        layers.append(layer)
+    conn.close()
+    return layers
+
 
 # --- Mask Layers ---
 def save_mask_layer(project_id: str, layer_id: str, image_hash_ref: str, layer_type: str,

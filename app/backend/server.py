@@ -583,15 +583,14 @@ def api_export_data(project_id):
         return jsonify({"success": False, "error": "Operation only allowed on the active project."}), 403
 
     data = request.json
-    image_hashes_input = data.get('image_hashes', []) # Can be list of hashes, or ["all_completed", "all_in_project"]
     export_format = data.get('format', config.DEFAULT_EXPORT_FORMAT)
-    mask_layers_to_export = data.get('mask_layers_to_export', config.DEFAULT_MASK_LAYERS_TO_EXPORT)
-    export_schema = data.get('export_schema', "coco_instance_segmentation") # Default or from client
+    export_schema = data.get('export_schema', "coco_instance_segmentation")
+    filters = data.get('filters', {})
 
     # For large exports, this should be async.
     # For now, synchronous:
     file_like_object = export_logic.prepare_export_data(
-        project_id, image_hashes_input, mask_layers_to_export, export_format, export_schema
+        project_id, filters, export_format, export_schema
     )
 
     if file_like_object:
