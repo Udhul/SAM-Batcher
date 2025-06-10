@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasManager = new CanvasManager();
 
     const canvasStateCache = {};
+    let imageLayerCache = {};
     
     // modelHandler.js is a script that self-initializes its DOM listeners.
     // We don't instantiate it as a class here, but we will need its functions if we were to call them.
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Assuming they are classes as per the plan:
     const projectHandler = (typeof ProjectHandler === 'function') ? new ProjectHandler(apiClient, stateManager, uiManager, utils) : null;
     const imagePoolHandler = (typeof ImagePoolHandler === 'function') ? new ImagePoolHandler(apiClient, stateManager, uiManager, utils) : null;
+    const layerViewController = (typeof LayerViewController === 'function') ? new LayerViewController('#layer-view-container', stateManager) : null;
 
 
     // --- (Optional) Make instances globally accessible for debugging ---
@@ -60,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // window.modelHandler = modelHandler; // Not an instance here
     window.projectHandler = projectHandler;
     window.imagePoolHandler = imagePoolHandler;
+    window.layerViewController = layerViewController;
 
     console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
     if (projectHandler) console.log("Main.js: ProjectHandler instantiated.");
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveOverlayBtn = document.getElementById('save-masks-btn');
     const commitMasksBtn = document.getElementById('commit-masks-btn');
     const exportCocoBtn = document.getElementById('export-coco-btn');
+    const addEmptyLayerBtn = document.getElementById('add-empty-layer-btn');
 
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
@@ -99,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State Variables for main.js orchestration ---
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
+    let activeImageState = null; // {imageHash, filename, layers: []}
 
     async function restoreSessionFromServer() {
         try {
@@ -148,6 +153,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state) canvasManager.importState(state);
     }
 
+    function syncLayerCache(hash) {
+        if (!activeImageState) return;
+        const key = hash || activeImageState.imageHash;
+        if (!key) return;
+        imageLayerCache[key] = activeImageState.layers.slice();
+    }
+
 
     // --- Setup Event Listeners for Inter-Module Communication ---
 
@@ -161,6 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' created. ID: ${projectId.substring(0,6)}`, 'success');
         canvasManager.clearAllCanvasInputs(true);
         if (imagePoolHandler) imagePoolHandler.clearImagePoolDisplay();
+        activeImageState = null;
+        layerViewController && layerViewController.setLayers([]);
+        imageLayerCache = {};
         // Dispatch event for modelHandler to update based on new (default) project settings
         utils.dispatchCustomEvent('project-model-settings-update', {
             modelKey: projectData?.settings?.current_sam_model_key || null,
@@ -174,6 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const { projectId, projectName, projectData } = event.detail;
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' loaded.`, 'success');
         canvasManager.clearAllCanvasInputs(true);
+        activeImageState = null;
+        layerViewController && layerViewController.setLayers([]);
+        imageLayerCache = {};
 
         const settings = projectData.settings || {};
         // Dispatch event for modelHandler to update based on loaded project's settings
@@ -220,6 +238,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const { imageHash, filename, width, height, imageDataBase64, existingMasks } = event.detail;
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
+        syncLayerCache();
+        activeImageState = { imageHash, filename, width, height, layers: [] };
+        if (imageLayerCache[imageHash]) {
+            activeImageState.layers = imageLayerCache[imageHash].map(l => ({ ...l }));
+        } else if (existingMasks && existingMasks.length > 0) {
+            const validMasks = existingMasks.filter(m => m.layer_type !== 'interactive_prompt');
+            activeImageState.layers = validMasks.map((m, idx) => {
+                let parsed = m.mask_data_rle;
+                if (typeof parsed === 'string') {
+                    try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
+                }
+                if (parsed && parsed.counts && parsed.size) {
+                    parsed = utils.rleToBinaryMask(parsed, height, width);
+                } else if (parsed && parsed.type === 'raw_list_final' && Array.isArray(parsed.data)) {
+                    parsed = parsed.data;
+                }
+                return {
+                    layerId: m.layer_id || `layer_${idx}`,
+                    name: m.name || `Mask ${idx + 1}`,
+                    classLabel: m.class_label || '',
+                    status: m.layer_type || 'prediction',
+                    visible: true,
+                    displayColor: utils.getRandomHexColor(),
+                    maskData: parsed
+                };
+            });
+            imageLayerCache[imageHash] = activeImageState.layers.map(l => ({ ...l }));
+        }
+        if (layerViewController) layerViewController.setLayers(activeImageState.layers);
+
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
@@ -235,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
         if (existingMasks && existingMasks.length > 0) {
+
             const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');
             const autoMaskLayers = existingMasks.filter(m => m.layer_type === 'automask');
             let loadedMaskMessage = null;
@@ -242,7 +291,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (finalMasks.length > 0) {
                 const latestFinal = finalMasks.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
-                    const maskDataContainer = JSON.parse(latestFinal.mask_data_rle);
+                    let maskDataContainer = latestFinal.mask_data_rle;
+                    if (typeof maskDataContainer === 'string') {
+                        maskDataContainer = JSON.parse(maskDataContainer);
+                    }
                     let binaryMaskArray = null;
                     if (maskDataContainer && maskDataContainer.type === 'raw_list_final' && maskDataContainer.data) {
                         binaryMaskArray = maskDataContainer.data;
@@ -259,7 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (autoMaskLayers.length > 0 && !loadedMaskMessage) {
                 const latestAuto = autoMaskLayers.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
-                    const allMaskObjectsInLayer = JSON.parse(latestAuto.mask_data_rle);
+                    let allMaskObjectsInLayer = latestAuto.mask_data_rle;
+                    if (typeof allMaskObjectsInLayer === 'string') {
+                        allMaskObjectsInLayer = JSON.parse(allMaskObjectsInLayer);
+                    }
                     const binaryMasksForCanvas = allMaskObjectsInLayer.map(item => {
                         let rleData = item.segmentation_rle || item; // Backend might send RLE directly or nested
                         if (rleData && rleData.type === 'raw_list' && rleData.data) { // Already binary
@@ -278,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } catch (e) { console.error("Error parsing automask layer data:", e); }
             }
+            if (layerViewController) layerViewController.setLayers(activeImageState.layers);
             if(loadedMaskMessage) uiManager.showGlobalStatus(loadedMaskMessage, 'info', 4000);
         }
     }
@@ -355,6 +411,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearInputsBtn) {
         clearInputsBtn.addEventListener('click', () => {
             canvasManager.clearAllCanvasInputs(false);
+        });
+    }
+
+        if (addEmptyLayerBtn) {
+        addEmptyLayerBtn.addEventListener('click', () => {
+            if (!activeImageState) return;
+            const newLayer = {
+                layerId: crypto.randomUUID(),
+                name: `Mask ${activeImageState.layers.length + 1}`,
+                classLabel: '',
+                status: 'edited',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: null
+            };
+            activeImageState.layers.push(newLayer);
+            if (layerViewController) layerViewController.addLayers([newLayer]);
+            syncLayerCache();
         });
     }
 
@@ -564,64 +638,68 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (commitMasksBtn) {
+    async function handleCommitMasks() {
+        if (!activeImageState) return;
+        const predictions = canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0
+            ? canvasManager.manualPredictions
+            : (canvasManager.automaskPredictions || []);
+
+        const selected = (predictions || []).filter(p => p.visible !== false);
+
+        if (selected.length === 0) {
+            uiManager.showGlobalStatus('No predictions selected.', 'info');
+            return;
+        }
+
+        const masksToCommit = selected.map((mask, idx) => ({
+            segmentation: mask.segmentation || mask,
+            source_layer_ids: [],
+            name: `Mask ${activeImageState.layers.length + idx + 1}`
+        }));
+
+        const activeProjectId = stateManager.getActiveProjectId();
+        const activeImageHash = stateManager.getActiveImageHash();
+        if (!activeProjectId || !activeImageHash) {
+            uiManager.showGlobalStatus('No active project or image.', 'error');
+            return;
+        }
+
+        uiManager.showGlobalStatus('Adding layer(s)...', 'loading', 0);
+        try {
+            const data = await apiClient.commitMasks(activeProjectId, activeImageHash, { final_masks: masksToCommit, notes: '' });
+            if (!data.success) throw new Error(data.error || 'Commit failed');
+
+            const ids = data.final_layer_ids || [];
+            const newLayers = selected.map((mask, idx) => ({
+                layerId: ids[idx] || crypto.randomUUID(),
+                name: masksToCommit[idx].name,
+                classLabel: '',
+                status: 'edited',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: mask.segmentation || mask
+            }));
+
+            activeImageState.layers.push(...newLayers);
+            if (layerViewController) layerViewController.addLayers(newLayers);
+            syncLayerCache();
+            uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
+        } catch (err) {
+            uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
+        }
+
+        canvasManager.clearAllCanvasInputs(false);
+        canvasManager.setManualPredictions(null);
+        canvasManager.setAutomaskPredictions(null);
+    }
+
+    if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
+        commitMasksBtn.dataset.listenerAttached = 'true';
         commitMasksBtn.addEventListener('click', async () => {
-            const activeProjectId = stateManager.getActiveProjectId();
-            const activeImageHash = stateManager.getActiveImageHash();
-            const canvasState = canvasManager.getCurrentCanvasInputs();
-
-            if (!activeProjectId || !activeImageHash || !canvasState.imagePresent) {
-                uiManager.showGlobalStatus("No active project/image or masks to commit.", "error");
-                return;
-            }
-
-            // Decide which masks to commit:
-            // Option 1: Commit currently displayed predictions (could be manual or auto)
-            // Option 2: Allow user to select from a list (more complex UI needed)
-            // For now, let's assume we commit the "best" manual prediction if available,
-            // or all automasks if those are active.
-            // This logic needs to be refined based on actual UI for mask selection.
-            
-            let masksToCommit = [];
-            if (canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0) {
-                // Example: commit the "best" mask from manual predictions
-                // For a real app, you'd likely have a way for the user to explicitly select THE final mask.
-                const bestMask = canvasManager.manualPredictions[0]; // Assumes sorted by score
-                if (bestMask && bestMask.segmentation) {
-                     masksToCommit.push({ segmentation: bestMask.segmentation, source_layer_ids: ["manual_interactive"], name: "final_mask_0" });
-                }
-            } else if (canvasManager.automaskPredictions && canvasManager.automaskPredictions.length > 0) {
-                // Example: commit all automasks currently displayed
-                masksToCommit = canvasManager.automaskPredictions.map((mask, idx) => ({
-                    segmentation: mask.segmentation,
-                    source_layer_ids: ["automask_generation"],
-                    name: `automask_${idx}`
-                }));
-            }
-
-            if (masksToCommit.length === 0) {
-                uiManager.showGlobalStatus("No masks available on canvas to commit.", "info");
-                return;
-            }
-
-            const payload = {
-                final_masks: masksToCommit, // These should be binary arrays as per current canvasController
-                notes: `Committed on ${new Date().toLocaleString()}`
-            };
-
-            uiManager.showGlobalStatus("Committing masks...", "loading", 0);
-            try {
-                const data = await apiClient.commitMasks(activeProjectId, activeImageHash, payload);
-                if (data.success) {
-                    uiManager.showGlobalStatus(data.message || "Masks committed successfully.", "success");
-                    // Optionally, update image status in the pool
-                    if (imagePoolHandler) imagePoolHandler.handleUpdateImageStatus(activeImageHash, 'completed');
-                } else {
-                    throw new Error(data.error || "Failed to commit masks.");
-                }
-            } catch (error) {
-                uiManager.showGlobalStatus(`Error committing masks: ${utils.escapeHTML(error.message)}`, "error");
-            }
+            if (commitMasksBtn.disabled) return;
+            commitMasksBtn.disabled = true;
+            await handleCommitMasks();
+            commitMasksBtn.disabled = false;
         });
     }
 
@@ -633,13 +711,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // For simplicity, exporting all 'completed' images with 'final_edited' masks
-            // A more complex UI would allow selection of images and mask layers.
             const payload = {
-                image_hashes: ["all_completed"], // Special keyword for backend
                 format: "coco_rle_json",
-                mask_layers_to_export: ["final_edited"],
-                export_schema: "coco_instance_segmentation"
+                export_schema: "coco_instance_segmentation",
+                filters: {
+                    image_statuses: ["approved"],
+                    layer_statuses: ["edited", "approved"]
+                }
             };
             
             uiManager.showGlobalStatus("Preparing COCO export...", "loading", 0);
@@ -656,7 +734,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    document.addEventListener('layer-selected', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer && layer.maskData) {
+            canvasManager.setManualPredictions({ masks_data: [layer.maskData], scores: [1.0] });
+        }
+    });
 
+    document.addEventListener('layer-deleted', (event) => {
+        if (!activeImageState) return;
+        const id = event.detail.layerId;
+        activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
+        canvasManager.setManualPredictions(null);
+        syncLayerCache();
+    });
+
+    
     // --- Application Initialization ---
     function initializeApp() {
         uiManager.showGlobalStatus("Application initializing...", 'loading', 0);

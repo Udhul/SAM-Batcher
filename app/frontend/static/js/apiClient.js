@@ -218,7 +218,7 @@ class APIClient {
 
     // --- Export Endpoints ---
     async requestExport(projectId, payload) {
-        // payload: { image_hashes, format, mask_layers_to_export, export_schema }
+        // payload: { format, export_schema, filters: { image_statuses, layer_statuses } }
         const url = `${this.baseUrl}/project/${projectId}/export`;
         this._dispatchEvent('api-request-sent', { endpoint: `/project/${projectId}/export`, method: 'POST' });
         try {

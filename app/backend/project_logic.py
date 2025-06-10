@@ -493,10 +493,11 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
     masks_np, scores_np, logits_np = prediction_results # logits_np might be used for next mask_input
 
     layer_id = f"interactive_{uuid.uuid4().hex}"
-    
-    # Prepare masks for DB (RLE) and client (binary arrays)
-    # Again, RLE conversion needed. `sam_inference.prepare_masks_for_export` is relevant.
-    db_mask_list = [] # List of RLEs for this layer
+
+    # Prepare masks for the client (binary arrays). Interactive predictions are
+    # ephemeral and should not be saved directly to the DB.
+    # We still convert masks to simple RLE in case the caller needs it.
+    db_mask_list = []  # List of RLEs for potential future use
     client_mask_list = [] # List of binary arrays for client
 
     flat_scores = []
@@ -516,14 +517,7 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
             })
 
 
-    # Storing a list of masks within one layer's mask_data_rle
-    db_manager.save_mask_layer(
-        project_id, layer_id, image_hash, "interactive_prompt",
-        model_details=sam_inference.get_model_info(),
-        prompt_details={"prompts": prompts, "predict_params": predict_params},
-        mask_data_rle=json.dumps(db_mask_list),
-        metadata={"scores": flat_scores.tolist() if isinstance(flat_scores, np.ndarray) else list(flat_scores)}
-    )
+    # Update image status but do not store these transient masks in the DB.
     db_manager.update_image_status(project_id, image_hash, "in_progress_manual")
 
     # Client expects 'masks_data' as list of 2D binary arrays, and 'scores'

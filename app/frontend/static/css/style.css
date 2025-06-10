@@ -15,14 +15,14 @@ body {
     flex-direction: column; /* Stack header and main content */
     align-items: center; /* Center .container horizontally */
     min-height: 100vh; /* Ensure body takes full viewport height */
-    padding: 10px;
+    padding: 0px; /* Make .container control padding */
 }
 
 .container {
-    width: 95%;
-    max-width: 95%;
+    width: 100%;
+    max-width: 100%;
     /* margin: 0 auto; /* Centering handled by body flexbox */
-    padding: 20px;
+    padding: 5px 20px 35px 20px;
     display: flex; /* Use flexbox for layout within container */
     flex-direction: column; /* Stack sections vertically */
     gap: 20px;
@@ -69,36 +69,45 @@ header p {
 }
 
 .controls-column {
-    flex: 0 0 380px; /* Fixed width for controls column */
+    flex: 0 0 380px; 
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-
-.canvas-column {
-    flex: 1 1 auto; /* Canvas column takes remaining space */
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    min-width: 0; /* Important for flex item to shrink properly */
-}
-
 
 /* Section Styles */
 .config-section,
-.image-section, /* This might become part of canvas-column or specific handlers */
-.results-section, /* This might be for mask lists, export buttons */
+.image-section,
 .auto-mask-section,
 .image-pool-section {
     background: white;
-    padding: 20px;
+    padding: 8px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.image-section {
+    display: grid;
+    grid-template-columns: 75% 1fr;
+    gap: 5px;
+    align-items: flex-start;
+}
+.image-display-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+.layer-view-section {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .config-section h2,
 .image-section h2,
-.results-section h2,
 .auto-mask-section h2 { /* Combined for consistency */
     margin-top: 0; /* Remove default h2 margin if it's the first child */
     margin-bottom: 15px;
@@ -522,8 +531,11 @@ ul.image-sources-list li span { flex-grow: 1; }
     text-transform: capitalize;
 }
 .image-status-badge.unprocessed { background-color: #6c757d; }
-.image-status-badge.in_progress_manual, .image-status-badge.in_progress_auto { background-color: #ffc107; color: #333; }
-.image-status-badge.completed { background-color: #28a745; }
+.image-status-badge.in_progress { background-color: #ffc107; color: #333; }
+.image-status-badge.ready_for_review { background-color: #17a2b8; color: #fff; }
+.image-status-badge.approved { background-color: #28a745; }
+.image-status-badge.rejected { background-color: #dc3545; color: #fff; }
+.image-status-badge.skip { background-color: #6c757d; }
 .image-status-badge.unknown { background-color: #adb5bd; }
 
 .delete-image-btn {
@@ -644,8 +656,8 @@ input[type="file"]#image-upload {
 /* Results & Export Controls */
 .export-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
 .export-controls button {
-    padding: 10px 20px; color: white; border: none; border-radius: 4px;
-    font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;
+    padding: 6px 12px; color: white; border: none; border-radius: 4px;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;
 }
 /* Individual button colors */
 #save-masks-btn { background-color: #007bff; } /* Blue for preview */
@@ -656,6 +668,32 @@ input[type="file"]#image-upload {
 #export-coco-btn:hover:not(:disabled) { background-color: #e06200; }
 
 .export-controls button:disabled { background-color: #adb5bd; cursor: not-allowed; }
+
+/* Layer View */
+.layer-view-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.layer-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.layer-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; flex-wrap: wrap; }
+.layer-item.selected { background-color: #f0f4ff; }
+.layer-vis-toggle { border: none; background: none; cursor: pointer; }
+.layer-color-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #ccc; }
+.layer-name-input { 
+    flex: 1 1 25px;
+    min-width: 25px; 
+    padding: 2px 4px; 
+    font-size: 13px; 
+}
+.layer-class-input { 
+    flex: 2 1 25px;
+    min-width: 30px; 
+    padding: 2px 4px; 
+    font-size: 11px; 
+}
+.layer-status-tag { font-size: 11px; padding: 2px 4px; border-radius: 4px; background-color: #eee; text-transform: capitalize; }
+.layer-status-tag.prediction { background-color: #007bff; color: #fff; }
+.layer-status-tag.edited { background-color: #ffc107; color: #333; }
+.layer-status-tag.approved { background-color: #28a745; color: #fff; }
+.layer-status-tag.rejected { background-color: #dc3545; color: #fff; }
+.layer-delete-btn { border: none; background: none; cursor: pointer; color: #dc3545; }
 
 
 /* Inline and small status messages */
@@ -687,6 +725,15 @@ input[type="file"]#image-upload {
     .amg-actions button { width: 100%; }
     #clear-inputs-btn { width: 100%; margin-top: 10px; }
     .export-controls button { width: 100%; }
+}
+@media (max-width: 900px) {
+    .image-section {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    .layer-view-section {
+        width: 100%;
+    }
 }
 @media (max-width: 480px) {
     .custom-input-group input[type="text"],
@@ -804,12 +851,14 @@ input[type="file"]#image-upload {
 }
 #status-console.latest-line {
     overflow-y: hidden;
+    background: #222; /* 100% opacity for latest-line mode */
 }
 #status-console.latest-line .status-entry:not(:last-child) {
     display: none;
 }
 #status-console.expanded {
     height: 25vh;
+    background: #222E; /* Slightly transparent for expanded mode */
 }
 #status-console.collapsed {
     display: none;
