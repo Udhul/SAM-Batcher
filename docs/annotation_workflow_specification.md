@@ -58,7 +58,9 @@ An image progresses through the following states and modes:
 
 #### 3.1.1. The Main Annotation Layout
 
-The `main-layout` will be updated to accommodate the new Layer View. A good approach would be a three-column layout within the `image-section`'s parent.
+The `main-layout` accommodates the canvas and Layer View side by side within the
+`image-section`. A responsive two-column layout keeps the canvas on the left and
+the Layer View on the right.
 
 ```
 +--------------------------------------------------------------------------+
@@ -68,13 +70,11 @@ The `main-layout` will be updated to accommodate the new Layer View. A good appr
 | (Creation/Edit Mode happens here)          | (List of masks for          |
 |                                            |  the current image)         |
 +--------------------------------------------------------------------------+
-| [Final Masks & Export Section] - (updated)                               |
-+--------------------------------------------------------------------------+
 ```
 
 #### 3.1.2. The Layer View
 
-This new panel will be located to the right of the canvas. It is the primary interface for managing masks of the current image.
+This panel sits to the right of the canvas and always reflects the layers for the **currently loaded image**. Switching images reloads this view with the layers stored for that image.
 
 *   **Mockup:**
 
@@ -94,15 +94,17 @@ This new panel will be located to the right of the canvas. It is the primary int
         *   **Select for Edit:** Clicking anywhere on the layer item (except controls) selects it, putting the canvas into **Edit Mode** for this layer. The selected layer should be highlighted.
         *   **Delete Button (Trash Icon):** Permanently removes the layer. Requires confirmation.
 
+At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON.
+
 #### 3.1.3. Canvas & Toolbar Changes
 
 The canvas interaction will be modal, determined by whether a layer is selected for editing.
 
 **A. Creation Mode (No layer selected):**
 *   This is the default mode.
-*   The UI remains largely the same as the current implementation.
-*   **Key Change:** The existing `Commit Current Masks` button (`#commit-masks-btn` in `index.html`) is renamed to **Add to Layers** and retains its location in the "Final Masks & Export" section.
-    *   **Functionality:** When clicked, all *visible* masks from the current prediction set (`manualPredictions` or `automaskPredictions`) are converted into new layers in the Layer View.
+*   The UI for drawing prompts and running SAM2 predictions mirrors the base tools.
+*   **Key Change:** The `Commit Current Masks` button becomes **Add to Layers** and lives in the canvas toolbar.
+    *   **Functionality:** When clicked, all *visible* masks from the current prediction set (`manualPredictions` or `automaskPredictions`) are converted into new layers in the Layer View. The button temporarily disables while the layers are saved to avoid duplicate entries.
     *   After adding, all canvas inputs (points, boxes) and current predictions are cleared, returning the user to a clean slate to create the next mask.
 
 **B. Edit Mode (A layer is selected):**
@@ -132,7 +134,7 @@ The canvas interaction will be modal, determined by whether a layer is selected 
     
     Existing projects use `unprocessed`, `in_progress_auto`, `in_progress_manual` and `completed`.  During migration these map respectively to `unprocessed`, `in_progress`, `in_progress` and `approved`.
 *   The **Image Pool** (`#image-gallery-container`) and its filter (`#image-status-filter`) must be updated to reflect and filter by these new statuses. The `image-status-badge` CSS should be updated with new colors for these states.
-*   An `Update Status` dropdown should be added in the main annotation view, perhaps near the image name or in the "Final Masks & Export" section, to allow the user to manually change the image status (e.g., to `Ready for Review`).
+*   An `Update Status` dropdown should be available in the main annotation view, typically near the image name or alongside the export controls, allowing the user to manually change the image status (e.g., to `Ready for Review`).
 
 ### 3.2. Data Model & State Management (Refactored)
 
@@ -144,11 +146,11 @@ The application's state will be managed at two levels:
 
 1.  **Global State (`StateManager`):** The existing `stateManager.js` is well-suited for its purpose and will continue to manage global, non-image-specific context like `activeProjectId`, `activeImageHash`, and `currentLoadedModelInfo`. Its role as an event dispatcher for global changes remains critical.
 
-2.  **Active Image State (`ActiveImageState`):** To manage the complexity of the annotation view for a single image, we will introduce a new, comprehensive in-memory object. This object will be the **single source of truth** for the currently loaded image, its layers, and all ephemeral creation/editing data. It will be loaded when an image is selected and cleared or saved when navigating away.
+2.  **Active Image State (`ActiveImageState`):** To manage the complexity of the annotation view for a single image, a comprehensive in-memory object serves as the **single source of truth** for the currently loaded image, its layers, and all ephemeral creation/editing data. It is loaded when an image is selected and cleared or saved when navigating away.
 
 **Proposed `ActiveImageState` Object Structure:**
 
-This object will be managed by the main application controller and passed to the relevant modules (`canvasController`, `layerViewController`, `editModeController`).
+This object is managed by the main application controller and passed to the relevant modules (`canvasController`, `layerViewController`, `editModeController`).
 
 ```javascript
 // Example structure for the state of the currently loaded image.
@@ -203,11 +205,11 @@ const ActiveImageState = {
 
 #### 3.2.2. Backend Database Schema (Refactored)
 
-The existing schema in `db_manager.py` is a strong starting point. The following changes will adapt it to the new workflow, focusing on clarity, normalization, and extensibility.
+The schema defined in `db_manager.py` serves as a strong starting point. The following sections describe how it adapts to the workflow, focusing on clarity, normalization and extensibility.
 
 **`Images` Table**
 
-The `status` column will be repurposed to track the new, richer workflow states.
+The `status` column tracks the full annotation workflow state for each image.
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
@@ -218,7 +220,7 @@ The `status` column will be repurposed to track the new, richer workflow states.
 
 **`Mask_Layers` Table (Refactored)**
 
-This table will be significantly refactored to represent a single, unique mask layer per row. This is a crucial change from the old model where one row could implicitly represent multiple masks.
+The `Mask_Layers` table represents a single, unique mask layer per row. This replaces the old model where one row could implicitly represent multiple masks.
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
@@ -246,7 +248,7 @@ Existing databases will need a migration script to split any rows that stored mu
 The synergy between the `ActiveImageState` object and the backend API is key to a smooth user experience.
 
 1.  **Load:**
-    *   When a user selects an image from the pool, the frontend currently calls `/api/project/{id}/images/set_active` and `/api/project/{id}/images/{hash}/masks` to obtain mask data.  These will be replaced by a single endpoint: `GET /api/project/{id}/image/{hash}/state`.
+    *   When a user selects an image from the pool, the frontend requests `GET /api/project/{id}/image/{hash}/state` to obtain both the image information and all stored mask layers.
     *   The backend retrieves the image's row from the `Images` table and all associated rows from the refactored `mask_layers` table.
     *   It assembles and returns a JSON object matching the `ActiveImageState` structure (without the ephemeral `creation` and `edit` parts).
     *   The frontend populates its local `ActiveImageState` with this data.
@@ -256,7 +258,7 @@ The synergy between the `ActiveImageState` object and the backend API is key to 
     *   The UI components (Canvas, Layer View) are rendered reactively based on this local state, ensuring instant feedback.
 
 3.  **Save:**
-    *   Changes are persisted to the backend via a `PUT /api/project/{id}/image/{hash}/state` endpoint.  This replaces the current `POST /api/project/{id}/images/{hash}/commit_masks` flow.  The new endpoint receives the relevant parts of the `ActiveImageState` object.
+    *   Changes are persisted to the backend via a `PUT /api/project/{id}/image/{hash}/state` endpoint. The request contains the updated parts of the `ActiveImageState` object.
     *   **Adding Layers:** When the user clicks "Add to Layers", the frontend takes the `predictions` from `ActiveImageState.creation`, formats them into new layer objects, and sends them to the backend. The backend is responsible for unpacking this and creating **multiple new rows** in the `mask_layers` table, one for each added mask.
     *   **Updating Layers:** Changing a layer's name, label, or saving an edit sends the updated layer object to the backend, which performs an `UPDATE` on the corresponding row in `mask_layers`.
     *   **Deleting a Layer:** This triggers a `DELETE` request for the specific `layer_id`.
