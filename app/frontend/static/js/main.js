@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasManager = new CanvasManager();
 
     const canvasStateCache = {};
-    const imageLayerCache = {};
+    let imageLayerCache = {};
     
     // modelHandler.js is a script that self-initializes its DOM listeners.
     // We don't instantiate it as a class here, but we will need its functions if we were to call them.
@@ -173,6 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' created. ID: ${projectId.substring(0,6)}`, 'success');
         canvasManager.clearAllCanvasInputs(true);
         if (imagePoolHandler) imagePoolHandler.clearImagePoolDisplay();
+        activeImageState = null;
+        layerViewController && layerViewController.setLayers([]);
+        imageLayerCache = {};
         // Dispatch event for modelHandler to update based on new (default) project settings
         utils.dispatchCustomEvent('project-model-settings-update', {
             modelKey: projectData?.settings?.current_sam_model_key || null,
@@ -186,6 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const { projectId, projectName, projectData } = event.detail;
         uiManager.showGlobalStatus(`Project '${utils.escapeHTML(projectName)}' loaded.`, 'success');
         canvasManager.clearAllCanvasInputs(true);
+        activeImageState = null;
+        layerViewController && layerViewController.setLayers([]);
+        imageLayerCache = {};
 
         const settings = projectData.settings || {};
         // Dispatch event for modelHandler to update based on loaded project's settings
@@ -237,7 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imageLayerCache[imageHash]) {
             activeImageState.layers = imageLayerCache[imageHash].map(l => ({ ...l }));
         } else if (existingMasks && existingMasks.length > 0) {
-            activeImageState.layers = existingMasks.map((m, idx) => {
+            const validMasks = existingMasks.filter(m => m.layer_type !== 'interactive_prompt');
+            activeImageState.layers = validMasks.map((m, idx) => {
                 let parsed = m.mask_data_rle;
                 if (typeof parsed === 'string') {
                     try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
@@ -249,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return {
                     layerId: m.layer_id || `layer_${idx}`,
-                    name: m.name || `Layer ${idx + 1}`,
+                    name: m.name || `Mask ${idx + 1}`,
                     classLabel: m.class_label || '',
                     status: m.layer_type || 'prediction',
                     visible: true,
@@ -412,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!activeImageState) return;
             const newLayer = {
                 layerId: crypto.randomUUID(),
-                name: `Layer ${activeImageState.layers.length + 1}`,
+                name: `Mask ${activeImageState.layers.length + 1}`,
                 classLabel: '',
                 status: 'edited',
                 visible: true,
@@ -647,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const masksToCommit = selected.map((mask, idx) => ({
             segmentation: mask.segmentation || mask,
             source_layer_ids: [],
-            name: `layer_${activeImageState.layers.length + idx + 1}`
+            name: `Mask ${activeImageState.layers.length + idx + 1}`
         }));
 
         const activeProjectId = stateManager.getActiveProjectId();
