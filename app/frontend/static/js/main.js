@@ -614,7 +614,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (commitMasksBtn) {
+    if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
+        commitMasksBtn.dataset.listenerAttached = 'true';
         commitMasksBtn.addEventListener('click', async () => {
             if (!activeImageState) return;
             const predictions = canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0
