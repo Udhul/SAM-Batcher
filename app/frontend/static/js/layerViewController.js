@@ -14,13 +14,15 @@ class LayerViewController {
     }
 
     setLayers(layers) {
-        this.layers = Array.isArray(layers) ? layers : [];
+        // Clone incoming array so external mutations (e.g., from ActiveImageState)
+        // do not directly modify our internal list and cause double updates.
+        this.layers = Array.isArray(layers) ? layers.map(l => ({ ...l })) : [];
         this.render();
     }
 
     addLayers(newLayers) {
-        if (Array.isArray(newLayers)) {
-            this.layers.push(...newLayers);
+        if (Array.isArray(newLayers) && newLayers.length > 0) {
+            this.layers.push(...newLayers.map(l => ({ ...l })));
             this.render();
         }
     }
