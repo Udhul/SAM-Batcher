@@ -35,7 +35,7 @@ An image progresses through the following states and modes:
      |             [Image Pool] <-------+                  +----> [Edit Mode]
      |                                                   (Refine Mask) |
      |                                                                 |
-     | (Changes needed)                                                v
+     |                                                                 v
      |                                              "Mark for Review" -> [Ready for Review Image]
      |                                                                 |
 +----+-------------+                                                   |
@@ -54,7 +54,7 @@ An image progresses through the following states and modes:
 
 ## 3. Detailed Feature Specification
 
-### 3.1. UI Components & Changes
+### 3.1. UI Components
 
 #### 3.1.1. The Main Annotation Layout
 
@@ -96,14 +96,14 @@ This panel sits to the right of the canvas and always reflects the layers for th
 
 At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON.
 
-#### 3.1.3. Canvas & Toolbar Changes
+#### 3.1.3. Canvas & Toolbar
 
 The canvas interaction will be modal, determined by whether a layer is selected for editing.
 
-**A. Creation Mode (No layer selected):**
+**A. Creation Mode (No layer selected or empty layer selected):**
 *   This is the default mode.
 *   The UI for drawing prompts and running SAM2 predictions mirrors the base tools.
-*   **Key Change:** The `Commit Current Masks` button becomes **Add to Layers** and lives in the canvas toolbar.
+*   A button **Add to Layers** lives in the canvas toolbar.
     *   **Functionality:** When clicked, all *visible* masks from the current prediction set (`manualPredictions` or `automaskPredictions`) are converted into new layers in the Layer View. The button temporarily disables while the layers are saved to avoid duplicate entries.
     *   After adding, all canvas inputs (points, boxes) and current predictions are cleared, returning the user to a clean slate to create the next mask.
 
@@ -114,13 +114,20 @@ The canvas interaction will be modal, determined by whether a layer is selected 
     *   The `Clear Inputs` and `AutoMask` buttons are disabled or hidden.
     *   A new **Edit Toolbar** appears, either overlaying the canvas or replacing a section of the main canvas toolbar.
     *   **Edit Tools:**
-        *   **Brush:** Add to the mask.
-        *   **Eraser:** Remove from the mask.
-        *   **Lasso Select:** Add a free-form area to the mask.
-        *   **Lasso Deselect:** Remove a free-form area from the mask.
-        *   **Grow/Shrink:** Morphological operations to expand or contract the mask by a few pixels.
+        *   **Brush/Eraser:** Add to the mask/remove from the mask. Left click/right click for add/remove when this tool is selected.
+        *   **Lasso Select/Deselect:** Add a free-form area to the mask/ remove a free-form area from the mask. Left click/right click for add/remove when this tool is selected.
         *   *(Optional)* **Polygon Tool:** More precise editing than lasso.
-    *   **Toolbar Actions:** A `Save Edit` and `Cancel` button should appear. `Save Edit` finalizes the changes to the mask data and sets the layer status to `Edited`.
+    *   **Toolbar Actions Buttons:** 
+        *   **Grow:** Morphological operation to expand the mask by a few pixels.
+        *   **Shrink:** Morphological operation to contract the mask by a few pixels.
+        *   **Smooth:** Smooths the mask edges by some amount. 
+        *   **Invert:** Inverts the mask.
+        *   **Undo:** Undo last action (Step backward in edit memory).
+        *   **Redo:** Redo (Step forward in edit memory).
+        *   **Save:** Save the edits and exit edit mode.
+        *   **Cancel:** Discard edits and exit edit mode.
+    
+    A `Save Edit` and `Cancel`: `Save Edit` finalizes the changes to the mask data and sets the layer status to `Edited`. Cancel discards the edits. Both returns the user to Creation Mode (no layer/ empty new layer selected).
 
 #### 3.1.4. Image Status & Pool
 
@@ -136,7 +143,7 @@ The canvas interaction will be modal, determined by whether a layer is selected 
 *   The **Image Pool** (`#image-gallery-container`) and its filter (`#image-status-filter`) must be updated to reflect and filter by these new statuses. The `image-status-badge` CSS should be updated with new colors for these states.
 *   An `Update Status` dropdown should be available in the main annotation view, typically near the image name or alongside the export controls, allowing the user to manually change the image status (e.g., to `Ready for Review`).
 
-### 3.2. Data Model & State Management (Refactored)
+### 3.2. Data Model & State Management
 
 This section details the necessary updates to the application's state management and backend database schema to support the new annotation workflow. The design leverages the existing patterns in `stateManager.js` and evolves the schema from `db_manager.py`.
 
@@ -147,6 +154,7 @@ The application's state will be managed at two levels:
 1.  **Global State (`StateManager`):** The existing `stateManager.js` is well-suited for its purpose and will continue to manage global, non-image-specific context like `activeProjectId`, `activeImageHash`, and `currentLoadedModelInfo`. Its role as an event dispatcher for global changes remains critical.
 
 2.  **Active Image State (`ActiveImageState`):** To manage the complexity of the annotation view for a single image, a comprehensive in-memory object serves as the **single source of truth** for the currently loaded image, its layers, and all ephemeral creation/editing data. It is loaded when an image is selected and cleared or saved when navigating away.
+- Can be saved to the database on changes such as adding a new layer, deleting layer, and saving edits, or editing a layer's properties.
 
 **Proposed `ActiveImageState` Object Structure:**
 
@@ -157,8 +165,8 @@ This object is managed by the main application controller and passed to the rele
 // This object is created when an image is loaded for annotation.
 const ActiveImageState = {
     // === Image-level Data (from 'Images' table) ===
-    imageHash: "hash-of-W53010017_g.jpg",
-    filename: "W53010017_g.jpg",
+    imageHash: "hash-of-image-1.jpg",
+    filename: "image-1.jpg",
     originalWidth: 1920,
     originalHeight: 1080,
     status: "in_progress", // 'unprocessed', 'in_progress', 'ready_for_review', 'approved', 'rejected', 'skip'
@@ -171,14 +179,14 @@ const ActiveImageState = {
             classLabel: "connector",           // User-defined class/category
             status: "prediction",              // 'prediction', 'edited', 'approved', 'rejected'
             visible: true,                     // UI toggle state
-            displayColor: "hsla(120, 80%, 50%, 0.7)", // Color swatch in UI
+            displayColor: "hsla(120, 80%, 50%, 0.7)", // Color swatch in UI and for mask display in canvas when this layer is selected
             maskDataRLE: { /* COCO RLE object for a SINGLE mask */ },
             sourceMetadata: { // How the mask was created (from DB)
-                type: "interactive_prompt", // 'automask' or 'interactive_prompt'
+                type: "interactive_prompt", // 'automask' or 'interactive_prompt' or 'manual' (mask can be created manually by edit mode in an empty new layer)
                 model: { name: "sam2_hiera_b+", postprocessing: true },
-                prompt: { points: [/*...*/], boxes: [/*...*/] }
+                prompt: { points: [/*...*/], prompts: [/*bool for each point*/], boxes: [/*...*/], masks: [/*...*/] }, // Prompt data from API response
             },
-            updatedAt: "2023-10-27T10:00:00Z"
+            updatedAt: "2024-10-27T10:00:00Z"
         },
         // ... more layer objects
     ],
@@ -203,9 +211,9 @@ const ActiveImageState = {
 };
 ```
 
-#### 3.2.2. Backend Database Schema (Refactored)
+#### 3.2.2. Backend Database Schema
 
-The schema defined in `db_manager.py` serves as a strong starting point. The following sections describe how it adapts to the workflow, focusing on clarity, normalization and extensibility.
+The following sections describe how the schema in `db_manager.py` should adapts to the workflow, focusing on clarity, normalization and extensibility.
 
 **`Images` Table**
 
@@ -213,26 +221,26 @@ The `status` column tracks the full annotation workflow state for each image.
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `image_hash` | TEXT | PRIMARY KEY. No change. |
+| `image_hash` | TEXT | PRIMARY KEY. |
 | ... | | Other columns as-is. |
 | **`status`** | TEXT | **Updated Usage.** Tracks the image's overall annotation progress. Allowed values: `'unprocessed'`, `'in_progress'`, `'ready_for_review'`, `'approved'`, `'rejected'`, `'skip'`. |
 | ... | | Other columns as-is. |
 
-**`Mask_Layers` Table (Refactored)**
+**`Mask_Layers` Table**
 
-The `Mask_Layers` table represents a single, unique mask layer per row. This replaces the old model where one row could implicitly represent multiple masks.
+The `Mask_Layers` table represents a single, unique mask layer per row.
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `layer_id` | TEXT | PRIMARY KEY (UUID). No change. |
-| `image_hash_ref` | TEXT | FK to `Images`. No change. |
+| `layer_id` | TEXT | PRIMARY KEY (UUID). |
+| `image_hash_ref` | TEXT | FK to `Images`. |
 | `name` | TEXT | The user-editable name for the layer (e.g., "Left Connector"). |
 | **`class_label`** | TEXT | **New.** The classification label for the mask (e.g., "cable", "port"). |
 | **`status`** | TEXT | **New.** Replaces the ambiguous `layer_type`. Tracks the layer's state: `'prediction'`, `'edited'`, `'approved'`, `'rejected'`. |
 | `mask_data_rle` | TEXT | **Updated Usage.** Stores the COCO RLE data (as a JSON string) for a **single mask**. |
 | **`source_metadata`** | TEXT | **New/Consolidated.** JSON object storing how the mask was generated. Combines old `model_details` and `prompt_details` for better traceability. Ex: `{"type": "automask", "params": {...}}` or `{"type": "interactive", "prompt": {...}}`. |
 | **`display_color`** | TEXT | **New.** Stores the UI display color (e.g., "hsla(...)") to ensure consistency across sessions. |
-| `created_at` | TEXT | No change. |
+| `created_at` | TEXT | |
 | `updated_at` | TEXT | **New.** Timestamp for the last modification to the layer. |
 
 **Obsolete Columns from old `Mask_Layers` table:**
@@ -248,8 +256,8 @@ Existing databases will need a migration script to split any rows that stored mu
 The synergy between the `ActiveImageState` object and the backend API is key to a smooth user experience.
 
 1.  **Load:**
-    *   When a user selects an image from the pool, the frontend requests `GET /api/project/{id}/image/{hash}/state` to obtain both the image information and all stored mask layers.
-    *   The backend retrieves the image's row from the `Images` table and all associated rows from the refactored `mask_layers` table.
+    *   When a user selects an image from the pool, the frontend requests `GET /api/project/{id}/image/{hash}/state` to obtain both the image information and all stored mask layers for that image.
+    *   The backend retrieves the image's row from the `Images` table and all associated rows from the `mask_layers` table.
     *   It assembles and returns a JSON object matching the `ActiveImageState` structure (without the ephemeral `creation` and `edit` parts).
     *   The frontend populates its local `ActiveImageState` with this data.
 
@@ -265,9 +273,9 @@ The synergy between the `ActiveImageState` object and the backend API is key to 
     *   **Changing Image Status:** This updates the `status` field in the `Images` table.
     *   Saving should be debounced for frequent actions (like renaming) and triggered automatically on key state changes or when navigating away from the image to prevent data loss.
 
-### 3.3. Export Functionality (Refactored)
+### 3.3. Export Functionality
 
-This section refactors the export specification to align with the new layer-based data model and provide robust, standard-compliant output for computer vision tasks. It provides clear guidance for updating `export_logic.py` and its interaction with the frontend.
+This section explains the export specification to align with the new layer-based data model and provide robust, standard-compliant output for computer vision tasks. It provides clear guidance for the desired module logic for `export_logic.py` and its interaction with the frontend.
 
 #### 3.3.1. Core Principles
 
@@ -306,7 +314,7 @@ The frontend (`main.js`) needs to be updated. Instead of sending `mask_layers_to
 
 ##### **Step 2: Backend Image & Layer Selection (`export_logic.py`)**
 
-The `prepare_export_data` function in `export_logic.py` must be refactored to use these new filters.
+The `prepare_export_data` function in `export_logic.py` must accomodate the use of these these new filters.
 
 1.  **Query for Images:** First, query the `Images` table to get a list of all `image_hash` values that match one of the `image_statuses` in the filter.
     ```python
@@ -437,7 +445,7 @@ The placeholder `_convert_rle_to_bbox_and_area` function is insufficient and err
 
 2.  **Performance:**
     *   **Canvas:** When editing a mask, use an offscreen canvas. Draw the original mask onto it, perform all edits (brush, eraser) on this offscreen canvas, and only when "Save Edit" is clicked, re-encode the result to RLE and update the `ImageState`. This prevents costly re-rendering of all layers on every mouse move.
-    *   **Data:** Use efficient data formats (RLE for masks) and only send deltas (changed data) to the backend if possible, although sending the full state object is simpler to implement and acceptable for a single image.
+    *   **Data:** Use efficient data formats (RLE for masks) and only send deltas (changed data) to the backend if possible, although sending the full state object is simpler to implement and acceptable for a single image. Otherwise, send the full substructure for the layer that has a change. Or send the full image state in an async manner, so it does not block the UI and cause performance issues, or response time latency.
 
 3.  **Incremental Rollout:** Implement the features in stages.
     *   **Stage 1: Creation & Layer View:** Implement the "Add to Layers" button, the Layer View panel (display only), and the underlying data model changes. Get the core loop of creating and accumulating masks working.
