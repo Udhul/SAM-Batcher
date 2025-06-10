@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (existingMasks && existingMasks.length > 0) {
             activeImageState.layers = existingMasks.map((m, idx) => ({
                 layerId: m.layer_id || `layer_${idx}`,
-                name: m.name || `Layer ${idx + 1}`,
+                name: m.name || `Mask ${idx + 1}`,
                 classLabel: m.class_label || '',
                 status: m.layer_type || 'prediction',
                 visible: true,
@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const masksToCommit = selected.map((mask, idx) => ({
                 segmentation: mask.segmentation || mask,
                 source_layer_ids: [],
-                name: `layer_${activeImageState.layers.length + idx + 1}`
+                name: `Mask ${activeImageState.layers.length + idx + 1}`
             }));
 
             const activeProjectId = stateManager.getActiveProjectId();
