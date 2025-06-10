@@ -9,7 +9,6 @@
     padding: 10px 15px;
     background-color: #f8f9fa;
     border-radius: 6px;
-    margin-bottom: 15px;
     align-items: center;
     justify-content: center;
     border: 1px solid #e9ecef;
@@ -165,7 +164,7 @@
 .image-display-area { /* This is the direct parent of .canvas-container */
     display: flex;
     flex-direction: column; /* Stack toolbar and canvas container */
-    gap: 10px; /* Space between toolbar and canvas container */
+    gap: 1px; /* Space between toolbar and canvas container */
     flex-grow: 1; /* Allow it to take available vertical space */
     min-height: 0; /* Important for flex item to shrink properly if content overflows */
 }
@@ -182,7 +181,7 @@
     border: 1px solid #dee2e6; /* Softer border */
     border-radius: 6px;
     overflow: hidden; /* Ensure canvases don't overflow rounded corners */
-    width: 100%; /* Take full width of its parent (.canvas-column) */
+    width: 100%; /* Take full width of its parent */
 }
 
 /* Individual Canvases */
@@ -199,7 +198,7 @@
     object-fit: contain; /* Ensure image within canvas respects aspect ratio if canvas is forced to a size */
 }
 
-#image-canvas { z-index: 1; }
+#image-canvas { z-index: 1; border-radius: 0px;}
 #prediction-mask-canvas { z-index: 2; }
 #user-input-canvas {
     z-index: 3;

@@ -15,14 +15,14 @@ body {
     flex-direction: column; /* Stack header and main content */
     align-items: center; /* Center .container horizontally */
     min-height: 100vh; /* Ensure body takes full viewport height */
-    padding: 10px;
+    padding: 0px; /* Make .container control padding */
 }
 
 .container {
-    width: 95%;
-    max-width: 95%;
+    width: 100%;
+    max-width: 100%;
     /* margin: 0 auto; /* Centering handled by body flexbox */
-    padding: 20px;
+    padding: 5px 20px 35px 20px;
     display: flex; /* Use flexbox for layout within container */
     flex-direction: column; /* Stack sections vertically */
     gap: 20px;
@@ -69,28 +69,19 @@ header p {
 }
 
 .controls-column {
-    flex: 0 0 380px; /* Fixed width for controls column */
+    flex: 0 0 380px; 
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-
-.canvas-column {
-    flex: 1 1 auto; /* Canvas column takes remaining space */
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    min-width: 0; /* Important for flex item to shrink properly */
-}
-
 
 /* Section Styles */
 .config-section,
-.image-section, /* This might become part of canvas-column or specific handlers */
+.image-section,
 .auto-mask-section,
 .image-pool-section {
     background: white;
-    padding: 20px;
+    padding: 8px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -98,7 +89,7 @@ header p {
 .image-section {
     display: grid;
     grid-template-columns: 75% 1fr;
-    gap: 20px;
+    gap: 5px;
     align-items: flex-start;
 }
 .image-display-area {
@@ -107,9 +98,6 @@ header p {
     flex-direction: column;
     gap: 10px;
     min-width: 0;
-}
-.canvas-toolbar {
-    margin-top: 10px;
 }
 .layer-view-section {
     width: auto;
