@@ -97,7 +97,7 @@ header p {
 
 .image-section {
     display: grid;
-    grid-template-columns: 67% 1fr;
+    grid-template-columns: 75% 1fr;
     gap: 20px;
     align-items: flex-start;
 }
@@ -112,7 +112,10 @@ header p {
     margin-top: 10px;
 }
 .layer-view-section {
-    width: 100%;
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .config-section h2,
@@ -543,7 +546,7 @@ ul.image-sources-list li span { flex-grow: 1; }
 .image-status-badge.in_progress { background-color: #ffc107; color: #333; }
 .image-status-badge.ready_for_review { background-color: #17a2b8; color: #fff; }
 .image-status-badge.approved { background-color: #28a745; }
-.image-status-badge.rejected { background-color: #dc3545; }
+.image-status-badge.rejected { background-color: #dc3545; color: #fff; }
 .image-status-badge.skip { background-color: #6c757d; }
 .image-status-badge.unknown { background-color: #adb5bd; }
 
@@ -685,8 +688,18 @@ input[type="file"]#image-upload {
 .layer-item.selected { background-color: #f0f4ff; }
 .layer-vis-toggle { border: none; background: none; cursor: pointer; }
 .layer-color-swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #ccc; }
-.layer-name-input { flex: 1 1 45%; padding: 2px 4px; font-size: 13px; }
-.layer-class-input { flex: 1 1 25%; min-width: 60px; padding: 2px 4px; font-size: 11px; }
+.layer-name-input { 
+    flex: 1 1 25px;
+    min-width: 25px; 
+    padding: 2px 4px; 
+    font-size: 13px; 
+}
+.layer-class-input { 
+    flex: 2 1 25px;
+    min-width: 30px; 
+    padding: 2px 4px; 
+    font-size: 11px; 
+}
 .layer-status-tag { font-size: 11px; padding: 2px 4px; border-radius: 4px; background-color: #eee; text-transform: capitalize; }
 .layer-status-tag.prediction { background-color: #007bff; color: #fff; }
 .layer-status-tag.edited { background-color: #ffc107; color: #333; }
@@ -728,6 +741,10 @@ input[type="file"]#image-upload {
 @media (max-width: 900px) {
     .image-section {
         grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    .layer-view-section {
+        width: 100%;
     }
 }
 @media (max-width: 480px) {
