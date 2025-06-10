@@ -237,15 +237,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imageLayerCache[imageHash]) {
             activeImageState.layers = imageLayerCache[imageHash].map(l => ({ ...l }));
         } else if (existingMasks && existingMasks.length > 0) {
-            activeImageState.layers = existingMasks.map((m, idx) => ({
-                layerId: m.layer_id || `layer_${idx}`,
-                name: m.name || `Mask ${idx + 1}`,
-                classLabel: m.class_label || '',
-                status: m.layer_type || 'prediction',
-                visible: true,
-                displayColor: utils.getRandomHexColor(),
-                maskData: m.mask_data_rle
-            }));
+            activeImageState.layers = existingMasks.map((m, idx) => {
+                let parsed = m.mask_data_rle;
+                if (typeof parsed === 'string') {
+                    try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
+                }
+                if (parsed && parsed.counts && parsed.size) {
+                    parsed = utils.rleToBinaryMask(parsed, height, width);
+                } else if (parsed && parsed.type === 'raw_list_final' && Array.isArray(parsed.data)) {
+                    parsed = parsed.data;
+                }
+                return {
+                    layerId: m.layer_id || `layer_${idx}`,
+                    name: m.name || `Layer ${idx + 1}`,
+                    classLabel: m.class_label || '',
+                    status: m.layer_type || 'prediction',
+                    visible: true,
+                    displayColor: utils.getRandomHexColor(),
+                    maskData: parsed
+                };
+            });
             imageLayerCache[imageHash] = activeImageState.layers.map(l => ({ ...l }));
         }
         if (layerViewController) layerViewController.setLayers(activeImageState.layers);
@@ -273,7 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (finalMasks.length > 0) {
                 const latestFinal = finalMasks.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
-                    const maskDataContainer = JSON.parse(latestFinal.mask_data_rle);
+                    let maskDataContainer = latestFinal.mask_data_rle;
+                    if (typeof maskDataContainer === 'string') {
+                        maskDataContainer = JSON.parse(maskDataContainer);
+                    }
                     let binaryMaskArray = null;
                     if (maskDataContainer && maskDataContainer.type === 'raw_list_final' && maskDataContainer.data) {
                         binaryMaskArray = maskDataContainer.data;
@@ -290,7 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (autoMaskLayers.length > 0 && !loadedMaskMessage) {
                 const latestAuto = autoMaskLayers.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 try {
-                    const allMaskObjectsInLayer = JSON.parse(latestAuto.mask_data_rle);
+                    let allMaskObjectsInLayer = latestAuto.mask_data_rle;
+                    if (typeof allMaskObjectsInLayer === 'string') {
+                        allMaskObjectsInLayer = JSON.parse(allMaskObjectsInLayer);
+                    }
                     const binaryMasksForCanvas = allMaskObjectsInLayer.map(item => {
                         let rleData = item.segmentation_rle || item; // Backend might send RLE directly or nested
                         if (rleData && rleData.type === 'raw_list' && rleData.data) { // Already binary
@@ -614,61 +631,68 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    async function handleCommitMasks() {
+        if (!activeImageState) return;
+        const predictions = canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0
+            ? canvasManager.manualPredictions
+            : (canvasManager.automaskPredictions || []);
+
+        const selected = (predictions || []).filter(p => p.visible !== false);
+
+        if (selected.length === 0) {
+            uiManager.showGlobalStatus('No predictions selected.', 'info');
+            return;
+        }
+
+        const masksToCommit = selected.map((mask, idx) => ({
+            segmentation: mask.segmentation || mask,
+            source_layer_ids: [],
+            name: `layer_${activeImageState.layers.length + idx + 1}`
+        }));
+
+        const activeProjectId = stateManager.getActiveProjectId();
+        const activeImageHash = stateManager.getActiveImageHash();
+        if (!activeProjectId || !activeImageHash) {
+            uiManager.showGlobalStatus('No active project or image.', 'error');
+            return;
+        }
+
+        uiManager.showGlobalStatus('Adding layer(s)...', 'loading', 0);
+        try {
+            const data = await apiClient.commitMasks(activeProjectId, activeImageHash, { final_masks: masksToCommit, notes: '' });
+            if (!data.success) throw new Error(data.error || 'Commit failed');
+
+            const ids = data.final_layer_ids || [];
+            const newLayers = selected.map((mask, idx) => ({
+                layerId: ids[idx] || crypto.randomUUID(),
+                name: masksToCommit[idx].name,
+                classLabel: '',
+                status: 'edited',
+                visible: true,
+                displayColor: utils.getRandomHexColor(),
+                maskData: mask.segmentation || mask
+            }));
+
+            activeImageState.layers.push(...newLayers);
+            if (layerViewController) layerViewController.addLayers(newLayers);
+            syncLayerCache();
+            uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
+        } catch (err) {
+            uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
+        }
+
+        canvasManager.clearAllCanvasInputs(false);
+        canvasManager.setManualPredictions(null);
+        canvasManager.setAutomaskPredictions(null);
+    }
+
     if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
         commitMasksBtn.dataset.listenerAttached = 'true';
         commitMasksBtn.addEventListener('click', async () => {
-            if (!activeImageState) return;
-            const predictions = canvasManager.manualPredictions && canvasManager.manualPredictions.length > 0
-                ? canvasManager.manualPredictions
-                : (canvasManager.automaskPredictions || []);
-
-            const selected = (predictions || []).filter(p => p.visible !== false);
-
-            if (selected.length === 0) {
-                uiManager.showGlobalStatus('No predictions selected.', 'info');
-                return;
-            }
-
-            const masksToCommit = selected.map((mask, idx) => ({
-                segmentation: mask.segmentation || mask,
-                source_layer_ids: [],
-                name: `Mask ${activeImageState.layers.length + idx + 1}`
-            }));
-
-            const activeProjectId = stateManager.getActiveProjectId();
-            const activeImageHash = stateManager.getActiveImageHash();
-            if (!activeProjectId || !activeImageHash) {
-                uiManager.showGlobalStatus('No active project or image.', 'error');
-                return;
-            }
-
-            uiManager.showGlobalStatus('Adding layer(s)...', 'loading', 0);
-            try {
-                const data = await apiClient.commitMasks(activeProjectId, activeImageHash, { final_masks: masksToCommit, notes: '' });
-                if (!data.success) throw new Error(data.error || 'Commit failed');
-
-                const ids = data.final_layer_ids || [];
-                const newLayers = selected.map((mask, idx) => ({
-                    layerId: ids[idx] || crypto.randomUUID(),
-                    name: masksToCommit[idx].name,
-                    classLabel: '',
-                    status: 'edited',
-                    visible: true,
-                    displayColor: utils.getRandomHexColor(),
-                    maskData: mask.segmentation || mask
-                }));
-
-                activeImageState.layers.push(...newLayers);
-                if (layerViewController) layerViewController.addLayers(newLayers);
-                syncLayerCache();
-                uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
-            } catch (err) {
-                uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
-            }
-
-            canvasManager.clearAllCanvasInputs(false);
-            canvasManager.setManualPredictions(null);
-            canvasManager.setAutomaskPredictions(null);
+            if (commitMasksBtn.disabled) return;
+            commitMasksBtn.disabled = true;
+            await handleCommitMasks();
+            commitMasksBtn.disabled = false;
         });
     }
 
