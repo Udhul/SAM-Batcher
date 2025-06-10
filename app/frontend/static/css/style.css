@@ -863,12 +863,14 @@ input[type="file"]#image-upload {
 }
 #status-console.latest-line {
     overflow-y: hidden;
+    background: #222; /* 100% opacity for latest-line mode */
 }
 #status-console.latest-line .status-entry:not(:last-child) {
     display: none;
 }
 #status-console.expanded {
     height: 25vh;
+    background: #222E; /* Slightly transparent for expanded mode */
 }
 #status-console.collapsed {
     display: none;
