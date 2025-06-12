@@ -165,7 +165,7 @@
                 </div>
 
                 <div id="image-pool-section" class="image-pool-section">
-                    <div class="image-pool-controls">
+                    <div class="image-pool-controls" style="display:none;"> <!-- Hide for now -->
                         <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
                         <span id="current-image-info">No image loaded</span>
                         <button id="next-image-btn" title="Load next image in pool">Next ></button>
@@ -216,7 +216,7 @@
                         <div class="toolbar-col-2 toolbar-col">
                             <div id="mask-toggle-container" class="mask-toggle-container"></div>
                         </div>
-                        <div class="toolbar-col-3 toolbar-col">
+                        <div class="toolbar-col-3 toolbar-col help-section">
                             <div class="opacity-controls">
                                 <div class="opacity-control">
                                     <label for="image-opacity">Image</label>
@@ -234,9 +234,6 @@
                                     <span id="prediction-opacity-value" class="opacity-value-display">70%</span>
                                 </div>
                             </div>
-                        </div>
-                        <div class="toolbar-col-4 toolbar-col future-tools"></div>
-                        <div class="toolbar-col-5 toolbar-col help-section">
                             <div class="help-icon" id="help-icon" title="Show usage instructions">
                                 <span>?</span>
                                 <div class="help-tooltip">
@@ -252,6 +249,9 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="toolbar-col-4 toolbar-col future-tools"></div>
+                        <div class="toolbar-col-5 toolbar-col">
                         </div>
                     </div>
                 </div>
