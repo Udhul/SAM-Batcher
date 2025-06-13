@@ -17,21 +17,21 @@ project_root/
   │   ├── frontend/               # Client-side application (HTML, CSS, JavaScript)
   │   │   ├── templates/
   │   │   │   └── index.html      # Main HTML page
-  │   │   └── static/
-  │   │       ├── css/
-  │   │       │   ├── style.css         # Global styles
-  │   │       │   └── canvas.css        # Styles specific to the canvas interface
-  │   │       ├── js/
-  │   │       │   ├── main.js             # Main frontend script: initializes app, orchestrates modules
-  │   │       │   ├── apiClient.js        # Handles all API calls to the backend
-  │   │       │   ├── canvasController.js # Implements canvas_specification.md logic
-  │   │       │   ├── uiManager.js        # Manages general UI elements (modals, notifications, nav)
-  │   │       │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
-  │   │       │   ├── modelHandler.js     # Handles model selection, loading, status
-  │   │       │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
-  │   │       │   ├── stateManager.js     # Keeps track of current frontend state
-  │   │       │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
-  │   │       └── assets/                 # Static assets like icons, placeholder images
+  │   │   ├── static/
+  │   │   │   ├── css/
+  │   │   │   │   ├── style.css         # Global styles
+  │   │   │   │   └── canvas.css        # Styles specific to the canvas interface
+  │   │   │   ├── js/
+  │   │   │   │   ├── main.js             # Main frontend script: initializes app, orchestrates modules
+  │   │   │   │   ├── apiClient.js        # Handles all API calls to the backend
+  │   │   │   │   ├── canvasController.js # Implements canvas_specification.md logic
+  │   │   │   │   ├── uiManager.js        # Manages general UI elements (modals, notifications, nav)
+  │   │   │   │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
+  │   │   │   │   ├── modelHandler.js     # Handles model selection, loading, status
+  │   │   │   │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
+  │   │   │   │   ├── stateManager.js     # Keeps track of current frontend state
+  │   │   │   │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
+  │   └── assets/                 # Static assets like icons, placeholder images
   │   │
   │   └── backend/                  # Server-side application (Python/FastAPI)
   │       ├── __init__.py

@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Depends
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.concurrency import run_in_threadpool
@@ -38,8 +38,10 @@ app = FastAPI()
 APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 TEMPLATES_DIR = os.path.join(APP_DIR, 'frontend', 'templates')
 STATIC_DIR = os.path.join(APP_DIR, 'frontend', 'static')
+ASSETS_DIR = os.path.join(APP_DIR, 'frontend', 'assets')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
+app.mount('/static/assets', StaticFiles(directory=ASSETS_DIR), name='assets')
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Global SAMInference instance
@@ -299,7 +301,7 @@ async def api_get_image_thumbnail(project_id: str, image_hash: str):
         img_io = io.BytesIO()
         pil_img.save(img_io, 'JPEG', quality=70)
         img_io.seek(0)
-        return FileResponse(img_io, media_type='image/jpeg')
+        return StreamingResponse(img_io, media_type='image/jpeg')
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Thumbnail generation failed: {e}')
 
