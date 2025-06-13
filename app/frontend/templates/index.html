@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAM2 Interactive Segmenter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/canvas.css') }}">
 </head>
 <body>
     <div class="container">
@@ -273,15 +273,15 @@
     </div>
 
     <!-- Ordered JavaScript Modules import -->
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script> <!-- General frontend utilities -->
-    <script src="{{ url_for('static', filename='js/apiClient.js') }}"></script> <!-- API communication -->
-    <script src="{{ url_for('static', filename='js/stateManager.js') }}"></script> <!-- Global frontend state -->
-    <script src="{{ url_for('static', filename='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
-    <script src="{{ url_for('static', filename='js/uiManager.js') }}"></script> <!-- General UI component management -->
-    <script src="{{ url_for('static', filename='js/modelHandler.js') }}"></script> <!-- Model loading UI -->
-    <script src="{{ url_for('static', filename='js/projectHandler.js') }}"></script> <!-- Project management UI -->
-    <script src="{{ url_for('static', filename='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
-    <script src="{{ url_for('static', filename='js/layerViewController.js') }}"></script> <!-- Layer view management -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script> <!-- Main application orchestrator -->
+    <script src="{{ url_for('static', path='js/utils.js') }}"></script> <!-- General frontend utilities -->
+    <script src="{{ url_for('static', path='js/apiClient.js') }}"></script> <!-- API communication -->
+    <script src="{{ url_for('static', path='js/stateManager.js') }}"></script> <!-- Global frontend state -->
+    <script src="{{ url_for('static', path='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
+    <script src="{{ url_for('static', path='js/uiManager.js') }}"></script> <!-- General UI component management -->
+    <script src="{{ url_for('static', path='js/modelHandler.js') }}"></script> <!-- Model loading UI -->
+    <script src="{{ url_for('static', path='js/projectHandler.js') }}"></script> <!-- Project management UI -->
+    <script src="{{ url_for('static', path='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
+    <script src="{{ url_for('static', path='js/layerViewController.js') }}"></script> <!-- Layer view management -->
+    <script src="{{ url_for('static', path='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>

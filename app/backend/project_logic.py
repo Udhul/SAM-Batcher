@@ -1,6 +1,6 @@
 """Backend business logic layer.
 
-This module orchestrates interactions between the Flask API layer
+This module orchestrates interactions between the FastAPI layer
 (`server.py`), persistent storage (`db_manager.py`) and the SAM2
 inference backend (`sam_backend.py`).  Functions defined here operate
 purely on Python data structures and filesystem paths.

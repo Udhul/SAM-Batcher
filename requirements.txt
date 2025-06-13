@@ -2,7 +2,8 @@
 matplotlib
 tqdm
 opencv-python
-flask
+fastapi
+uvicorn
 requests
 pycocotools>=2.0.8
 haikunator
