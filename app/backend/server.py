@@ -56,7 +56,8 @@ def set_active_project_id(project_id: Optional[str]):
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
-    if not request.app.state.get('serve_ui', True):
+    """Serve the main UI unless the server is in API-only mode."""
+    if not getattr(request.app.state, 'serve_ui', True):
         raise HTTPException(status_code=404, detail='UI disabled')
     return templates.TemplateResponse('index.html', {'request': request})
 
