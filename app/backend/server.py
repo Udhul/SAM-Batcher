@@ -7,7 +7,12 @@ capabilities. Business logic lives in ``project_logic`` and related modules.
 """
 
 import os
+import io
+from datetime import datetime
 from typing import Optional, List
+
+from werkzeug.utils import secure_filename
+from PIL import Image
 
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -144,6 +149,194 @@ async def api_load_project(payload: dict):
     return {'success': True, 'project_data': project_data}
 
 
+@app.post('/api/project/upload_db')
+async def api_upload_project_db(db_file: UploadFile = File(...)):
+    if not db_file.filename or not db_file.filename.endswith(config.DB_EXTENSION):
+        raise HTTPException(status_code=400, detail=f'Invalid file. Must end with {config.DB_EXTENSION}')
+    project_id = os.path.splitext(db_file.filename)[0]
+    project_id = ''.join(c for c in project_id if c.isalnum() or c in ['_', '-'])
+    if not project_id:
+        raise HTTPException(status_code=400, detail='Invalid project ID derived from filename')
+    save_path = os.path.join(config.PROJECTS_DATA_DIR, f"{project_id}{config.DB_EXTENSION}")
+    if os.path.exists(save_path) and get_active_project_id() != project_id:
+        raise HTTPException(status_code=409, detail=f'Project DB {project_id} already exists on server. Load it or choose a different name.')
+    try:
+        contents = await db_file.read()
+        with open(save_path, 'wb') as f_out:
+            f_out.write(contents)
+        project_data = await run_in_threadpool(project_logic.load_project_by_id, project_id)
+        if not project_data:
+            os.remove(save_path)
+            raise HTTPException(status_code=400, detail='Uploaded file is not a valid project database')
+        set_active_project_id(project_id)
+        await run_in_threadpool(project_logic.get_current_model_for_project, project_id, sam_inference_instance)
+        return {'success': True, 'project_data': project_data, 'message': 'Project DB uploaded and loaded.'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Error saving or loading uploaded DB: {e}')
+
+
+@app.get('/api/project/download_db')
+async def api_download_project_db(project_id: Optional[str] = None):
+    if not project_id:
+        project_id = get_active_project_id()
+    if not project_id:
+        raise HTTPException(status_code=400, detail='No project specified or active')
+    db_path = db_manager.get_db_path(project_id)
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail='Project database not found')
+    project_name = await run_in_threadpool(db_manager.get_project_name, project_id) or project_id
+    filename = f"{secure_filename(project_name)}{config.DB_EXTENSION}"
+    return FileResponse(db_path, media_type='application/octet-stream', filename=filename)
+
+
+@app.api_route('/api/project/{project_id}/settings', methods=['GET', 'PUT'])
+async def api_project_settings(project_id: str, request: Request):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    if request.method == 'GET':
+        settings = {
+            'current_sam_model_key': await run_in_threadpool(db_manager.get_project_setting, project_id, 'current_sam_model_key'),
+            'current_sam_apply_postprocessing': await run_in_threadpool(db_manager.get_project_setting, project_id, 'current_sam_apply_postprocessing'),
+        }
+        return {'success': True, 'settings': settings}
+    else:
+        data = await request.json()
+        for key, value in data.items():
+            await run_in_threadpool(db_manager.set_project_setting, project_id, key, value)
+        return {'success': True, 'message': 'Settings updated.'}
+
+
+# === Image Source & Pool Management ===
+
+@app.post('/api/project/{project_id}/sources/add_upload')
+async def api_add_source_upload(project_id: str, files: List[UploadFile] = File(...)):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    if not files:
+        raise HTTPException(status_code=400, detail='No files provided for upload')
+    file_streams = [f.file for f in files]
+    filenames = [secure_filename(f.filename) for f in files]
+    result = await run_in_threadpool(project_logic.add_image_source_upload, project_id, file_streams, filenames)
+    return {'success': True, **result}
+
+
+@app.post('/api/project/{project_id}/sources/add_folder')
+async def api_add_source_folder(project_id: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    path = payload.get('path')
+    if not path:
+        raise HTTPException(status_code=400, detail='Server folder path is required')
+    result = await run_in_threadpool(project_logic.add_image_source_folder, project_id, path)
+    return result
+
+
+@app.get('/api/project/{project_id}/sources')
+async def api_list_image_sources(project_id: str):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    sources = await run_in_threadpool(db_manager.get_image_sources, project_id)
+    return {'success': True, 'sources': sources}
+
+
+@app.delete('/api/project/{project_id}/sources/{source_id}')
+async def api_remove_image_source(project_id: str, source_id: str):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    await run_in_threadpool(db_manager.remove_image_source, project_id, source_id)
+    return {'success': True, 'message': 'Image source removed.'}
+
+
+@app.get('/api/project/{project_id}/sources/{source_id}/images')
+async def api_list_source_images(project_id: str, source_id: str):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    images = await run_in_threadpool(db_manager.get_images_for_source, project_id, source_id)
+    for img in images:
+        img['thumbnail_url'] = f"/api/image/thumbnail/{project_id}/{img['image_hash']}"
+    return {'success': True, 'images': images}
+
+
+@app.post('/api/project/{project_id}/sources/{source_id}/exempt_image')
+async def api_exempt_source_image(project_id: str, source_id: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    image_hash = payload.get('image_hash')
+    if not image_hash:
+        raise HTTPException(status_code=400, detail='image_hash is required')
+    exempt = bool(payload.get('exempt', True))
+    if source_id in (None, '', 'null', 'None'):
+        source_id = await run_in_threadpool(db_manager.get_source_id_for_image, project_id, image_hash)
+    if not source_id:
+        raise HTTPException(status_code=400, detail='Source not found for image')
+    await run_in_threadpool(db_manager.set_image_exemption, project_id, source_id, image_hash, exempt)
+    return {'success': True}
+
+
+@app.get('/api/project/{project_id}/images')
+async def api_list_images_from_pool(project_id: str, page: int = 1, per_page: int = 50, status_filter: Optional[str] = None):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    images, pagination = await run_in_threadpool(db_manager.get_images_from_pool, project_id, page, per_page, status_filter)
+    for img in images:
+        img['thumbnail_url'] = f"/api/image/thumbnail/{project_id}/{img['image_hash']}"
+    return {'success': True, 'images': images, 'pagination': pagination}
+
+
+@app.get('/api/image/thumbnail/{project_id}/{image_hash}')
+async def api_get_image_thumbnail(project_id: str, image_hash: str):
+    image_info = await run_in_threadpool(db_manager.get_image_by_hash, project_id, image_hash)
+    if not image_info or not image_info.get('path_in_source'):
+        raise HTTPException(status_code=404, detail='Image for thumbnail not found')
+    img_path = await run_in_threadpool(project_logic.get_image_path_on_server_from_db_info, project_id, image_info)
+    if not img_path or not os.path.exists(img_path):
+        raise HTTPException(status_code=404, detail='Original image file not found for thumbnail')
+    try:
+        pil_img = Image.open(img_path)
+        pil_img.thumbnail((128, 128))
+        img_io = io.BytesIO()
+        pil_img.save(img_io, 'JPEG', quality=70)
+        img_io.seek(0)
+        return FileResponse(img_io, media_type='image/jpeg')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Thumbnail generation failed: {e}')
+
+
+@app.get('/api/project/{project_id}/images/next_unprocessed')
+async def api_get_next_unprocessed(project_id: str, current_image_hash: Optional[str] = None):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    next_image_info = await run_in_threadpool(db_manager.get_next_unprocessed_image, project_id, current_image_hash)
+    if next_image_info:
+        return {'success': True, 'image_hash': next_image_info['image_hash'], 'filename': next_image_info.get('original_filename')}
+    return {'success': True, 'message': 'No more unprocessed images'}
+
+
+@app.post('/api/project/{project_id}/images/set_active')
+async def api_set_active_image(project_id: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    image_hash = payload.get('image_hash')
+    if not image_hash:
+        raise HTTPException(status_code=400, detail='image_hash is required')
+    result = await run_in_threadpool(project_logic.set_active_image_for_project, project_id, image_hash, sam_inference_instance)
+    return result
+
+
+@app.put('/api/project/{project_id}/images/{image_hash}/status')
+async def api_update_image_status(project_id: str, image_hash: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    status = payload.get('status')
+    if not status:
+        raise HTTPException(status_code=400, detail='New status is required')
+    await run_in_threadpool(db_manager.update_image_status, project_id, image_hash, status)
+    return {'success': True, 'message': 'Image status updated.'}
+
+
+
 # === Model Management ===
 @app.get('/api/models/available')
 async def api_get_available_models():
@@ -209,6 +402,38 @@ async def api_predict_interactive(project_id: str, image_hash: str, payload: dic
         return result
     except (ModelNotLoadedError, ImageNotSetError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post('/api/project/{project_id}/images/{image_hash}/automask')
+async def api_generate_automask(project_id: str, image_hash: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    amg_params = payload or {}
+    try:
+        result = await run_in_threadpool(project_logic.process_automask_request, project_id, image_hash, sam_inference_instance, amg_params)
+        return result
+    except (ModelNotLoadedError, ImageNotSetError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post('/api/project/{project_id}/images/{image_hash}/commit_masks')
+async def api_commit_masks(project_id: str, image_hash: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    final_masks = payload.get('final_masks')
+    notes = payload.get('notes')
+    if not final_masks or not isinstance(final_masks, list):
+        raise HTTPException(status_code=400, detail='final_masks data is missing or invalid')
+    result = await run_in_threadpool(project_logic.commit_final_masks, project_id, image_hash, final_masks, notes)
+    return result
+
+
+@app.get('/api/project/{project_id}/images/{image_hash}/masks')
+async def api_get_image_masks(project_id: str, image_hash: str, layer_type: Optional[str] = None):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    mask_layers = await run_in_threadpool(db_manager.get_mask_layers_for_image, project_id, image_hash, layer_type)
+    return {'success': True, 'masks': mask_layers}
 
 
 @app.post('/api/project/{project_id}/export')

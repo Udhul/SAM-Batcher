@@ -136,6 +136,7 @@ project_root/
 
 *   **`server.py`** (Handles Backend I/O from Frontend API calls):
     *   Defines all FastAPI endpoints as specified in `specification.md` (e.g., `/api/project`, `/api/model/load`, `/api/images/.../predict_interactive`).
+    *   Utilizes FastAPI's async features with `run_in_threadpool` for CPU-bound project logic.
     *   Parses incoming requests (JSON, form data, file uploads).
     *   Performs initial request validation.
     *   Delegates business logic to `project_logic.py`, `sam_backend.py` (for model operations), and `export_logic.py`.
