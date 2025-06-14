@@ -91,8 +91,10 @@ class ProjectHandler {
             this.elements.downloadProjectDbBtn.addEventListener('click', () => this.handleDownloadProjectDb());
         }
         if (this.elements.sourcesManagementBar) {
-            const hdr = this.elements.sourcesManagementBar.querySelector('.management-header');
-            (hdr || this.elements.sourcesManagementBar).addEventListener('click', () => this.showSourcesOverlay());
+            this.elements.sourcesManagementBar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showSourcesOverlay();
+            });
         }
         if (this.elements.sourceOverlayClose) {
             this.elements.sourceOverlayClose.addEventListener('click', () => this.hideSourcesOverlay());
