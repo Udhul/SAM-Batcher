@@ -18,17 +18,24 @@
 
         <div class="main-layout">
             <div class="top-bars">
-                <div class="expandable-section" id="project-management-bar">
-                    <div class="expandable-header">
+                <div class="management-section" id="project-management-bar">
+                    <div class="management-header">
                         <span>Project</span>
                         <span id="active-project-display" class="status-inline">No active project</span>
                     </div>
                 </div>
 
-                <div class="expandable-section" id="model-management-bar">
-                    <div class="expandable-header">
+                <div class="management-section" id="model-management-bar">
+                    <div class="management-header">
                         <span>Model</span>
                         <span id="model-status-inline" class="status-inline">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="management-section" id="sources-management-bar">
+                    <div class="management-header">
+                        <span>Sources</span>
+                        <span id="sources-status-inline" class="status-inline">0 sources, 0 images</span>
                     </div>
                 </div>
             </div>
@@ -185,7 +192,6 @@
                             <option value="skip">Skip</option>
                         </select>
                         <button id="refresh-image-pool-btn">Refresh Pool</button>
-                        <button id="manage-sources-btn">Manage Sources</button>
                     </div>
                     <div id="image-gallery-container">
                         <p><em>Load a project to see images.</em></p>
