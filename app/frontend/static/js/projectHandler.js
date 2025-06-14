@@ -71,8 +71,13 @@ class ProjectHandler {
         });
 
         // Listen for state changes to update active project display
-        document.addEventListener('state-changed-activeProjectId', () => this._updateActiveProjectDisplay());
+        document.addEventListener('state-changed-activeProjectId', () => {
+            this._updateActiveProjectDisplay();
+            this.fetchAndDisplayImageSources(true);
+        });
         document.addEventListener('state-changed-activeProjectName', () => this._updateActiveProjectDisplay());
+        document.addEventListener('project-loaded', () => this.fetchAndDisplayImageSources(true));
+        document.addEventListener('sources-updated', () => this.fetchAndDisplayImageSources(true));
     }
 
     _setupEventListeners() {
@@ -86,7 +91,8 @@ class ProjectHandler {
             this.elements.downloadProjectDbBtn.addEventListener('click', () => this.handleDownloadProjectDb());
         }
         if (this.elements.sourcesManagementBar) {
-            this.elements.sourcesManagementBar.addEventListener('click', () => this.showSourcesOverlay());
+            const hdr = this.elements.sourcesManagementBar.querySelector('.management-header');
+            (hdr || this.elements.sourcesManagementBar).addEventListener('click', () => this.showSourcesOverlay());
         }
         if (this.elements.sourceOverlayClose) {
             this.elements.sourceOverlayClose.addEventListener('click', () => this.hideSourcesOverlay());
@@ -428,7 +434,7 @@ class ProjectHandler {
         }
     }
 
-    async fetchAndDisplayImageSources() {
+    async fetchAndDisplayImageSources(skipDispatch = false) {
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId || !this.elements.imageSourcesListContainer) {
             if (this.elements.sourcesStatusInline) {
@@ -500,7 +506,9 @@ class ProjectHandler {
                     this.elements.sourcesStatusInline.textContent = `${data.sources.length} sources, ${totalImages} images`;
                     this.elements.sourcesStatusInline.className = 'status-inline loaded';
                 }
-                this.Utils.dispatchCustomEvent('sources-updated', { sources: data.sources });
+                if (!skipDispatch) {
+                    this.Utils.dispatchCustomEvent('sources-updated', { sources: data.sources });
+                }
             } else {
                 this.elements.imageSourcesListContainer.innerHTML = '<p><em>Error loading sources.</em></p>';
                 if (this.elements.sourcesStatusInline) {
