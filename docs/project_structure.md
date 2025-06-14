@@ -17,25 +17,26 @@ project_root/
   │   ├── frontend/               # Client-side application (HTML, CSS, JavaScript)
   │   │   ├── templates/
   │   │   │   └── index.html      # Main HTML page
-  │   │   └── static/
-  │   │       ├── css/
-  │   │       │   ├── style.css         # Global styles
-  │   │       │   └── canvas.css        # Styles specific to the canvas interface
-  │   │       ├── js/
-  │   │       │   ├── main.js             # Main frontend script: initializes app, orchestrates modules
-  │   │       │   ├── apiClient.js        # Handles all API calls to the backend
-  │   │       │   ├── canvasController.js # Implements canvas_specification.md logic
-  │   │       │   ├── uiManager.js        # Manages general UI elements (modals, notifications, nav)
-  │   │       │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
-  │   │       │   ├── modelHandler.js     # Handles model selection, loading, status
-  │   │       │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
-  │   │       │   ├── stateManager.js     # Keeps track of current frontend state
-  │   │       │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
-  │   │       └── assets/                 # Static assets like icons, placeholder images
+  │   │   ├── static/
+  │   │   │   ├── css/
+  │   │   │   │   ├── style.css         # Global styles
+  │   │   │   │   └── canvas.css        # Styles specific to the canvas interface
+  │   │   │   ├── js/
+  │   │   │   │   ├── main.js             # Main frontend script: initializes app, orchestrates modules
+  │   │   │   │   ├── apiClient.js        # Handles all API calls to the backend
+  │   │   │   │   ├── canvasController.js # Implements canvas_specification.md logic
+  │   │   │   │   ├── uiManager.js        # Manages general UI elements (modals, notifications, nav)
+  │   │   │   │   ├── projectHandler.js   # Handles project lifecycle (create, load, sources)
+  │   │   │   │   ├── modelHandler.js     # Handles model selection, loading, status
+  │   │   │   │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
+  │   │   │   │   ├── stateManager.js     # Keeps track of current frontend state
+  │   │   │   │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
+  │   └── assets/                 # Static assets like icons, placeholder images
+  │                               # Served from the `/assets` URL path
   │   │
-  │   └── backend/                  # Server-side application (Python/Flask)
+  │   └── backend/                  # Server-side application (Python/FastAPI)
   │       ├── __init__.py
-  │       ├── server.py               # Flask app: API routes, request/response handling
+  │       ├── server.py               # FastAPI app: API routes, request/response handling
   │       ├── sam_backend.py         # SAM2 model interaction, inference logic
   │       ├── db_manager.py           # Database interaction: SQLite CRUD operations, schema
   │       ├── project_logic.py        # Business logic for projects, images, sources, mask persistence
@@ -75,7 +76,7 @@ project_root/
 *   **`main.py`**:
     *   Entry point for running the application.
     *   Parses command-line arguments (e.g., `--api-only`, `--port`).
-    *   Imports and runs the Flask app from `app.backend.server`.
+    *   Imports and runs the FastAPI app from `app.backend.server`.
 *   **`config.py`**:
     *   Stores backend configurations: `PROJECTS_DATA_DIR`, `CHECKPOINTS_DIR`, default SAM model settings, database connection details (if more complex than SQLite file path), Azure credentials strategy, etc.
     *   Loaded by `app.backend.server` and other backend modules as needed.
@@ -135,7 +136,8 @@ project_root/
 **Backend (`project_root/app/backend/`):**
 
 *   **`server.py`** (Handles Backend I/O from Frontend API calls):
-    *   Defines all Flask API endpoints as specified in `specification.md` (e.g., `/api/project`, `/api/model/load`, `/api/images/.../predict_interactive`).
+    *   Defines all FastAPI endpoints as specified in `specification.md` (e.g., `/api/project`, `/api/model/load`, `/api/images/.../predict_interactive`).
+    *   Utilizes FastAPI's async features with `run_in_threadpool` for CPU-bound project logic.
     *   Parses incoming requests (JSON, form data, file uploads).
     *   Performs initial request validation.
     *   Delegates business logic to `project_logic.py`, `sam_backend.py` (for model operations), and `export_logic.py`.
@@ -149,7 +151,7 @@ project_root/
     *   Performs inference:
         *   `predict()`: For interactive prompts (points, boxes, mask inputs).
         *   `generate_auto_masks()`: For automatic mask generation.
-    *   Has no knowledge of Flask, HTTP requests, or the database structure directly. It operates on Python data types (NumPy arrays, paths, etc.).
+    *   Has no knowledge of FastAPI, HTTP requests, or the database structure directly. It operates on Python data types (NumPy arrays, paths, etc.).
 *   **`db_manager.py`** (Handles Persistence):
     *   **Primary Role:** Manages all interactions with the SQLite project databases.
     *   Defines functions for:

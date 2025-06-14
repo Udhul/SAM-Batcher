@@ -1,6 +1,6 @@
 """Backend business logic layer.
 
-This module orchestrates interactions between the Flask API layer
+This module orchestrates interactions between the FastAPI layer
 (`server.py`), persistent storage (`db_manager.py`) and the SAM2
 inference backend (`sam_backend.py`).  Functions defined here operate
 purely on Python data structures and filesystem paths.
@@ -135,7 +135,12 @@ def create_new_project(project_name: Optional[str] = None) -> Dict[str, Any]:
     get_project_upload_dir(project_id, ensure_exists=True)
     # os.makedirs(os.path.join(config.PROJECTS_DATA_DIR, project_id, config.THUMBNAILS_SUBDIR), exist_ok=True) # For future
 
-    return {"project_id": project_id, "project_name": project_name, "message": "Project created successfully."}
+    return {
+        "success": True,
+        "project_id": project_id,
+        "project_name": project_name,
+        "message": "Project created successfully."
+    }
 
 def list_existing_projects() -> List[Dict[str, Any]]:
     project_ids = db_manager.list_project_ids()

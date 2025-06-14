@@ -60,9 +60,9 @@ The system will employ a client-server architecture.
     *   Handling user inputs for prompts (points, boxes).
 
 **2.2. Server-Side (Backend)**
-*   **Technology:** Python with Flask (as per existing `server.py`).
+*   **Technology:** Python with FastAPI.
 *   **Core Components:**
-    *   **API Layer:** Flask routes for handling client requests.
+    *   **API Layer:** FastAPI routes for handling client requests.
     *   **SAM2 Integration Layer:** `SAMInference` class (from `sam_backend.py`) interacting with the SAM2 library.
     *   **Business Logic Layer:** Managing projects, image pools, state, and orchestrating SAM2 operations.
     *   **Data Access Layer:** Interacting with the project state database.
@@ -443,4 +443,4 @@ The system will employ a client-server architecture.
 *   **Accessibility (a11y) improvements.**
 *   **Security:**
     *   **Cross-Site Scripting (XSS):** Ensure proper escaping of any user-provided data rendered in HTML. Modern frontend frameworks often handle this by default.
-    *   **Cross-Site Request Forgery (CSRF):** Implement CSRF protection if using session-based authentication (Flask-WTF or similar). For token-based APIs, this is less of a concern if tokens are sent in headers.
+    *   **Cross-Site Request Forgery (CSRF):** Implement CSRF protection if using session-based authentication (e.g., Starlette's session middleware or similar). For token-based APIs, this is less of a concern if tokens are sent in headers.

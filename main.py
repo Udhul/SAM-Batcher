@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser_main.add_argument('--port', type=int, default=config.SERVER_PORT,
                              help="Port to run the server on.")
     parser_main.add_argument('--debug', action='store_true', dest='debug',
-                             help="Enable debug mode for the Flask server.")
+                             help="Enable debug mode (auto reload) for the FastAPI server.")
     parser_main.set_defaults(debug=False)
     cli_args = parser_main.parse_args()
 
