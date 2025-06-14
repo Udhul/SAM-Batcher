@@ -481,6 +481,15 @@ def get_mask_layers_for_image(project_id: str, image_hash: str, layer_type: Opti
     conn.close()
     return layers
 
+def count_mask_layers_for_image(project_id: str, image_hash: str) -> int:
+    """Returns the number of mask layers for the given image."""
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM Mask_Layers WHERE image_hash_ref = ?", (image_hash,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
 def delete_mask_layer(project_id: str, layer_id: str) -> None:
     conn = get_db_connection(project_id)
     cursor = conn.cursor()

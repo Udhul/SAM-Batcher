@@ -363,8 +363,8 @@ def sync_image_status_with_layers(project_id: str, image_hash: str) -> str:
     if current == "skip":
         return current
 
-    layers = db_manager.get_mask_layers_for_image(project_id, image_hash)
-    if not layers:
+    layer_count = db_manager.count_mask_layers_for_image(project_id, image_hash)
+    if layer_count == 0:
         if current != "unprocessed":
             db_manager.update_image_status(project_id, image_hash, "unprocessed")
             current = "unprocessed"

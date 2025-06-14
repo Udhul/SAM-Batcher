@@ -31,6 +31,7 @@ It will be updated as new sprints add functionality.
 - **Status Reversion**: When all mask layers are removed from an image, its status automatically
   reverts to `unprocessed`.
 - **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.
+- **Bug Fix**: Removing the final mask layer now correctly changes the image status back to `unprocessed`.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
