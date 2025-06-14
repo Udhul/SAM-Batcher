@@ -189,6 +189,9 @@ def load_sam_model_for_project(project_id: str, sam_inference: SAMInference,
                                config_path_override: Optional[str] = None,
                                apply_postprocessing: bool = True,
                                progress_callback=None) -> Dict[str, Any]:
+    if not sam_inference.sam_available:
+        return {"success": False, "error": "SAM backend unavailable"}
+
     success = sam_inference.load_model(
         model_size_key=model_size_key,
         model_path_override=model_path_override,
@@ -208,6 +211,9 @@ def load_sam_model_for_project(project_id: str, sam_inference: SAMInference,
 
 def get_current_model_for_project(project_id: str, sam_inference: SAMInference) -> Dict[str, Any]:
     """Ensure the SAM model associated with a project is loaded and return info."""
+    if not sam_inference.sam_available:
+        return sam_inference.get_model_info()
+
     model_key = db_manager.get_project_setting(project_id, "current_sam_model_key")
     model_path = db_manager.get_project_setting(project_id, "current_sam_model_path")
     config_path = db_manager.get_project_setting(project_id, "current_sam_config_path")
@@ -394,6 +400,8 @@ def set_active_image_for_project(project_id: str, image_hash: str, sam_inference
 
 # --- Annotation ---
 def process_automask_request(project_id: str, image_hash: str, sam_inference: SAMInference, amg_params: Dict) -> Dict[str, Any]:
+    if not sam_inference.sam_available:
+        return {"success": False, "error": "SAM backend unavailable"}
     if not sam_inference.model:
         return {"success": False, "error": "Model not loaded."}
     if sam_inference.image_hash != image_hash: # Ensure correct image is active
@@ -465,6 +473,8 @@ def process_automask_request(project_id: str, image_hash: str, sam_inference: SA
 
 def process_interactive_predict_request(project_id: str, image_hash: str, sam_inference: SAMInference,
                                         prompts: Dict, predict_params: Dict) -> Dict[str, Any]:
+    if not sam_inference.sam_available:
+        return {"success": False, "error": "SAM backend unavailable"}
     if not sam_inference.model:
         return {"success": False, "error": "Model not loaded."}
     if sam_inference.image_hash != image_hash:

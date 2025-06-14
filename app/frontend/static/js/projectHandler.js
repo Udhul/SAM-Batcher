@@ -168,12 +168,11 @@ class ProjectHandler {
     }
 
     _checkAndShowModelOverlay() {
-        // Check if model is already loaded by looking at the model status
+        // Only show overlay if backend inference is available and model not loaded
         const modelStatusInline = document.getElementById('model-status-inline');
         const isModelLoaded = modelStatusInline && modelStatusInline.classList.contains('loaded');
-        
-        if (!isModelLoaded) {
-            // Show model overlay
+
+        if (!isModelLoaded && window.samAvailable !== false) {
             const modelOverlay = document.getElementById('model-management-overlay');
             if (modelOverlay && this.Utils.showElement) {
                 this.Utils.showElement(modelOverlay, 'flex');
