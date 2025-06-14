@@ -26,6 +26,9 @@ It will be updated as new sprints add functionality.
   instead of the legacy `in_progress_auto`, `in_progress_manual` and `completed`.
 - **Automatic Status Updates**: Backend now keeps an image at `in_progress` when masks are
   committed or predictions are generated, unless the client explicitly sets a higher status.
+- **Status Reversion**: When all mask layers are removed from an image, its status automatically
+  reverts to `unprocessed`.
+- **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded

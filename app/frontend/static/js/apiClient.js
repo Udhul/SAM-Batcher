@@ -215,6 +215,9 @@ class APIClient {
         if (layerType) query = `?layer_type=${layerType}`;
         return this._request(`/project/${projectId}/images/${imageHash}/masks${query}`);
     }
+    async deleteMaskLayer(projectId, imageHash, layerId) {
+        return this._request(`/project/${projectId}/images/${imageHash}/layers/${layerId}`, 'DELETE');
+    }
 
     // --- Export Endpoints ---
     async requestExport(projectId, payload) {

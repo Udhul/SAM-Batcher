@@ -325,6 +325,7 @@ The system will employ a client-server architecture.
 *   `POST /api/project/<project_id>/images/<image_hash>/predict_interactive`
 *   `POST /api/project/<project_id>/images/<image_hash>/commit_masks`
 *   `GET /api/project/<project_id>/images/<image_hash>/masks` (Get all mask layers for an image)
+*   `DELETE /api/project/<project_id>/images/<image_hash>/layers/<layer_id>` (Delete a specific mask layer)
 
 **Export:**
 *   `POST /api/project/<project_id>/export`

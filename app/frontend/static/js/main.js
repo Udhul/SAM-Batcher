@@ -400,6 +400,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     num_boxes: data.num_boxes,
                     multimask_output: data.multimask_output
                 });
+                if (data.image_status) {
+                    utils.dispatchCustomEvent('image-status-updated', { imageHash: imageHashForAPI, status: data.image_status });
+                }
             } else {
                 throw new Error(data.error || "Interactive prediction API error.");
             }
@@ -542,6 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (data.success) {
                 canvasManager.setAutomaskPredictions(data);
+                if (data.image_status) {
+                    utils.dispatchCustomEvent('image-status-updated', { imageHash: activeImageHash, status: data.image_status });
+                }
                 const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 const statusText = `AutoMask complete (${data.count || 0} masks) in ${duration}s.`;
                 if (amgParamsElements.statusEl) {
@@ -672,6 +678,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await apiClient.commitMasks(activeProjectId, activeImageHash, { final_masks: masksToCommit, notes: '' });
             if (!data.success) throw new Error(data.error || 'Commit failed');
+            if (data.image_status) {
+                utils.dispatchCustomEvent('image-status-updated', { imageHash: activeImageHash, status: data.image_status });
+            }
 
             const ids = data.final_layer_ids || [];
             const newLayers = selected.map((mask, idx) => ({
@@ -746,12 +755,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('layer-deleted', (event) => {
+    document.addEventListener('layer-deleted', async (event) => {
         if (!activeImageState) return;
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         canvasManager.setManualPredictions(null);
         syncLayerCache();
+        const projectId = stateManager.getActiveProjectId();
+        const imageHash = stateManager.getActiveImageHash();
+        if (projectId && imageHash) {
+            try {
+                const res = await apiClient.deleteMaskLayer(projectId, imageHash, id);
+                if (res.success && res.image_status) {
+                    utils.dispatchCustomEvent('image-status-updated', { imageHash, status: res.image_status });
+                }
+            } catch (e) {
+                console.error('Delete layer error', e);
+                uiManager.showGlobalStatus(`Delete error: ${utils.escapeHTML(e.message)}`, 'error');
+            }
+        }
     });
 
     
