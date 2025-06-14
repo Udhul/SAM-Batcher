@@ -21,14 +21,22 @@ It will be updated as new sprints add functionality.
   `pycocotools` for RLE conversion.
 - **Database Helpers**: Added `get_image_hashes_by_statuses` and
   `get_layers_by_image_and_statuses` for more efficient export queries.
+- **Image Status Handling**: Backend uses the new status values
+  (`unprocessed`, `in_progress`, `ready_for_review`, `approved`, `rejected`, `skip`)
+  instead of the legacy `in_progress_auto`, `in_progress_manual` and `completed`.
+- **Automatic Status Updates**: Image status now syncs with mask layers. Adding or
+  committing layers moves the image to `in_progress` (unless it is `skip`),
+  and removing all layers reverts it to `unprocessed`. Interactive predictions
+  alone no longer change the status.
+- **Status Reversion**: When all mask layers are removed from an image, its status automatically
+  reverts to `unprocessed`.
+- **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.
+- **Bug Fix**: Removing the final mask layer now correctly changes the image status back to `unprocessed`.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
   layers, but it lacks the complete structure (creation/edit objects) and direct
   synchronization with the backend as described.
-- **Image Status Handling**: Frontend shows new statuses, but the database schema
-  and backend still use the previous status values
-  (`in_progress_auto`, `in_progress_manual`, `completed`).
 - **Layer Data Schema**: Layers are stored with the old `layer_type` field and do
   not yet include `class_label`, `status` (prediction/edited/approved),
   `display_color`, or `source_metadata` columns.

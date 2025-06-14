@@ -76,6 +76,11 @@ class ImagePoolHandler {
                 this.loadAndDisplayImagePool(1, this.currentStatusFilter);
             }
         });
+        document.addEventListener('image-status-updated', () => {
+             if (this.stateManager.getActiveProjectId()) {
+                this.loadAndDisplayImagePool(this.currentPage, this.currentStatusFilter);
+            }
+        });
     }
 
     _setupEventListeners() {

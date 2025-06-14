@@ -92,7 +92,7 @@ def init_project_db(project_id: str, project_name: str) -> None:
         path_in_source TEXT, -- Relative path or identifier within the source
         width INTEGER,
         height INTEGER,
-        status TEXT DEFAULT 'unprocessed', -- e.g., "unprocessed", "in_progress_auto", "in_progress_manual", "completed"
+        status TEXT DEFAULT 'unprocessed', -- e.g., "unprocessed", "in_progress", "ready_for_review", "approved", "rejected", "skip"
         added_to_pool_at TEXT NOT NULL,
         last_processed_at TEXT,
         notes TEXT,
@@ -480,6 +480,15 @@ def get_mask_layers_for_image(project_id: str, image_hash: str, layer_type: Opti
         layers.append(layer)
     conn.close()
     return layers
+
+def count_mask_layers_for_image(project_id: str, image_hash: str) -> int:
+    """Returns the number of mask layers for the given image."""
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM Mask_Layers WHERE image_hash_ref = ?", (image_hash,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 def delete_mask_layer(project_id: str, layer_id: str) -> None:
     conn = get_db_connection(project_id)
