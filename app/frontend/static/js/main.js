@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     applyPostprocessing: data.model_info.apply_postprocessing
                 });
 
+                window.samAvailable = data.model_info.available;
                 if (!data.model_info.available) {
                     uiManager.showGlobalStatus('Backend inference unavailable. Prediction features disabled.', 'error', 5000);
                 } else if (data.model_info.loaded) {

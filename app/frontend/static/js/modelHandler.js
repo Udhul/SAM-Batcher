@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadModelBtn = document.getElementById('load-model-btn');
     const applyPostprocessingCb = document.getElementById('apply-postprocessing-cb');
     const modelStatusInline = document.getElementById('model-status-inline');
+    const backendStatusEl = document.getElementById('model-backend-status');
     const customModelInputs = document.getElementById('custom-model-inputs');
     const customModelPathInput = document.getElementById('custom-model-path'); // Renamed for clarity
     const customConfigPathInput = document.getElementById('custom-config-path'); // Renamed for clarity
@@ -17,7 +18,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const Utils = window.Utils || { dispatchCustomEvent: (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail })) };
 
     function showOverlay() {
-        if (modelOverlay) Utils.showElement(modelOverlay, 'flex');
+        if (modelOverlay) {
+            Utils.showElement(modelOverlay, 'flex');
+            if (backendStatusEl) {
+                if (window.samAvailable === false) {
+                    backendStatusEl.textContent = 'Backend inference unavailable on the server. Model loading is disabled.';
+                    backendStatusEl.style.display = 'block';
+                    loadModelBtn.disabled = true;
+                } else {
+                    backendStatusEl.textContent = '';
+                    backendStatusEl.style.display = 'none';
+                    loadModelBtn.disabled = false;
+                }
+            }
+        }
     }
 
     function hideOverlay() {
@@ -38,6 +52,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/models/available'); // Standardized endpoint
                 if (!response.ok) throw new Error(`HTTP error ${response.status}`);
                 data = await response.json();
+            }
+
+            if (typeof data.sam_available !== 'undefined') {
+                window.samAvailable = data.sam_available;
+            }
+
+            if (backendStatusEl) {
+                if (window.samAvailable === false) {
+                    backendStatusEl.textContent = 'Backend inference unavailable on the server. Model loading is disabled.';
+                    backendStatusEl.style.display = 'block';
+                    loadModelBtn.disabled = true;
+                } else {
+                    backendStatusEl.textContent = '';
+                    backendStatusEl.style.display = 'none';
+                    loadModelBtn.disabled = false;
+                }
             }
 
             if (data.success) {
