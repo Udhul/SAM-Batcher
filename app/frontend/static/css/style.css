@@ -63,9 +63,11 @@ header p {
     display: flex;
     gap: 10px;
     width: 100%;
+    flex-wrap: wrap; /* Allow wrapping when elements can't fit */
 }
 .top-bars .management-section {
-    flex: 1;
+    flex: 1 1 240px; /* flex-grow: 1, flex-shrink: 1, flex-basis: 240px (minimum width) */
+    min-width: 240px; /* Ensure minimum width is maintained */
 }
 
 .controls-column {
@@ -139,6 +141,9 @@ header p {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%; /* Fill parent width */
+    min-height: 100%; /* Fill parent height */
+    box-sizing: border-box; /* Include padding in dimensions */
 }
 .management-header:hover {
     background: linear-gradient(180deg, #f1f3f5, #e9ecef);
