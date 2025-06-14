@@ -4,6 +4,7 @@ tqdm
 opencv-python
 fastapi
 uvicorn
+python-multipart
 requests
 pycocotools>=2.0.8
 haikunator

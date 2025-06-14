@@ -60,7 +60,7 @@ The system will employ a client-server architecture.
     *   Handling user inputs for prompts (points, boxes).
 
 **2.2. Server-Side (Backend)**
-*   **Technology:** Python with FastAPI (replacing the previous Flask server).
+*   **Technology:** Python with FastAPI.
 *   **Core Components:**
     *   **API Layer:** FastAPI routes for handling client requests.
     *   **SAM2 Integration Layer:** `SAMInference` class (from `sam_backend.py`) interacting with the SAM2 library.
