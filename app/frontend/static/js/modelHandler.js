@@ -17,20 +17,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ensure Utils is available
     const Utils = window.Utils || { dispatchCustomEvent: (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail })) };
 
+    function updateBackendAvailabilityUI() {
+        if (backendStatusEl) {
+            if (window.samAvailable === false) {
+                backendStatusEl.textContent = 'Backend inference unavailable on the server. Model loading is disabled.';
+                backendStatusEl.style.display = 'block';
+                loadModelBtn.disabled = true;
+            } else {
+                backendStatusEl.textContent = '';
+                backendStatusEl.style.display = 'none';
+                loadModelBtn.disabled = false;
+            }
+        }
+
+        if (window.samAvailable === false) {
+            updateStatus('Backend inference unavailable.', 'error');
+        }
+    }
+
     function showOverlay() {
         if (modelOverlay) {
             Utils.showElement(modelOverlay, 'flex');
-            if (backendStatusEl) {
-                if (window.samAvailable === false) {
-                    backendStatusEl.textContent = 'Backend inference unavailable on the server. Model loading is disabled.';
-                    backendStatusEl.style.display = 'block';
-                    loadModelBtn.disabled = true;
-                } else {
-                    backendStatusEl.textContent = '';
-                    backendStatusEl.style.display = 'none';
-                    loadModelBtn.disabled = false;
-                }
-            }
+            updateBackendAvailabilityUI();
         }
     }
 
@@ -56,19 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (typeof data.sam_available !== 'undefined') {
                 window.samAvailable = data.sam_available;
+                document.dispatchEvent(new CustomEvent('sam-availability-updated', { detail: { available: window.samAvailable } }));
             }
 
-            if (backendStatusEl) {
-                if (window.samAvailable === false) {
-                    backendStatusEl.textContent = 'Backend inference unavailable on the server. Model loading is disabled.';
-                    backendStatusEl.style.display = 'block';
-                    loadModelBtn.disabled = true;
-                } else {
-                    backendStatusEl.textContent = '';
-                    backendStatusEl.style.display = 'none';
-                    loadModelBtn.disabled = false;
-                }
-            }
+            updateBackendAvailabilityUI();
 
             if (data.success) {
                 modelSelect.innerHTML = ''; // Clear previous options
@@ -287,7 +286,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modelKey || modelPath) { // If there was some model info from project
             updateStatus(`Current: ${modelDisplayNameForStatus} (PostProc: ${applyPostprocessingCb.checked})`, 'loaded');
         } else {
-             updateStatus('No model loaded from project. Please select one.', 'idle');
+            updateStatus('No model loaded from project. Please select one.', 'idle');
+        }
+        updateBackendAvailabilityUI();
+    });
+
+    document.addEventListener('sam-availability-updated', (event) => {
+        if (typeof event.detail.available !== 'undefined') {
+            window.samAvailable = event.detail.available;
+            updateBackendAvailabilityUI();
         }
     });
 

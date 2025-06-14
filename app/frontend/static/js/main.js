@@ -120,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 window.samAvailable = data.model_info.available;
+                document.dispatchEvent(new CustomEvent('sam-availability-updated', { detail: { available: window.samAvailable } }));
                 if (!data.model_info.available) {
                     uiManager.showGlobalStatus('Backend inference unavailable. Prediction features disabled.', 'error', 5000);
                 } else if (data.model_info.loaded) {
