@@ -24,6 +24,8 @@ It will be updated as new sprints add functionality.
 - **Image Status Handling**: Backend uses the new status values
   (`unprocessed`, `in_progress`, `ready_for_review`, `approved`, `rejected`, `skip`)
   instead of the legacy `in_progress_auto`, `in_progress_manual` and `completed`.
+- **Automatic Status Updates**: Backend now keeps an image at `in_progress` when masks are
+  committed or predictions are generated, unless the client explicitly sets a higher status.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
