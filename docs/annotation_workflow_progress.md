@@ -24,8 +24,10 @@ It will be updated as new sprints add functionality.
 - **Image Status Handling**: Backend uses the new status values
   (`unprocessed`, `in_progress`, `ready_for_review`, `approved`, `rejected`, `skip`)
   instead of the legacy `in_progress_auto`, `in_progress_manual` and `completed`.
-- **Automatic Status Updates**: Backend now keeps an image at `in_progress` when masks are
-  committed or predictions are generated, unless the client explicitly sets a higher status.
+- **Automatic Status Updates**: Image status now syncs with mask layers. Adding or
+  committing layers moves the image to `in_progress` (unless it is `skip`),
+  and removing all layers reverts it to `unprocessed`. Interactive predictions
+  alone no longer change the status.
 - **Status Reversion**: When all mask layers are removed from an image, its status automatically
   reverts to `unprocessed`.
 - **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.

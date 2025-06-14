@@ -400,9 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     num_boxes: data.num_boxes,
                     multimask_output: data.multimask_output
                 });
-                if (data.image_status) {
-                    utils.dispatchCustomEvent('image-status-updated', { imageHash: imageHashForAPI, status: data.image_status });
-                }
             } else {
                 throw new Error(data.error || "Interactive prediction API error.");
             }

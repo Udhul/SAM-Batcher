@@ -268,7 +268,10 @@ The system will employ a client-server architecture.
     *   Receives the committed mask data.
     *   Converts binary masks to a storage-efficient format (e.g., COCO RLE).
     *   Persists this as a "final_edited" layer or updates an existing "final" layer in the Project State DB for the `image_hash`.
-    *   Updates the image status to `in_progress` by default. Clients may set a higher status (e.g., `ready_for_review`) via the dedicated status endpoint.
+    *   After saving the masks, the server synchronizes the image status with
+        existing mask layers. If there is at least one layer, the status becomes
+        `in_progress` (unless already `skip`); if all layers are removed later it
+        reverts to `unprocessed`.
 *   **Server Response:** `{"success": true, "message": "Masks committed.", "final_layer_id": "final_edit_uuid"}`
 *   **Client:** Updates UI, possibly locks the committed masks from further easy editing or shows them distinctly.
 

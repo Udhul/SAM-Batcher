@@ -346,6 +346,35 @@ def ensure_minimum_image_status(project_id: str, image_hash: str, min_status: st
         current = min_status
     return current or min_status
 
+def sync_image_status_with_layers(project_id: str, image_hash: str) -> str:
+    """Update image status based on existing mask layers.
+
+    - If the image has no mask layers, status becomes ``unprocessed`` (unless ``skip``).
+    - If there is at least one layer and the current status is ``unprocessed`` or
+      a finalized state (``ready_for_review``, ``approved``, ``rejected``), it
+      becomes ``in_progress``.
+    The status ``skip`` is never changed automatically."""
+
+    info = db_manager.get_image_by_hash(project_id, image_hash)
+    if not info:
+        return "unprocessed"
+
+    current = info.get("status", "unprocessed")
+    if current == "skip":
+        return current
+
+    layers = db_manager.get_mask_layers_for_image(project_id, image_hash)
+    if not layers:
+        if current != "unprocessed":
+            db_manager.update_image_status(project_id, image_hash, "unprocessed")
+            current = "unprocessed"
+    else:
+        if current in ["unprocessed", "ready_for_review", "approved", "rejected"]:
+            db_manager.update_image_status(project_id, image_hash, "in_progress")
+            current = "in_progress"
+
+    return current
+
 def set_active_image_for_project(project_id: str, image_hash: str, sam_inference: SAMInference) -> Dict[str, Any]:
     image_info_db = db_manager.get_image_by_hash(project_id, image_hash)
     if not image_info_db:
@@ -481,7 +510,7 @@ def process_automask_request(project_id: str, image_hash: str, sam_inference: SA
         mask_data_rle=json.dumps(processed_mask_data_for_db), # List of RLEs and their metadata
         metadata={"source_amg_params": amg_params, "count": len(auto_masks_anns)}
     )
-    new_status = ensure_minimum_image_status(project_id, image_hash, "in_progress")
+    new_status = sync_image_status_with_layers(project_id, image_hash)
 
     return {"success": True, "masks_data": processed_mask_data_for_client, "layer_id": layer_id, "image_status": new_status}
 
@@ -547,8 +576,8 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
             })
 
 
-    # Update image status but do not store these transient masks in the DB.
-    new_status = ensure_minimum_image_status(project_id, image_hash, "in_progress")
+    # Interactive predictions do not change the persisted image status. Status
+    # will update only when mask layers are saved.
 
     # Client expects 'masks_data' as list of 2D binary arrays, and 'scores'
     return {
@@ -558,7 +587,6 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
         "layer_id": layer_id,
         "num_boxes": num_boxes,
         "multimask_output": multimask_flag,
-        "image_status": new_status,
     }
 
 
@@ -598,18 +626,13 @@ def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[
         new_notes = f"{existing_notes}\n[{datetime.utcnow().isoformat()}] {notes}".strip()
         # db_manager.update_image_notes(project_id, image_hash, new_notes) # Add this to db_manager
 
-    # When masks are committed, ensure the image status is at least 'in_progress'.
-    new_status = ensure_minimum_image_status(project_id, image_hash, "in_progress")
+    # Synchronize status with layers after saving masks.
+    new_status = sync_image_status_with_layers(project_id, image_hash)
     return {"success": True, "message": "Masks committed.", "final_layer_ids": committed_layer_ids, "image_status": new_status}
 
 
 def delete_mask_layer_and_update_status(project_id: str, image_hash: str, layer_id: str) -> Dict[str, Any]:
     """Delete a mask layer and update image status if no layers remain."""
     db_manager.delete_mask_layer(project_id, layer_id)
-    remaining = db_manager.get_mask_layers_for_image(project_id, image_hash)
-    if not remaining:
-        db_manager.update_image_status(project_id, image_hash, "unprocessed")
-        new_status = "unprocessed"
-    else:
-        new_status = ensure_minimum_image_status(project_id, image_hash, "in_progress")
+    new_status = sync_image_status_with_layers(project_id, image_hash)
     return {"success": True, "message": "Layer deleted.", "image_status": new_status}
