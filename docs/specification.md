@@ -361,7 +361,7 @@ The system will employ a client-server architecture.
     *   `path_in_source` (TEXT) - Relative path or identifier within the source. For uploads, this is the server path.
     *   `width` (INTEGER)
     *   `height` (INTEGER)
-    *   `status` (TEXT, e.g., "unprocessed", "in_progress_auto", "in_progress_manual", "completed")
+    *   `status` (TEXT, e.g., "unprocessed", "in_progress", "ready_for_review", "approved", "rejected", "skip")
     *   `added_to_pool_at` (TIMESTAMP)
     *   `last_processed_at` (TIMESTAMP, nullable)
     *   `notes` (TEXT, nullable)

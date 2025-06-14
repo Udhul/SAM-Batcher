@@ -92,7 +92,7 @@ def init_project_db(project_id: str, project_name: str) -> None:
         path_in_source TEXT, -- Relative path or identifier within the source
         width INTEGER,
         height INTEGER,
-        status TEXT DEFAULT 'unprocessed', -- e.g., "unprocessed", "in_progress_auto", "in_progress_manual", "completed"
+        status TEXT DEFAULT 'unprocessed', -- e.g., "unprocessed", "in_progress", "ready_for_review", "approved", "rejected", "skip"
         added_to_pool_at TEXT NOT NULL,
         last_processed_at TEXT,
         notes TEXT,

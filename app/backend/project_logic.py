@@ -466,7 +466,7 @@ def process_automask_request(project_id: str, image_hash: str, sam_inference: SA
         mask_data_rle=json.dumps(processed_mask_data_for_db), # List of RLEs and their metadata
         metadata={"source_amg_params": amg_params, "count": len(auto_masks_anns)}
     )
-    db_manager.update_image_status(project_id, image_hash, "in_progress_auto")
+    db_manager.update_image_status(project_id, image_hash, "in_progress")
 
     return {"success": True, "masks_data": processed_mask_data_for_client, "layer_id": layer_id}
 
@@ -533,7 +533,7 @@ def process_interactive_predict_request(project_id: str, image_hash: str, sam_in
 
 
     # Update image status but do not store these transient masks in the DB.
-    db_manager.update_image_status(project_id, image_hash, "in_progress_manual")
+    db_manager.update_image_status(project_id, image_hash, "in_progress")
 
     # Client expects 'masks_data' as list of 2D binary arrays, and 'scores'
     return {
@@ -582,5 +582,5 @@ def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[
         new_notes = f"{existing_notes}\n[{datetime.utcnow().isoformat()}] {notes}".strip()
         # db_manager.update_image_notes(project_id, image_hash, new_notes) # Add this to db_manager
 
-    db_manager.update_image_status(project_id, image_hash, "completed") # Or configurable status
+    db_manager.update_image_status(project_id, image_hash, "approved")
     return {"success": True, "message": "Masks committed.", "final_layer_ids": committed_layer_ids}
