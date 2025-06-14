@@ -5,6 +5,7 @@ opencv-python
 fastapi
 uvicorn
 python-multipart
+werkzeug
 requests
 pycocotools>=2.0.8
 haikunator
