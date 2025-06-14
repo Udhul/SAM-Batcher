@@ -167,7 +167,7 @@ class ImagePoolHandler {
         thumb.alt = this.Utils.escapeHTML(imgData.original_filename) || 'Image Thumbnail';
         thumb.onerror = () => {
             if (thumb.src.indexOf('placeholder_thumb.png') === -1) {
-                thumb.src = '/static/assets/placeholder_thumb.png';
+                thumb.src = '/assets/placeholder_thumb.png';
             }
         };
 
