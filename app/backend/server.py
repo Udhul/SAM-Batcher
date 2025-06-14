@@ -40,8 +40,9 @@ TEMPLATES_DIR = os.path.join(APP_DIR, 'frontend', 'templates')
 STATIC_DIR = os.path.join(APP_DIR, 'frontend', 'static')
 ASSETS_DIR = os.path.join(APP_DIR, 'frontend', 'assets')
 
+# Serve assets from a dedicated '/assets' path to avoid clashes with '/static'
+app.mount('/assets', StaticFiles(directory=ASSETS_DIR), name='assets')
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
-app.mount('/static/assets', StaticFiles(directory=ASSETS_DIR), name='assets')
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Global SAMInference instance
@@ -75,7 +76,7 @@ async def api_create_project(payload: dict):
     project_name = payload.get('project_name')
     result = await run_in_threadpool(project_logic.create_new_project, project_name)
     set_active_project_id(result['project_id'])
-    return result
+    return {'success': True, **result}
 
 
 @app.get('/api/projects')
@@ -298,6 +299,8 @@ async def api_get_image_thumbnail(project_id: str, image_hash: str):
     try:
         pil_img = Image.open(img_path)
         pil_img.thumbnail((128, 128))
+        if pil_img.mode not in ("RGB", "L"):
+            pil_img = pil_img.convert("RGB")
         img_io = io.BytesIO()
         pil_img.save(img_io, 'JPEG', quality=70)
         img_io.seek(0)

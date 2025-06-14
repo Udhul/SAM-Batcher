@@ -32,6 +32,7 @@ project_root/
   │   │   │   │   ├── stateManager.js     # Keeps track of current frontend state
   │   │   │   │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
   │   └── assets/                 # Static assets like icons, placeholder images
+  │                               # Served from the `/assets` URL path
   │   │
   │   └── backend/                  # Server-side application (Python/FastAPI)
   │       ├── __init__.py
