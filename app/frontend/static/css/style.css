@@ -64,7 +64,7 @@ header p {
     gap: 10px;
     width: 100%;
 }
-.top-bars .expandable-section {
+.top-bars .management-section {
     flex: 1;
 }
 
@@ -117,8 +117,8 @@ header p {
     font-size: 1.3em;
 }
 
-/* Expandable Section Base Styling */
-.expandable-section {
+/* Management Section/Base Styling */
+.management-section {
     border: 1px solid #e0e0e0; /* Slightly softer border */
     border-radius: 8px;
     overflow: hidden;
@@ -126,7 +126,7 @@ header p {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.expandable-header {
+.management-header {
     background: linear-gradient(180deg, #fdfdfd, #f1f3f5); /* Lighter gradient */
     padding: 12px 15px;
     cursor: pointer;
@@ -140,10 +140,10 @@ header p {
     justify-content: space-between;
     align-items: center;
 }
-.expandable-header:hover {
+.management-header:hover {
     background: linear-gradient(180deg, #f1f3f5, #e9ecef);
 }
-.expandable-header.collapsed {
+.management-header.collapsed {
     border-bottom-color: transparent; /* No border when content is hidden */
 }
 .expand-indicator {
@@ -151,10 +151,10 @@ header p {
     transition: transform 0.25s ease-in-out;
     color: #555;
 }
-.expandable-header.collapsed .expand-indicator {
+.management-header.collapsed .expand-indicator {
     transform: rotate(-90deg);
 }
-.expandable-header:not(.collapsed) .expand-indicator {
+.management-header:not(.collapsed) .expand-indicator {
     transform: rotate(0deg);
 }
 
@@ -568,13 +568,6 @@ input[type="file"]#image-upload {
 }
 .file-upload-styled-btn:hover { background-color: #218838; }
 
-/* Manage Sources Button - Blue styling */
-#manage-sources-btn {
-    background-color: #007bff !important;
-}
-#manage-sources-btn:hover:not(:disabled) {
-    background-color: #0056b3 !important;
-}
 
 /* Progress Bar */
 .progress-bar-container {

@@ -759,8 +759,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeApp() {
         uiManager.showGlobalStatus("Application initializing...", 'loading', 0);
 
-        document.querySelectorAll('.expandable-section').forEach(section => {
-            const header = section.querySelector('.expandable-header');
+        document.querySelectorAll('.management-section').forEach(section => {
+            const header = section.querySelector('.management-header');
             if (header && uiManager && typeof uiManager.initializeExpandableSection === 'function') {
                 uiManager.initializeExpandableSection(header, true);
             }

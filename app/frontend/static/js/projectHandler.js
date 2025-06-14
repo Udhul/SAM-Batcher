@@ -51,7 +51,8 @@ class ProjectHandler {
             projectOverlayClose: document.getElementById('close-project-overlay'),
             activeProjectDisplay: document.getElementById('active-project-display'),
 
-            manageSourcesBtn: document.getElementById('manage-sources-btn'),
+            sourcesManagementBar: document.getElementById('sources-management-bar'),
+            sourcesStatusInline: document.getElementById('sources-status-inline'),
             sourceOverlay: document.getElementById('source-management-overlay'),
             sourceOverlayClose: document.getElementById('close-source-overlay'),
             folderAddBtn: document.getElementById('add-folder-source-btn'),
@@ -70,8 +71,13 @@ class ProjectHandler {
         });
 
         // Listen for state changes to update active project display
-        document.addEventListener('state-changed-activeProjectId', () => this._updateActiveProjectDisplay());
+        document.addEventListener('state-changed-activeProjectId', () => {
+            this._updateActiveProjectDisplay();
+            this.fetchAndDisplayImageSources(true);
+        });
         document.addEventListener('state-changed-activeProjectName', () => this._updateActiveProjectDisplay());
+        document.addEventListener('project-loaded', () => this.fetchAndDisplayImageSources(true));
+        document.addEventListener('sources-updated', () => this.fetchAndDisplayImageSources(true));
     }
 
     _setupEventListeners() {
@@ -84,8 +90,11 @@ class ProjectHandler {
         if (this.elements.downloadProjectDbBtn) {
             this.elements.downloadProjectDbBtn.addEventListener('click', () => this.handleDownloadProjectDb());
         }
-        if (this.elements.manageSourcesBtn) {
-            this.elements.manageSourcesBtn.addEventListener('click', () => this.showSourcesOverlay());
+        if (this.elements.sourcesManagementBar) {
+            this.elements.sourcesManagementBar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showSourcesOverlay();
+            });
         }
         if (this.elements.sourceOverlayClose) {
             this.elements.sourceOverlayClose.addEventListener('click', () => this.hideSourcesOverlay());
@@ -427,9 +436,15 @@ class ProjectHandler {
         }
     }
 
-    async fetchAndDisplayImageSources() {
+    async fetchAndDisplayImageSources(skipDispatch = false) {
         const projectId = this.stateManager.getActiveProjectId();
-        if (!projectId || !this.elements.imageSourcesListContainer) return;
+        if (!projectId || !this.elements.imageSourcesListContainer) {
+            if (this.elements.sourcesStatusInline) {
+                this.elements.sourcesStatusInline.textContent = 'No project';
+                this.elements.sourcesStatusInline.className = 'status-inline error';
+            }
+            return;
+        }
 
         this.elements.imageSourcesListContainer.innerHTML = '<p><em>Loading sources...</em></p>';
         try {
@@ -482,13 +497,34 @@ class ProjectHandler {
                         this.elements.imageSourcesListContainer.appendChild(detailsEl);
                     }
                 }
-                this.Utils.dispatchCustomEvent('sources-updated', { sources: data.sources });
+                let totalImages = 0;
+                try {
+                    const poolData = await this.apiClient.listImages(projectId, 1, 1);
+                    if (poolData.success && poolData.pagination) {
+                        totalImages = poolData.pagination.total;
+                    }
+                } catch (err) {}
+                if (this.elements.sourcesStatusInline) {
+                    this.elements.sourcesStatusInline.textContent = `${data.sources.length} sources, ${totalImages} images`;
+                    this.elements.sourcesStatusInline.className = 'status-inline loaded';
+                }
+                if (!skipDispatch) {
+                    this.Utils.dispatchCustomEvent('sources-updated', { sources: data.sources });
+                }
             } else {
                 this.elements.imageSourcesListContainer.innerHTML = '<p><em>Error loading sources.</em></p>';
+                if (this.elements.sourcesStatusInline) {
+                    this.elements.sourcesStatusInline.textContent = 'Error';
+                    this.elements.sourcesStatusInline.className = 'status-inline error';
+                }
             }
         } catch (error) {
             this.elements.imageSourcesListContainer.innerHTML = '<p><em>Network error loading sources.</em></p>';
             this.uiManager.showGlobalStatus(`Error fetching image sources: ${error.message}`, 'error');
+            if (this.elements.sourcesStatusInline) {
+                this.elements.sourcesStatusInline.textContent = 'Error';
+                this.elements.sourcesStatusInline.className = 'status-inline error';
+            }
         }
     }
 
