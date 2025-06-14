@@ -351,7 +351,8 @@ async def api_get_available_models():
     return {
         'success': True,
         'models': models_to_show,
-        'current_model_key': current_model_info.get('model_size_key') if current_model_info.get('loaded') else None
+        'current_model_key': current_model_info.get('model_size_key') if current_model_info.get('loaded') else None,
+        'sam_available': sam_inference_instance.sam_available
     }
 
 
@@ -360,6 +361,8 @@ async def api_load_model(payload: dict):
     project_id = get_active_project_id()
     if not project_id:
         raise HTTPException(status_code=400, detail='No active project')
+    if not sam_inference_instance.sam_available:
+        return {'success': False, 'error': 'SAM backend unavailable'}
     result = await run_in_threadpool(
         project_logic.load_sam_model_for_project,
         project_id,
@@ -370,7 +373,7 @@ async def api_load_model(payload: dict):
         payload.get('apply_postprocessing', config.DEFAULT_APPLY_POSTPROCESSING)
     )
     if not result['success']:
-        raise HTTPException(status_code=500, detail='Failed to load model')
+        raise HTTPException(status_code=400, detail=result.get('error', 'Failed to load model'))
     return result
 
 
@@ -388,6 +391,8 @@ async def api_get_current_model():
 async def api_predict_interactive(project_id: str, image_hash: str, payload: dict):
     if project_id != get_active_project_id():
         raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    if not sam_inference_instance.sam_available:
+        return {'success': False, 'error': 'SAM backend unavailable'}
     prompts = {
         'points': payload.get('points'),
         'labels': payload.get('labels'),
@@ -413,6 +418,8 @@ async def api_predict_interactive(project_id: str, image_hash: str, payload: dic
 async def api_generate_automask(project_id: str, image_hash: str, payload: dict):
     if project_id != get_active_project_id():
         raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    if not sam_inference_instance.sam_available:
+        return {'success': False, 'error': 'SAM backend unavailable'}
     amg_params = payload or {}
     try:
         result = await run_in_threadpool(project_logic.process_automask_request, project_id, image_hash, sam_inference_instance, amg_params)

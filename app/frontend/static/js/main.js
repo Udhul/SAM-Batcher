@@ -119,7 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     applyPostprocessing: data.model_info.apply_postprocessing
                 });
 
-                if (data.model_info.loaded) {
+                if (!data.model_info.available) {
+                    uiManager.showGlobalStatus('Backend inference unavailable. Prediction features disabled.', 'error', 5000);
+                } else if (data.model_info.loaded) {
                     utils.dispatchCustomEvent('model-load-success', {
                         model_info: data.model_info,
                         message: 'Model ready.'

@@ -14,14 +14,40 @@ Input/Output:
 # project_root/app/backend/sam_backend.py
 
 import os
-import torch
-import numpy as np
-from PIL import Image
-from typing import Optional, List, Tuple, Dict, Any, Union, Callable
+import logging
 import hashlib
 import base64
 from io import BytesIO
-import logging
+from typing import Optional, List, Tuple, Dict, Any, Union, Callable
+from types import SimpleNamespace
+
+import numpy as np
+from PIL import Image
+
+try:
+    import torch
+    _TORCH_AVAILABLE = True
+except Exception as e:  # pragma: no cover - torch might be missing
+    torch = None  # type: ignore
+    _TORCH_AVAILABLE = False
+    _TORCH_ERROR = e  # noqa: F841  # for potential debugging
+
+_SAM_AVAILABLE = _TORCH_AVAILABLE
+if _TORCH_AVAILABLE:
+    try:  # pragma: no cover - optional dependency
+        from sam2.build_sam import build_sam2
+        from sam2.sam2_image_predictor import SAM2ImagePredictor
+        from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+    except Exception as e:  # pragma: no cover - sam2 might be missing
+        build_sam2 = None
+        SAM2ImagePredictor = None  # type: ignore
+        SAM2AutomaticMaskGenerator = None  # type: ignore
+        _SAM_AVAILABLE = False
+        _SAM_ERROR = e  # noqa: F841
+else:  # pragma: no cover - torch missing already
+    build_sam2 = None
+    SAM2ImagePredictor = None  # type: ignore
+    SAM2AutomaticMaskGenerator = None  # type: ignore
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -38,13 +64,6 @@ if not logger.handlers:
     logger.addHandler(console_handler)
     logger.setLevel(logging.INFO)
 
-# Attempt to import SAM2 components. Ensure 'sam2' is in PYTHONPATH or installed.
-try:
-    from sam2.build_sam import build_sam2
-    from sam2.sam2_image_predictor import SAM2ImagePredictor
-    from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
-except ImportError:
-    raise ImportError("SAM2 library not found. Make sure it's installed and in your PYTHONPATH.")
 
 # Utility functions imports
 from utils.get_model import get_model, MODEL_FILES # MODEL_FILES for available keys
@@ -60,6 +79,10 @@ class ImageNotSetError(Exception):
 
 class InferenceObjectNotAvailableError(Exception):
     """Exception raised when trying to use predictor/automask generator that's not loaded"""
+    pass
+
+class SAMBackendUnavailableError(Exception):
+    """Raised when SAM2/torch dependencies are missing."""
     pass
 
 class SAMInference:
@@ -104,11 +127,17 @@ class SAMInference:
         self.exclusive_mode = exclusive_mode
         self.active_inference_type = None  # 'predictor' or 'automask' or None
 
-        # Device management
+        # Device management & availability
+        self.sam_available = _SAM_AVAILABLE
         self.cuda_device_index = cuda_device_index
-        self.device = self._get_device() if device is None else torch.device(device)
-        self.autocast_dtype = self._select_autocast_dtype()
-        logger.info(f"Using device: {self.device}")
+        if self.sam_available and _TORCH_AVAILABLE:
+            self.device = self._get_device() if device is None else torch.device(device)
+            self.autocast_dtype = self._select_autocast_dtype()
+            logger.info(f"Using device: {self.device}")
+        else:
+            self.device = SimpleNamespace(type="cpu")
+            self.autocast_dtype = None
+            logger.warning("SAM2/torch not available. Running in image-only mode.")
 
         # Image state
         self.image_np: Optional[np.ndarray] = None
@@ -120,17 +149,19 @@ class SAMInference:
         self.scores: Optional[np.ndarray] = None
         self.logits: Optional[np.ndarray] = None
         
-        # Initialize model if provided
-        if model_size_key or model_path_override:
+        # Initialize model if provided and backend is available
+        if self.sam_available and (model_size_key or model_path_override):
             self.load_model(
-                model_size_key=model_size_key, 
-                model_path_override=model_path_override, 
+                model_size_key=model_size_key,
+                model_path_override=model_path_override,
                 config_path_override=config_path_override,
-                force_download=False 
+                force_download=False
             )
     
-    def _get_device(self) -> torch.device:
+    def _get_device(self) -> Any:
         """Auto-detect the best available device for inference."""
+        if not _TORCH_AVAILABLE:
+            return SimpleNamespace(type="cpu")
         if torch.cuda.is_available():
             index = self.cuda_device_index
             if index is None:
@@ -170,8 +201,10 @@ class SAMInference:
             device = torch.device("cpu")
         return device
 
-    def _select_autocast_dtype(self) -> Optional[torch.dtype]:
+    def _select_autocast_dtype(self) -> Optional[Any]:
         """Determine optimal autocast precision for the current device."""
+        if not _TORCH_AVAILABLE:
+            return None
         if self.device.type == "cuda":
             if torch.cuda.is_bf16_supported():
                 return torch.bfloat16
@@ -179,9 +212,9 @@ class SAMInference:
                 return torch.float16
         return None
 
-    def load_model(self, model_size_key: Optional[str] = None, 
-                   model_path_override: Optional[str] = None, 
-                   config_path_override: Optional[str] = None, 
+    def load_model(self, model_size_key: Optional[str] = None,
+                   model_path_override: Optional[str] = None,
+                   config_path_override: Optional[str] = None,
                    apply_postprocessing: bool = True,
                    force_download: bool = False,
                    progress_callback: Optional[Callable[[float, int, int], None]] = None) -> bool:
@@ -202,9 +235,13 @@ class SAMInference:
         Returns:
             True if model loaded successfully, False otherwise.
         """
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot load model.")
+            return False
+
         # Store previous state for rollback
         previous_model_state = (
-            self.model, self.current_model_size_key, self.current_model_path, 
+            self.model, self.current_model_size_key, self.current_model_path,
             self.current_config_path, self.apply_postprocessing
         )
         previous_image = (self.image_np, self.image_path, self.image_hash)
@@ -339,9 +376,9 @@ class SAMInference:
                     self.create_automatic_mask_generator(**self.automatic_mask_generator_args)
             return False
 
-    def create_predictor(self, mask_threshold: float = 0.0, 
-                        max_hole_area: float = 0.0, 
-                        max_sprinkle_area: float = 0.0, 
+    def create_predictor(self, mask_threshold: float = 0.0,
+                        max_hole_area: float = 0.0,
+                        max_sprinkle_area: float = 0.0,
                         **kwargs) -> bool:
         """
         Create or update the SAM2ImagePredictor for interactive mask prediction.
@@ -359,6 +396,9 @@ class SAMInference:
             True if predictor created successfully, False otherwise.
         """
         logger.debug(f"Creating predictor with args: {self.predictor_args}")
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot create predictor.")
+            return False
 
         if self.model is None:
             logger.error("Cannot create predictor: Model not loaded.")
@@ -443,6 +483,10 @@ class SAMInference:
         """
         logger.debug(f"Creating automask generator with args: {self.automatic_mask_generator_args}")
 
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot create automask generator.")
+            return False
+
         if self.model is None:
             logger.error("Cannot create automatic mask generator: Model not loaded.")
             return False
@@ -485,7 +529,7 @@ class SAMInference:
         """Unload the predictor to free memory."""
         if self.predictor is not None:
             self.predictor = None
-            if self.device.type == "cuda":
+            if _TORCH_AVAILABLE and self.device.type == "cuda":
                 torch.cuda.empty_cache()
             logger.debug("Predictor unloaded successfully.")
 
@@ -493,7 +537,7 @@ class SAMInference:
         """Unload the automatic mask generator to free memory."""
         if self.automatic_mask_generator is not None:
             self.automatic_mask_generator = None
-            if self.device.type == "cuda":
+            if _TORCH_AVAILABLE and self.device.type == "cuda":
                 torch.cuda.empty_cache()
             logger.debug("Automatic mask generator unloaded successfully.")
 
@@ -519,6 +563,7 @@ class SAMInference:
             "active_inference_type": self.active_inference_type,
             "predictor_loaded": self.predictor is not None,
             "automask_loaded": self.automatic_mask_generator is not None,
+            "sam_available": self.sam_available,
             "predictor_args": self.predictor_args.copy() if self.predictor_args else {},
             "automask_args": self.automatic_mask_generator_args.copy() if self.automatic_mask_generator_args else {}
         }
@@ -554,7 +599,7 @@ class SAMInference:
         """
         try:
             # Ensure a predictor exists so interactive prediction can follow
-            if self.predictor is None:
+            if self.sam_available and self.predictor is None:
                 logger.info("Predictor not found when setting image. Creating default predictor.")
                 if not self.create_predictor(**self.predictor_args):
                     logger.error("Failed to auto-create predictor while setting image.")
@@ -581,8 +626,8 @@ class SAMInference:
             # Calculate image hash for identification
             self.image_hash = self._calculate_image_hash(image_data)
 
-            # Set image on predictor if it exists
-            if self.predictor is not None:
+            # Set image on predictor if it exists and backend available
+            if self.sam_available and self.predictor is not None:
                 if self.device.type == "cuda" and self.autocast_dtype is not None:
                     with torch.autocast(self.device.type, dtype=self.autocast_dtype):
                         self.predictor.set_image(self.image_np)
@@ -666,6 +711,10 @@ class SAMInference:
             Returns None if prediction fails.
         """
         logger.debug(f"Prediction inputs - points: {point_coords is not None}, box: {box is not None}, mask_input: {mask_input is not None}")
+
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot run predict().")
+            return None
 
         if self.predictor is None:
             if self.model is None:
@@ -767,7 +816,7 @@ class SAMInference:
             logger.exception(f"Error during prediction: {e}")
             return None
     
-    def generate_auto_masks(self, image_data: Optional[Union[str, np.ndarray, Image.Image]] = None, 
+    def generate_auto_masks(self, image_data: Optional[Union[str, np.ndarray, Image.Image]] = None,
                            **kwargs) -> Optional[List[Dict[str, Any]]]:
         """
         Generate automatic masks for the entire image using SAM2AutomaticMaskGenerator.
@@ -793,6 +842,10 @@ class SAMInference:
             - crop_box: Crop region used to generate the mask in XYWH format
             Returns None if generation fails.
         """
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot generate auto masks.")
+            return None
+
         if self.model is None:
             raise ModelNotLoadedError("Model not loaded. Call load_model() first.")
             
@@ -862,7 +915,7 @@ class SAMInference:
             # Clean up temporary generator
             if temp_generator is not None:
                 del temp_generator
-                if self.device.type == "cuda":
+                if _TORCH_AVAILABLE and self.device.type == "cuda":
                     torch.cuda.empty_cache()
 
             # After automask generation, unload generator and recreate predictor
@@ -943,6 +996,7 @@ class SAMInference:
         """
         return {
             "loaded": self.model is not None,
+            "available": self.sam_available,
             "model_size_key": self.current_model_size_key,
             "model_path": self.current_model_path,
             "config_path": self.current_config_path,
@@ -969,7 +1023,11 @@ class SAMInference:
         if masks is None:
             logger.info("No masks available for export.")
             return None
-            
+
+        if not self.sam_available:
+            logger.error("SAM backend unavailable: cannot prepare masks for export.")
+            return None
+
         try:
             from sam2.utils.amg import mask_to_rle_pytorch, rle_to_mask
             export_masks = []
@@ -1042,12 +1100,12 @@ class SAMInference:
         self.active_inference_type = None
         
         # Clear device cache
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
-        elif self.device.type == "mps":
-            # MPS doesn't have empty_cache, but we can clear some memory
-            if hasattr(torch.mps, 'empty_cache'):
-                torch.mps.empty_cache()
+        if _TORCH_AVAILABLE:
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
+                if hasattr(torch.mps, 'empty_cache'):
+                    torch.mps.empty_cache()
                 
         logger.debug("SAMInference resources cleaned up.")
 
