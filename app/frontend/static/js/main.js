@@ -97,8 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewApproveBtn = document.getElementById('review-approve-btn');
     const reviewRejectBtn = document.getElementById('review-reject-btn');
 
-    updateStatusToggleUI('unprocessed', false);
-
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
     }
@@ -116,6 +114,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeImageState) return 'unprocessed';
         return (activeImageState.layers && activeImageState.layers.length > 0) ? 'in_progress' : 'unprocessed';
     }
+
+    function updateStatusToggleUI(status, enabled = true) {
+        const hasLayers = activeImageState && activeImageState.layers && activeImageState.layers.length > 0;
+        
+        if (readySwitch) {
+            readySwitch.checked = status === 'ready_for_review';
+            readySwitch.disabled = !enabled || (skipSwitch && skipSwitch.checked) || !hasLayers;
+        }
+        if (skipSwitch) {
+            skipSwitch.checked = status === 'skip';
+            skipSwitch.disabled = !enabled;
+        }
+    }
+
+    updateStatusToggleUI('unprocessed', false);
 
     async function restoreSessionFromServer() {
         try {
@@ -709,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeImageState.layers.push(...newLayers);
             if (layerViewController) layerViewController.addLayers(newLayers);
             syncLayerCache();
+            updateStatusToggleUI(activeImageState.status || deriveStatusFromLayers(), true);
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
         } catch (err) {
             uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
@@ -774,6 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         canvasManager.setManualPredictions(null);
         syncLayerCache();
+        updateStatusToggleUI(activeImageState.status || deriveStatusFromLayers(), true);
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (projectId && imageHash) {
@@ -788,17 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    function updateStatusToggleUI(status, enabled = true) {
-        if (readySwitch) {
-            readySwitch.checked = status === 'ready_for_review';
-            readySwitch.disabled = !enabled || (skipSwitch && skipSwitch.checked);
-        }
-        if (skipSwitch) {
-            skipSwitch.checked = status === 'skip';
-            skipSwitch.disabled = !enabled;
-        }
-    }
 
     document.addEventListener('active-image-set', (event) => {
         if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
