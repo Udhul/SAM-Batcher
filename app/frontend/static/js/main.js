@@ -490,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             activeImageState.layers.unshift(newLayer);
             onImageDataChange('layer-added', { layerIds: [newLayer.layerId] });
+            canvasManager.clearAllCanvasInputs(false);
             canvasManager.setMode('edit');
         });
     }
@@ -806,6 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('layers-selected', (event) => {
         if (!activeImageState) return;
         const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
+        canvasManager.clearAllCanvasInputs(false);
         canvasManager.setMode('edit', ids);
         canvasManager.setLayers(activeImageState.layers);
     });

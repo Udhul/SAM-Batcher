@@ -39,6 +39,11 @@ It will be updated as new sprints add functionality.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.
 - **Auto Status Updates**: The unified handler automatically downgrades images from `Ready` to `In Progress` when layers change unless explicitly skipped.
 - **Recursion Fix**: Status update events no longer cause infinite loops when UI syncs dispatch further status events.
+- **Canvas Modes**: Implemented Creation and Edit display modes. Creation mode fades existing layers and Edit mode highlights selected layers while fading others. Layer masks use their stored colors.
+- **Layer Selection Improvements**: Shift-click now supports multi-selection, normal-click deselects the single selected layer, and selections maintain order.
+- **Faded Opacity Constant**: Introduced a constant to control faded layer opacity (33%).
+- **Layer Ordering**: New layers are inserted at the top of the list.
+- **Prediction Clearing**: Selecting layers or adding empty layers now clears creation inputs using `canvasManager.clearAllCanvasInputs`.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
