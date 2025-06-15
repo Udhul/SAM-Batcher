@@ -45,6 +45,7 @@ It will be updated as new sprints add functionality.
 - **Layer Ordering**: New layers are inserted at the top of the list.
 - **Prediction Clearing**: Selecting layers or adding empty layers now clears creation inputs using `canvasManager.clearAllCanvasInputs`.
 - **Default Mode on Load**: Loading an image now enters Edit mode if layers exist and skips legacy prediction data, preventing stray red masks from appearing.
+- **Legacy Prediction Removal**: Old code paths for restoring saved prediction masks have been deleted. Existing masks always load as layers.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded

@@ -373,7 +373,7 @@ The system will employ a client-server architecture.
 *   **`Mask_Layers` Table:**
     *   `layer_id` (TEXT, PK)
     *   `image_hash_ref` (TEXT, FK to `Images.image_hash`)
-    *   `layer_type` (TEXT, e.g., "automask", "interactive_prompt", "final_edited")
+    *   `layer_type` (TEXT, e.g., "automask", "final_edited")
     *   `created_at` (TIMESTAMP)
     *   `model_details` (TEXT, JSON: `{"name": "sam2_hiera_b+", "params": {"apply_postprocessing": true}}`)
     *   `prompt_details` (TEXT, JSON, nullable: `{"points": ..., "labels": ..., "box": ..., "amg_params": ...}` etc.)
