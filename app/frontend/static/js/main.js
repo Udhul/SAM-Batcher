@@ -139,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!skipUpdates.layerView && layerViewController) {
             layerViewController.setLayers(activeImageState.layers);
         }
+        if (!skipUpdates.canvasLayers) {
+            canvasManager.setLayers(activeImageState.layers);
+        }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
             updateStatusToggleUI(s, true);
@@ -487,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             activeImageState.layers.push(newLayer);
             onImageDataChange('layer-added', { layerIds: [newLayer.layerId] });
+            canvasManager.setMode('edit');
         });
     }
 
@@ -755,6 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasManager.clearAllCanvasInputs(false);
         canvasManager.setManualPredictions(null);
         canvasManager.setAutomaskPredictions(null);
+        canvasManager.setMode('edit');
     }
 
     if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
@@ -801,8 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('layer-selected', (event) => {
         if (!activeImageState) return;
         const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
-        if (layer && layer.maskData) {
-            canvasManager.setManualPredictions({ masks_data: [layer.maskData], scores: [1.0] });
+        if (layer) {
+            canvasManager.setMode('edit', [layer.layerId]);
+            canvasManager.setLayers(activeImageState.layers);
         }
     });
 
@@ -810,7 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeImageState) return;
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
-        canvasManager.setManualPredictions(null);
+        canvasManager.setMode('edit');
+        canvasManager.setLayers(activeImageState.layers);
         onImageDataChange('layer-deleted', { layerId: id });
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
@@ -859,6 +866,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('layer-visibility-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.visible = event.detail.visible;
+            canvasManager.setLayers(activeImageState.layers);
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { visible: layer.visible }).catch(() => {});
+            }
+        }
+    });
+
     document.addEventListener('layer-color-changed', (event) => {
         if (!activeImageState) return;
         const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
@@ -872,6 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+            canvasManager.setLayers(activeImageState.layers);
         }
     });
 
