@@ -462,9 +462,10 @@ async def api_update_mask_layer(project_id: str, image_hash: str, layer_id: str,
         raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
     name = payload.get('name')
     class_label = payload.get('class_label')
+    display_color = payload.get('display_color')
     result = await run_in_threadpool(project_logic.update_mask_layer_basic,
                                      project_id, image_hash, layer_id,
-                                     name, class_label)
+                                     name, class_label, display_color)
     return result
 
 

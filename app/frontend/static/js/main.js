@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     classLabel: m.class_label || '',
                     status: m.layer_type || 'prediction',
                     visible: true,
-                    displayColor: utils.getRandomHexColor(),
+                    displayColor: m.display_color || utils.getRandomHexColor(),
                     maskData: parsed
                 };
             });
@@ -739,6 +739,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 maskData: mask.segmentation || mask
             }));
 
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                newLayers.forEach(l => {
+                    apiClient.updateMaskLayer(pid, ih, l.layerId, { display_color: l.displayColor }).catch(() => {});
+                });
+            }
+
             activeImageState.layers.push(...newLayers);
             onImageDataChange('layer-added', { layerIds: ids });
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
@@ -846,6 +854,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const ih = activeImageState.imageHash;
             if (pid && ih) {
                 apiClient.updateMaskLayer(pid, ih, layer.layerId, { class_label: layer.classLabel }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
+            onImageDataChange('layer-modified', { layerId: layer.layerId });
+        }
+    });
+
+    document.addEventListener('layer-color-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.displayColor = event.detail.displayColor || '#888888';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { display_color: layer.displayColor }).catch(err => {
                     uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
                 });
             }

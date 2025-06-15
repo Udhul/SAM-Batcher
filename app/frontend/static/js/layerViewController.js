@@ -70,6 +70,21 @@ class LayerViewController {
             const colorSwatch = document.createElement('span');
             colorSwatch.className = 'layer-color-swatch';
             colorSwatch.style.backgroundColor = layer.displayColor || '#888';
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.value = layer.displayColor || '#888888';
+            colorInput.style.display = 'none';
+            colorInput.addEventListener('change', (e) => {
+                e.stopPropagation();
+                layer.displayColor = colorInput.value;
+                colorSwatch.style.backgroundColor = colorInput.value;
+                this.Utils.dispatchCustomEvent('layer-color-changed', { layerId: layer.layerId, displayColor: layer.displayColor });
+            });
+            colorSwatch.addEventListener('mousedown', (e) => e.stopPropagation());
+            colorSwatch.addEventListener('click', (e) => {
+                e.stopPropagation();
+                colorInput.click();
+            });
 
             const nameInput = document.createElement('input');
             nameInput.className = 'layer-name-input';
@@ -131,6 +146,7 @@ class LayerViewController {
 
             li.appendChild(visBtn);
             li.appendChild(colorSwatch);
+            li.appendChild(colorInput);
             li.appendChild(nameInput);
             li.appendChild(classInput);
             li.appendChild(statusTag);

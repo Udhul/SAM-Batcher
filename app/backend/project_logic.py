@@ -639,7 +639,10 @@ def delete_mask_layer_and_update_status(project_id: str, image_hash: str, layer_
 
 
 def update_mask_layer_basic(project_id: str, image_hash: str, layer_id: str,
-                            name: Optional[str] = None, class_label: Optional[str] = None) -> Dict[str, Any]:
+                            name: Optional[str] = None, class_label: Optional[str] = None,
+                            display_color: Optional[str] = None) -> Dict[str, Any]:
     """Update editable attributes of a layer and return success."""
-    db_manager.update_mask_layer_basic(project_id, layer_id, name=name, class_label=class_label)
+    db_manager.update_mask_layer_basic(project_id, layer_id,
+                                       name=name, class_label=class_label,
+                                       display_color=display_color)
     return {"success": True, "message": "Layer updated."}

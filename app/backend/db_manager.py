@@ -476,7 +476,12 @@ def get_mask_layers_for_image(project_id: str, image_hash: str, layer_type: Opti
             layer['mask_data_rle'] = json.loads(layer['mask_data_rle']) # Assume it's stored as JSON string if it's a dict
         except (json.JSONDecodeError, TypeError):
             pass # If it's already a string (e.g. direct COCO RLE string), keep as is
-        if layer['metadata']: layer['metadata'] = json.loads(layer['metadata'])
+        if layer['metadata']:
+            layer['metadata'] = json.loads(layer['metadata'])
+            if 'class_label' in layer['metadata'] and 'class_label' not in layer:
+                layer['class_label'] = layer['metadata'].get('class_label')
+            if 'display_color' in layer['metadata'] and 'display_color' not in layer:
+                layer['display_color'] = layer['metadata'].get('display_color')
         layers.append(layer)
     conn.close()
     return layers
@@ -499,7 +504,8 @@ def delete_mask_layer(project_id: str, layer_id: str) -> None:
     update_last_modified(project_id)
 
 def update_mask_layer_basic(project_id: str, layer_id: str, name: Optional[str] = None,
-                            class_label: Optional[str] = None) -> None:
+                            class_label: Optional[str] = None,
+                            display_color: Optional[str] = None) -> None:
     """Update simple editable fields for a mask layer."""
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
@@ -508,9 +514,15 @@ def update_mask_layer_basic(project_id: str, layer_id: str, name: Optional[str] 
     if name is not None:
         updates.append("name = ?")
         params.append(name)
+    meta_clauses = []
     if class_label is not None:
-        updates.append("metadata = json_set(COALESCE(metadata,'{}'), '$.class_label', ?)")
+        meta_clauses.append("'$.class_label', ?")
         params.append(class_label)
+    if display_color is not None:
+        meta_clauses.append("'$.display_color', ?")
+        params.append(display_color)
+    if meta_clauses:
+        updates.append(f"metadata = json_set(COALESCE(metadata,'{{}}'), {', '.join(meta_clauses)})")
     if not updates:
         conn.close()
         return
