@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.detail && event.detail.status) {
             if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
                 activeImageState.status = event.detail.status;
-                onImageDataChange('status-changed', { status: event.detail.status });
+                onImageDataChange('status-changed', { status: event.detail.status }, { statusEvent: true });
             }
         }
     });

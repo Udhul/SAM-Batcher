@@ -77,10 +77,12 @@ class LayerViewController {
             nameInput.value = layer.name || '';
             nameInput.title = 'Layer name';
             nameInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            nameInput.addEventListener('click', (e) => e.stopPropagation());
             nameInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     nameInput.blur();
+                    nameInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
             nameInput.addEventListener('change', (e) => {
@@ -96,10 +98,12 @@ class LayerViewController {
             classInput.value = layer.classLabel || '';
             classInput.title = 'Class label';
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            classInput.addEventListener('click', (e) => e.stopPropagation());
             classInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     classInput.blur();
+                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
             classInput.addEventListener('change', (e) => {
