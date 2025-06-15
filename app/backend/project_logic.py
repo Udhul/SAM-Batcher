@@ -608,13 +608,16 @@ def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[
         current_layer_id = f"{layer_id_base}_{i}"
         db_manager.save_mask_layer(
             project_id, current_layer_id, image_hash, "final_edited",
-            model_details=None, # Or some info about client-side editing tool
+            model_details=None,  # Or some info about client-side editing tool
             prompt_details={
                 "source_layer_ids": mask_entry.get("source_layer_ids"),
                 "client_edit_time": datetime.utcnow().isoformat()
             },
-            mask_data_rle=json.dumps(rle_for_db), # Store the single RLE for this final mask
-            metadata={"name": mask_entry.get("name", f"final_mask_{i}")},
+            mask_data_rle=json.dumps(rle_for_db),  # Store the single RLE for this final mask
+            metadata={
+                "name": mask_entry.get("name", f"final_mask_{i}"),
+                "display_color": mask_entry.get("display_color")
+            },
             is_selected_for_final=True,
             name=mask_entry.get("name")
         )
@@ -636,3 +639,13 @@ def delete_mask_layer_and_update_status(project_id: str, image_hash: str, layer_
     db_manager.delete_mask_layer(project_id, layer_id)
     new_status = sync_image_status_with_layers(project_id, image_hash)
     return {"success": True, "message": "Layer deleted.", "image_status": new_status}
+
+
+def update_mask_layer_basic(project_id: str, image_hash: str, layer_id: str,
+                            name: Optional[str] = None, class_label: Optional[str] = None,
+                            display_color: Optional[str] = None) -> Dict[str, Any]:
+    """Update editable attributes of a layer and return success."""
+    db_manager.update_mask_layer_basic(project_id, layer_id,
+                                       name=name, class_label=class_label,
+                                       display_color=display_color)
+    return {"success": True, "message": "Layer updated."}

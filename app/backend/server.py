@@ -456,6 +456,19 @@ async def api_delete_mask_layer(project_id: str, image_hash: str, layer_id: str)
     return result
 
 
+@app.put('/api/project/{project_id}/images/{image_hash}/layers/{layer_id}')
+async def api_update_mask_layer(project_id: str, image_hash: str, layer_id: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    name = payload.get('name')
+    class_label = payload.get('class_label')
+    display_color = payload.get('display_color')
+    result = await run_in_threadpool(project_logic.update_mask_layer_basic,
+                                     project_id, image_hash, layer_id,
+                                     name, class_label, display_color)
+    return result
+
+
 @app.post('/api/project/{project_id}/export')
 async def api_export_data(project_id: str, payload: dict):
     if project_id != get_active_project_id():

@@ -130,6 +130,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateStatusToggleUI('unprocessed', false);
 
+    function onImageDataChange(changeType, details = {}, skipUpdates = {}) {
+        if (!activeImageState) return;
+        if (!skipUpdates.cache) {
+            syncLayerCache();
+            saveCanvasState(activeImageState.imageHash);
+        }
+        if (!skipUpdates.layerView && layerViewController) {
+            layerViewController.setLayers(activeImageState.layers);
+        }
+        if (!skipUpdates.statusToggle) {
+            const s = activeImageState.status || deriveStatusFromLayers();
+            updateStatusToggleUI(s, true);
+        }
+        if (changeType === 'status-changed' && !skipUpdates.statusEvent) {
+            utils.dispatchCustomEvent('image-status-updated', {
+                imageHash: activeImageState.imageHash,
+                status: activeImageState.status
+            });
+        }
+        if (!skipUpdates.skipAutoStatus && changeType !== 'status-changed') {
+            if (activeImageState.status === 'ready_for_review') {
+                sendStatusUpdate('in_progress');
+            }
+        }
+    }
+
     async function restoreSessionFromServer() {
         try {
             const data = await apiClient.getSessionState();
@@ -293,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     classLabel: m.class_label || '',
                     status: m.layer_type || 'prediction',
                     visible: true,
-                    displayColor: utils.getRandomHexColor(),
+                    displayColor: m.display_color || utils.getRandomHexColor(),
                     maskData: parsed
                 };
             });
@@ -307,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             restoreCanvasState(imageHash);
             processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
             uiManager.clearGlobalStatus();
+            onImageDataChange('image-loaded', { imageHash });
         };
         imageElement.onerror = () => {
             uiManager.showGlobalStatus(`Error creating image element for '${utils.escapeHTML(filename)}'.`, 'error');
@@ -366,7 +393,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } catch (e) { console.error("Error parsing automask layer data:", e); }
             }
-            if (layerViewController) layerViewController.setLayers(activeImageState.layers);
             if(loadedMaskMessage) uiManager.showGlobalStatus(loadedMaskMessage, 'info', 4000);
         }
     }
@@ -460,8 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 maskData: null
             };
             activeImageState.layers.push(newLayer);
-            if (layerViewController) layerViewController.addLayers([newLayer]);
-            syncLayerCache();
+            onImageDataChange('layer-added', { layerIds: [newLayer.layerId] });
         });
     }
 
@@ -690,7 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const masksToCommit = selected.map((mask, idx) => ({
             segmentation: mask.segmentation || mask,
             source_layer_ids: [],
-            name: `Mask ${activeImageState.layers.length + idx + 1}`
+            name: `Mask ${activeImageState.layers.length + idx + 1}`,
+            display_color: utils.getRandomHexColor()
         }));
 
         const activeProjectId = stateManager.getActiveProjectId();
@@ -715,14 +741,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 classLabel: '',
                 status: 'edited',
                 visible: true,
-                displayColor: utils.getRandomHexColor(),
+                displayColor: masksToCommit[idx].display_color,
                 maskData: mask.segmentation || mask
             }));
 
             activeImageState.layers.push(...newLayers);
-            if (layerViewController) layerViewController.addLayers(newLayers);
-            syncLayerCache();
-            updateStatusToggleUI(activeImageState.status || deriveStatusFromLayers(), true);
+            onImageDataChange('layer-added', { layerIds: ids });
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
         } catch (err) {
             uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
@@ -787,8 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         canvasManager.setManualPredictions(null);
-        syncLayerCache();
-        updateStatusToggleUI(activeImageState.status || deriveStatusFromLayers(), true);
+        onImageDataChange('layer-deleted', { layerId: id });
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (projectId && imageHash) {
@@ -804,11 +827,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('layer-name-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.name = event.detail.name || '';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { name: layer.name }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
+            onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+        }
+    });
+
+    document.addEventListener('layer-class-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.classLabel = event.detail.classLabel || '';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { class_label: layer.classLabel }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
+            onImageDataChange('layer-modified', { layerId: layer.layerId });
+        }
+    });
+
+    document.addEventListener('layer-color-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.displayColor = event.detail.displayColor || '#888888';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { display_color: layer.displayColor }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
+            onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+        }
+    });
+
     document.addEventListener('active-image-set', (event) => {
         if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
             activeImageState.status = event.detail.status || 'unprocessed';
         }
-        updateStatusToggleUI(event.detail.status || 'unprocessed', true);
+        onImageDataChange('image-loaded', { imageHash: event.detail.imageHash });
     });
 
     document.addEventListener('active-image-cleared', () => {
@@ -820,8 +891,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.detail && event.detail.status) {
             if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
                 activeImageState.status = event.detail.status;
+                onImageDataChange('status-changed', { status: event.detail.status }, { statusEvent: true });
             }
-            updateStatusToggleUI(event.detail.status, true);
         }
     });
 
@@ -835,7 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeImageState && activeImageState.imageHash === imageHash) {
                     activeImageState.status = newStatus;
                 }
-                utils.dispatchCustomEvent('image-status-updated', { imageHash, status: newStatus });
+                onImageDataChange('status-changed', { status: newStatus });
             } else {
                 throw new Error(res.error || 'Status update failed');
             }
