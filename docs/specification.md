@@ -214,7 +214,7 @@ The system will employ a client-server architecture.
         OR `{"success": true, "message": "No more unprocessed images"}`
     *   **Client:** Loads new image onto canvas, displays existing masks, updates UI.
 *   **Set Image Status:**
-    *   **Client:** Below the layer list two toggle switches allow setting the status to **Ready** for review or **Skip**. Turning on Skip disables the Ready switch. Toggling either switch sends an update to the server.
+*   **Client:** Below the layer list two toggle switches allow setting the status to **Ready** for review or **Skip**. Turning on Skip disables the Ready switch. When a new image loads, the switches reflect its current status; if no image is loaded they are disabled. Toggling either switch sends an update to the server.
     *   **Client Request:** `PUT /api/project/<project_id>/images/<image_hash>/status` with `{"status": "ready_for_review"}` or `{"status": "skip"}`. Turning a switch off sends `{"status": "in_progress"}` if masks exist.
     *   **Server:** Updates the status in the Project State DB.
     *   **Server Response:** `{"success": true, "message": "Image status updated."}`

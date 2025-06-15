@@ -97,6 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewApproveBtn = document.getElementById('review-approve-btn');
     const reviewRejectBtn = document.getElementById('review-reject-btn');
 
+    updateStatusToggleUI('unprocessed', false);
+
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
     }
@@ -192,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             configPath: projectData?.settings?.current_sam_config_path || null,
             applyPostprocessing: projectData?.settings?.current_sam_apply_postprocessing === 'true'
         });
+        updateStatusToggleUI('unprocessed', false);
     });
 
     document.addEventListener('project-loaded', async (event) => {
@@ -212,10 +215,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool();
         await restoreSessionFromServer();
+        updateStatusToggleUI('unprocessed', false);
     });
 
     document.addEventListener('project-load-failed', (event) => {
         uiManager.showGlobalStatus(`Failed to load project: ${utils.escapeHTML(event.detail.error)}`, 'error');
+        updateStatusToggleUI('unprocessed', false);
     });
 
 
@@ -778,23 +783,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function updateStatusToggleUI(status) {
+    function updateStatusToggleUI(status, enabled = true) {
         if (readySwitch) {
             readySwitch.checked = status === 'ready_for_review';
+            readySwitch.disabled = !enabled || (skipSwitch && skipSwitch.checked);
         }
         if (skipSwitch) {
             skipSwitch.checked = status === 'skip';
-            if (readySwitch) readySwitch.disabled = skipSwitch.checked;
+            skipSwitch.disabled = !enabled;
         }
     }
 
     document.addEventListener('active-image-set', (event) => {
-        updateStatusToggleUI(event.detail.status || 'unprocessed');
+        updateStatusToggleUI(event.detail.status || 'unprocessed', true);
+    });
+
+    document.addEventListener('active-image-cleared', () => {
+        updateStatusToggleUI('unprocessed', false);
     });
 
     document.addEventListener('image-status-updated', (event) => {
         if (event.detail && event.detail.status) {
-            updateStatusToggleUI(event.detail.status);
+            updateStatusToggleUI(event.detail.status, true);
         }
     });
 

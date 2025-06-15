@@ -28,10 +28,11 @@
  *   - Calls to apiClient.js: `listImages`, `setActiveImage`, `updateImageStatus`.
  *   - Updates UI: Populates image gallery, updates navigation button states.
  *   - Custom DOM Events:
- *     - `active-image-set`: Detail: { imageHash, filename, width, height, imageDataBase64, existingMasks }
+ *     - `active-image-set`: Detail: { imageHash, filename, width, height, imageDataBase64, existingMasks, status }
+ *     - `active-image-cleared`: Detail: {}
  *     - `image-pool-updated`: Detail: { images: Array, pagination: object }
  *     - `image-load-request`: Detail: { imageHash: string } // Alternative to direct setActiveImage
- */
+*/
 class ImagePoolHandler {
     constructor(apiClient, stateManager, uiManager, Utils) {
         this.apiClient = apiClient;
@@ -266,7 +267,8 @@ class ImagePoolHandler {
                     width: data.width,
                     height: data.height,
                     imageDataBase64: data.image_data, // Base64 string
-                    existingMasks: data.masks // Array of mask layer objects from DB
+                    existingMasks: data.masks, // Array of mask layer objects from DB
+                    status: data.status
                 });
                 this.uiManager.clearGlobalStatus();
                 this.currentImageIndex = this.imageList.findIndex(img => img.image_hash === data.image_hash);
@@ -280,6 +282,7 @@ class ImagePoolHandler {
             this.uiManager.showGlobalStatus(`Error loading image: ${error.message}`, 'error');
             console.error("ImagePoolHandler: Select image error", error);
             this.stateManager.setActiveImage(null, null); // Clear active image on error
+            this.Utils.dispatchCustomEvent('active-image-cleared', {});
             this._updateCurrentImageDisplay();
         } finally {
             if (this.latestImageRequestHash === requestedHash) {
@@ -352,6 +355,7 @@ class ImagePoolHandler {
         this.imageList = [];
         this.currentImageIndex = -1;
         this.stateManager.setActiveImage(null, null);
+        this.Utils.dispatchCustomEvent('active-image-cleared', {});
         this._updateCurrentImageDisplay();
         // Clear pagination too if implemented
     }
