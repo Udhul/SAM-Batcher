@@ -333,7 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
+            const hadState = !!canvasStateCache[imageHash];
             restoreCanvasState(imageHash);
+            if (!hadState) {
+                if (activeImageState.layers && activeImageState.layers.length > 0) {
+                    canvasManager.setMode('edit');
+                } else {
+                    canvasManager.setMode('creation');
+                }
+            }
             processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
             uiManager.clearGlobalStatus();
             onImageDataChange('image-loaded', { imageHash });
@@ -345,6 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
+        if (activeImageState && activeImageState.layers && activeImageState.layers.length > 0) {
+            return; // Layers already loaded; ignore legacy masks
+        }
         if (existingMasks && existingMasks.length > 0) {
 
             const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');

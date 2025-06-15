@@ -44,6 +44,7 @@ It will be updated as new sprints add functionality.
 - **Faded Opacity Constant**: Introduced a constant to control faded layer opacity (33%).
 - **Layer Ordering**: New layers are inserted at the top of the list.
 - **Prediction Clearing**: Selecting layers or adding empty layers now clears creation inputs using `canvasManager.clearAllCanvasInputs`.
+- **Default Mode on Load**: Loading an image now enters Edit mode if layers exist and skips legacy prediction data, preventing stray red masks from appearing.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
