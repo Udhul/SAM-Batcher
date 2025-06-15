@@ -176,6 +176,12 @@ class APIClient {
         if (currentImageHash) query = `?current_image_hash=${currentImageHash}`;
         return this._request(`/project/${projectId}/images/next_unprocessed${query}`);
     }
+    async getNextImageByStatus(projectId, statuses, currentImageHash = null) {
+        const statusParam = Array.isArray(statuses) ? statuses.join(',') : String(statuses);
+        let query = `?statuses=${encodeURIComponent(statusParam)}`;
+        if (currentImageHash) query += `&current_image_hash=${currentImageHash}`;
+        return this._request(`/project/${projectId}/images/next_by_status${query}`);
+    }
     async setActiveImage(projectId, imageHash) {
         // This endpoint returns image data, dimensions, existing masks, etc.
         return this._request(`/project/${projectId}/images/set_active`, 'POST', { image_hash: imageHash });

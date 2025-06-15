@@ -390,6 +390,31 @@ def get_next_unprocessed_image(project_id: str, current_image_hash: Optional[str
     conn.close()
     return dict(row) if row else None
 
+def get_next_image_by_statuses(project_id: str, statuses: List[str], current_image_hash: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Returns the next image with a status in the provided list."""
+    if not statuses:
+        return None
+
+    placeholders = ",".join(["?"] * len(statuses))
+    query = f"SELECT * FROM Images WHERE status IN ({placeholders})"
+    params: List[Any] = list(statuses)
+    if current_image_hash:
+        query += " AND added_to_pool_at > (SELECT added_to_pool_at FROM Images WHERE image_hash = ?)"
+        params.append(current_image_hash)
+    query += " ORDER BY added_to_pool_at ASC LIMIT 1"
+
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    row = cursor.fetchone()
+
+    if not row and current_image_hash:
+        cursor.execute(f"SELECT * FROM Images WHERE status IN ({placeholders}) ORDER BY added_to_pool_at ASC LIMIT 1", statuses)
+        row = cursor.fetchone()
+
+    conn.close()
+    return dict(row) if row else None
+
 def get_image_hashes_by_statuses(project_id: str, statuses: List[str]) -> List[str]:
     """Returns image hashes for images whose status is in the provided list."""
     if not statuses:
