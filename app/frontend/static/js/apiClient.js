@@ -183,9 +183,6 @@ class APIClient {
     async updateImageStatus(projectId, imageHash, status) {
         return this._request(`/project/${projectId}/images/${imageHash}/status`, 'PUT', { status });
     }
-    async syncImageStatusWithLayers(projectId, imageHash) {
-        return this._request(`/project/${projectId}/images/${imageHash}/status`, 'PUT', { status: 'sync_with_layers' });
-    }
     getImageThumbnailUrl(projectId, imageHash) { // Returns URL string
         return `${this.baseUrl}/image/thumbnail/${projectId}/${imageHash}`; // Corrected, assuming endpoint exists
     }

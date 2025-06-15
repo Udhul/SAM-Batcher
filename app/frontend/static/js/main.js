@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!projectId || !imageHash) return;
         try {
             const res = sync
-                ? await apiClient.syncImageStatusWithLayers(projectId, imageHash)
+                ? await apiClient.updateImageStatus(projectId, imageHash, 'sync_with_layers')
                 : await apiClient.updateImageStatus(projectId, imageHash, status);
             if (res.success) {
                 const finalStatus = res.status || status;
