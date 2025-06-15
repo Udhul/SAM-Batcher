@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewSkipBtn = document.getElementById('review-skip-btn');
     const reviewApproveBtn = document.getElementById('review-approve-btn');
     const reviewRejectBtn = document.getElementById('review-reject-btn');
+    const toggleReviewModeBtn = document.getElementById('toggle-review-mode-btn');
+    const reviewModeControls = document.getElementById('review-mode-controls');
+    const imageStatusControls = document.getElementById('image-status-controls');
 
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
@@ -109,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
     let activeImageState = null; // {imageHash, filename, width, height, layers, status}
+    let reviewMode = false;
 
     function deriveStatusFromLayers() {
         if (!activeImageState) return 'unprocessed';
@@ -129,6 +133,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateStatusToggleUI('unprocessed', false);
+
+    function enterReviewMode() {
+        reviewMode = true;
+        utils.showElement(reviewModeControls, 'flex');
+        utils.hideElement(imageStatusControls);
+        if (toggleReviewModeBtn) {
+            toggleReviewModeBtn.textContent = 'Exit Review';
+            toggleReviewModeBtn.classList.add('review-active');
+        }
+        utils.hideElement(addEmptyLayerBtn);
+        utils.hideElement(commitMasksBtn);
+        utils.hideElement(openAutoMaskOverlayBtn);
+        utils.hideElement(autoMaskBtn);
+        utils.hideElement(recoverAutoMaskBtn);
+        utils.hideElement(clearInputsBtn);
+        if (imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+    }
+
+    function exitReviewMode() {
+        reviewMode = false;
+        utils.hideElement(reviewModeControls);
+        utils.showElement(imageStatusControls, 'flex');
+        if (toggleReviewModeBtn) {
+            toggleReviewModeBtn.textContent = 'Start Review';
+            toggleReviewModeBtn.classList.remove('review-active');
+        }
+        utils.showElement(addEmptyLayerBtn);
+        utils.showElement(commitMasksBtn);
+        utils.showElement(openAutoMaskOverlayBtn);
+        utils.showElement(autoMaskBtn);
+        utils.showElement(recoverAutoMaskBtn);
+        utils.showElement(clearInputsBtn);
+    }
 
     function onImageDataChange(changeType, details = {}, skipUpdates = {}) {
         if (!activeImageState) return;
@@ -916,13 +953,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (reviewApproveBtn) {
-        reviewApproveBtn.addEventListener('click', () => sendStatusUpdate('approved'));
+        reviewApproveBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('approved');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
     }
     if (reviewRejectBtn) {
-        reviewRejectBtn.addEventListener('click', () => sendStatusUpdate('rejected'));
+        reviewRejectBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('rejected');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
     }
     if (reviewSkipBtn) {
-        reviewSkipBtn.addEventListener('click', () => sendStatusUpdate('skip'));
+        reviewSkipBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('skip');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
+    }
+
+    if (toggleReviewModeBtn) {
+        toggleReviewModeBtn.addEventListener('click', () => {
+            if (reviewMode) {
+                exitReviewMode();
+            } else {
+                enterReviewMode();
+            }
+        });
     }
 
     

@@ -311,6 +311,26 @@ class ImagePoolHandler {
         }
     }
 
+    async loadNextImageByStatuses(statuses) {
+        const projectId = this.stateManager.getActiveProjectId();
+        if (!projectId) return;
+
+        this.uiManager.showGlobalStatus("Fetching next image...", "loading", 0);
+        const currentHash = this.stateManager.getActiveImageHash();
+        try {
+            const data = await this.apiClient.getNextImageByStatus(projectId, statuses, currentHash);
+            if (data.success && data.image_hash) {
+                await this.handleSelectImage(data.image_hash);
+            } else if (data.success && data.message) {
+                this.uiManager.showGlobalStatus(data.message, 'info');
+            } else {
+                throw new Error(data.error || 'Failed to get next image.');
+            }
+        } catch (error) {
+            this.uiManager.showGlobalStatus(`Error: ${error.message}`, 'error');
+        }
+    }
+
     async handleUpdateImageStatus(imageHash, newStatus) { // Called from main.js or other modules
         const projectId = this.stateManager.getActiveProjectId();
         if (!projectId) return;
