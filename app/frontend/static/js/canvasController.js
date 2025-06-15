@@ -110,6 +110,10 @@ class CanvasManager {
         this.currentPredictionMultiBox = false;
         this.selectedManualMaskIndex = 0;
 
+        // Annotation layers currently loaded from the active image
+        this.annotationLayers = []; // [{layerId, maskData, visible, displayColor}]
+        this.selectedLayerIds = []; // Which annotation layers are selected
+
         this.interactionState = {
             isDrawingBox: false,
             isMouseDown: false,
@@ -467,6 +471,67 @@ class CanvasManager {
 
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
+        const drawMaskArray = (segmentation, colorStr, alphaFactor) => {
+            const maskHeight = segmentation.length;
+            const maskWidth = segmentation[0].length;
+
+            if (maskHeight !== this.originalImageHeight || maskWidth !== this.originalImageWidth) {
+                console.warn("Mask dimensions mismatch. Mask:", maskWidth+"x"+maskHeight, "Img:", this.originalImageWidth+"x"+this.originalImageHeight);
+                return;
+            }
+
+            if (this.tempMaskPixelCanvas.width !== maskWidth || this.tempMaskPixelCanvas.height !== maskHeight) {
+                this.tempMaskPixelCanvas.width = maskWidth;
+                this.tempMaskPixelCanvas.height = maskHeight;
+            }
+
+            this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
+            const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
+            const pixelData = imageData.data;
+            const [r,g,b,a_int] = this._parseRgbaFromString(colorStr);
+            const finalAlpha = Math.round(a_int * alphaFactor);
+
+            let pixelCount = 0;
+            for (let y = 0; y < maskHeight; y++) {
+                for (let x = 0; x < maskWidth; x++) {
+                    if (segmentation[y][x]) {
+                        const idx = (y * maskWidth + x) * 4;
+                        pixelData[idx] = r;
+                        pixelData[idx+1] = g;
+                        pixelData[idx+2] = b;
+                        pixelData[idx+3] = finalAlpha;
+                        pixelCount++;
+                    }
+                }
+            }
+            if (pixelCount > 0) {
+                this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
+                this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
+                                                      this.offscreenPredictionCanvas.width,
+                                                      this.offscreenPredictionCanvas.height);
+            }
+        };
+
+        // --- Draw annotation layers ---
+        const selectedSet = new Set(this.selectedLayerIds || []);
+        const hasPredictions = (this.automaskPredictions && this.automaskPredictions.length > 0) ||
+                               (this.manualPredictions && this.manualPredictions.length > 0);
+        if (this.annotationLayers && this.annotationLayers.length > 0) {
+            this.annotationLayers.forEach(layer => {
+                if (!layer || !layer.visible || !layer.maskData) return;
+                const segmentation = layer.maskData.segmentation || layer.maskData;
+                if (!segmentation || !segmentation.length || !segmentation[0]) return;
+                let alphaFactor = 1.0;
+                if (hasPredictions) {
+                    alphaFactor = 0.2;
+                } else if (selectedSet.size > 0) {
+                    alphaFactor = selectedSet.has(layer.layerId) ? 1.0 : 0.2;
+                }
+                const colorStr = layer.displayColor || this.Utils.generateDistinctColors(1)[0];
+                drawMaskArray(segmentation, colorStr, alphaFactor);
+            });
+        }
+
         let activePredictions = [];
         if (this.automaskPredictions && this.automaskPredictions.length > 0) {
             activePredictions = this.automaskPredictions.filter(m => m.visible);
@@ -475,53 +540,11 @@ class CanvasManager {
         }
 
         if (activePredictions.length > 0) {
-            // Ensure tempMaskPixelCanvas is sized to the original image dimensions
-            if (this.tempMaskPixelCanvas.width !== this.originalImageWidth || this.tempMaskPixelCanvas.height !== this.originalImageHeight) {
-                this.tempMaskPixelCanvas.width = this.originalImageWidth;
-                this.tempMaskPixelCanvas.height = this.originalImageHeight;
-            }
-
-            activePredictions.forEach((predictionItem, index) => {
-                // predictionItem is {segmentation: [[0,1,...]], score: 0.9, ...} or from AMG: {segmentation, area, bbox, ...}
-                const segmentation = predictionItem.segmentation;
-                if (!segmentation || segmentation.length === 0 || !segmentation[0] || segmentation[0].length === 0) return; // Skip if no valid segmentation
-
-                const maskHeight = segmentation.length;
-                const maskWidth = segmentation[0].length;
-
-                if (maskHeight !== this.originalImageHeight || maskWidth !== this.originalImageWidth) {
-                    console.warn("Mask dimensions mismatch. Mask:", maskWidth+"x"+maskHeight, "Img:", this.originalImageWidth+"x"+this.originalImageHeight);
-                    return;
-                }
-
-                this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
-                const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
-                const pixelData = imageData.data;
-                const colorStr = predictionItem.color || this.Utils.generateDistinctColors(1)[0];
-                const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
-
-                let pixelCount = 0;
-                for (let y = 0; y < maskHeight; y++) {
-                    for (let x = 0; x < maskWidth; x++) {
-                        if (segmentation[y][x]) {
-                            const pixelIndex = (y * maskWidth + x) * 4;
-                            pixelData[pixelIndex] = r;
-                            pixelData[pixelIndex + 1] = g;
-                            pixelData[pixelIndex + 2] = b;
-                            pixelData[pixelIndex + 3] = a_int;
-                            pixelCount++;
-                        }
-                    }
-                }
-
-                if (pixelCount > 0) {
-                    this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-                    // Draw the processed mask (at original resolution) onto the offscreen canvas,
-                    // scaling it down to the display size.
-                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
-                                                          this.offscreenPredictionCanvas.width,
-                                                          this.offscreenPredictionCanvas.height);
-                }
+            activePredictions.forEach(pred => {
+                const segmentation = pred.segmentation;
+                if (!segmentation || !segmentation.length || !segmentation[0]) return;
+                const colorStr = pred.color || this.Utils.generateDistinctColors(1)[0];
+                drawMaskArray(segmentation, colorStr, 1.0);
             });
         }
 
@@ -845,6 +868,16 @@ class CanvasManager {
         }
     }
 
+    setAnnotationLayers(layers) {
+        this.annotationLayers = Array.isArray(layers) ? layers.map(l => ({ ...l })) : [];
+        this.drawPredictionMaskLayer();
+    }
+
+    setSelectedLayerIds(ids) {
+        this.selectedLayerIds = Array.isArray(ids) ? ids.slice() : [];
+        this.drawPredictionMaskLayer();
+    }
+
     exportState() {
         return {
             points: JSON.parse(JSON.stringify(this.userPoints)),
@@ -854,7 +887,9 @@ class CanvasManager {
             manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
             automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions)),
             selectedManualMaskIndex: this.selectedManualMaskIndex,
-            currentPredictionMultiBox: this.currentPredictionMultiBox
+            currentPredictionMultiBox: this.currentPredictionMultiBox,
+            annotationLayers: JSON.parse(JSON.stringify(this.annotationLayers)),
+            selectedLayerIds: JSON.parse(JSON.stringify(this.selectedLayerIds))
         };
     }
 
@@ -869,6 +904,8 @@ class CanvasManager {
         this.automaskPredictions = state.automaskPredictions || [];
         this.selectedManualMaskIndex = state.selectedManualMaskIndex || 0;
         this.currentPredictionMultiBox = state.currentPredictionMultiBox || false;
+        this.annotationLayers = state.annotationLayers || [];
+        this.selectedLayerIds = state.selectedLayerIds || [];
         if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();

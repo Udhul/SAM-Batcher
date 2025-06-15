@@ -9,8 +9,13 @@ class LayerViewController {
         this.containerEl = typeof containerSelector === 'string' ? document.querySelector(containerSelector) : containerSelector;
         this.stateManager = stateManager;
         this.layers = [];
-        this.selectedLayerId = null;
+        this.selectedLayerIds = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+        if (this.containerEl) {
+            this.containerEl.addEventListener('click', (e) => {
+                if (e.target === this.containerEl) this.selectLayer(null);
+            });
+        }
     }
 
     setLayers(layers) {
@@ -27,10 +32,23 @@ class LayerViewController {
         }
     }
 
-    selectLayer(layerId) {
-        if (this.selectedLayerId === layerId) return;
-        this.selectedLayerId = layerId;
-        this.Utils.dispatchCustomEvent('layer-selected', { layerId });
+    getSelectedLayerIds() {
+        return this.selectedLayerIds.slice();
+    }
+
+    selectLayer(layerId, additive = false) {
+        if (layerId === null) {
+            this.selectedLayerIds = [];
+        } else if (additive) {
+            if (this.selectedLayerIds.includes(layerId)) {
+                this.selectedLayerIds = this.selectedLayerIds.filter(id => id !== layerId);
+            } else {
+                this.selectedLayerIds.push(layerId);
+            }
+        } else {
+            this.selectedLayerIds = [layerId];
+        }
+        this.Utils.dispatchCustomEvent('layer-selected', { layerIds: this.selectedLayerIds.slice() });
         this.render();
     }
 
@@ -38,7 +56,7 @@ class LayerViewController {
         const idx = this.layers.findIndex(l => l.layerId === layerId);
         if (idx !== -1) {
             this.layers.splice(idx, 1);
-            if (this.selectedLayerId === layerId) this.selectedLayerId = null;
+            this.selectedLayerIds = this.selectedLayerIds.filter(id => id !== layerId);
             this.Utils.dispatchCustomEvent('layer-deleted', { layerId });
             this.render();
         }
@@ -54,7 +72,7 @@ class LayerViewController {
             const li = document.createElement('li');
             li.className = 'layer-item';
             li.dataset.layerId = layer.layerId;
-            if (layer.layerId === this.selectedLayerId) li.classList.add('selected');
+            if (this.selectedLayerIds.includes(layer.layerId)) li.classList.add('selected');
 
             const visBtn = document.createElement('button');
             visBtn.className = 'layer-vis-toggle';
@@ -142,7 +160,7 @@ class LayerViewController {
                 }
             });
 
-            li.addEventListener('click', () => this.selectLayer(layer.layerId));
+            li.addEventListener('click', (e) => this.selectLayer(layer.layerId, e.shiftKey));
 
             li.appendChild(visBtn);
             li.appendChild(colorSwatch);

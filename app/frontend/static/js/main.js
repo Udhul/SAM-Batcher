@@ -139,6 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!skipUpdates.layerView && layerViewController) {
             layerViewController.setLayers(activeImageState.layers);
         }
+        if (!skipUpdates.canvasLayers) {
+            canvasManager.setAnnotationLayers(activeImageState.layers);
+            canvasManager.setSelectedLayerIds(layerViewController ? layerViewController.getSelectedLayerIds() : []);
+        }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
             updateStatusToggleUI(s, true);
@@ -799,19 +803,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('layer-selected', (event) => {
-        if (!activeImageState) return;
-        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
-        if (layer && layer.maskData) {
-            canvasManager.setManualPredictions({ masks_data: [layer.maskData], scores: [1.0] });
-        }
+        const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
+        canvasManager.setSelectedLayerIds(ids);
     });
 
     document.addEventListener('layer-deleted', async (event) => {
         if (!activeImageState) return;
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
-        canvasManager.setManualPredictions(null);
         onImageDataChange('layer-deleted', { layerId: id });
+        canvasManager.setSelectedLayerIds(layerViewController ? layerViewController.getSelectedLayerIds() : []);
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (projectId && imageHash) {
@@ -871,6 +872,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
                 });
             }
+            onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+        }
+    });
+
+    document.addEventListener('layer-visibility-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.visible = !!event.detail.visible;
             onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
         }
     });
