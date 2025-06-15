@@ -213,12 +213,12 @@ The system will employ a client-server architecture.
         OR `{"success": false, "error": "Image not found or inaccessible"}` (if source is down)
         OR `{"success": true, "message": "No more unprocessed images"}`
     *   **Client:** Loads new image onto canvas, displays existing masks, updates UI.
-*   **Mark Image Status:**
-    *   **Client:** User clicks "Mark as Completed." (Or implicitly "In Progress" when an edit is made).
-    *   **Client Request:** `PUT /api/project/<project_id>/images/<image_hash>/status` (Body: `{"status": "completed"}`)
-    *   **Server:** Updates image status in Project State DB.
-    *   **Server Response:** `{"success": true, "message": "Status updated."}`
-    *   **Client:** Updates UI indicator.
+*   **Set Image Status:**
+    *   **Client:** Below the layer list two toggle switches allow setting the status to **Ready** for review or **Skip**. Turning on Skip disables the Ready switch. Toggling either switch sends an update to the server.
+    *   **Client Request:** `PUT /api/project/<project_id>/images/<image_hash>/status` with `{"status": "ready_for_review"}` or `{"status": "skip"}`. Turning a switch off sends `{"status": "in_progress"}` if masks exist.
+    *   **Server:** Updates the status in the Project State DB.
+    *   **Server Response:** `{"success": true, "message": "Image status updated."}`
+    *   **Client:** Dispatches `image-status-updated` so the image pool refreshes.
 
 **4.5. Image Annotation Workflow**
 

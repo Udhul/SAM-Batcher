@@ -32,6 +32,7 @@ It will be updated as new sprints add functionality.
   reverts to `unprocessed`.
 - **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.
 - **Bug Fix**: Removing the final mask layer now correctly changes the image status back to `unprocessed`.
+- **Status Toggles**: The annotation view now has "Ready" and "Skip" switches to update image status, dispatching refresh events.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
@@ -69,7 +70,7 @@ It will be updated as new sprints add functionality.
    - Update export and filtering logic to handle the full status lifecycle.
 5. **Incremental Enhancements**
    - Persist `display_color` and label information when adding layers.
-   - Add update-status dropdown in the annotation view.
+   - ~~Add update-status dropdown in the annotation view.~~ Implemented as Ready/Skip toggle switches.
    - Improve error handling and autosave of `ActiveImageState` to prevent data
      loss.
 

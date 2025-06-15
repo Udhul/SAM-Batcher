@@ -91,6 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const commitMasksBtn = document.getElementById('commit-masks-btn');
     const exportCocoBtn = document.getElementById('export-coco-btn');
     const addEmptyLayerBtn = document.getElementById('add-empty-layer-btn');
+    const readySwitch = document.getElementById('ready-switch');
+    const skipSwitch = document.getElementById('skip-switch');
+    const reviewSkipBtn = document.getElementById('review-skip-btn');
+    const reviewApproveBtn = document.getElementById('review-approve-btn');
+    const reviewRejectBtn = document.getElementById('review-reject-btn');
 
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
@@ -772,6 +777,73 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    function updateStatusToggleUI(status) {
+        if (readySwitch) {
+            readySwitch.checked = status === 'ready_for_review';
+        }
+        if (skipSwitch) {
+            skipSwitch.checked = status === 'skip';
+            if (readySwitch) readySwitch.disabled = skipSwitch.checked;
+        }
+    }
+
+    document.addEventListener('active-image-set', (event) => {
+        updateStatusToggleUI(event.detail.status || 'unprocessed');
+    });
+
+    document.addEventListener('image-status-updated', (event) => {
+        if (event.detail && event.detail.status) {
+            updateStatusToggleUI(event.detail.status);
+        }
+    });
+
+    async function sendStatusUpdate(newStatus) {
+        const projectId = stateManager.getActiveProjectId();
+        const imageHash = stateManager.getActiveImageHash();
+        if (!projectId || !imageHash) return;
+        try {
+            const res = await apiClient.updateImageStatus(projectId, imageHash, newStatus);
+            if (res.success) {
+                utils.dispatchCustomEvent('image-status-updated', { imageHash, status: newStatus });
+            } else {
+                throw new Error(res.error || 'Status update failed');
+            }
+        } catch (err) {
+            uiManager.showGlobalStatus(`Status update error: ${utils.escapeHTML(err.message)}`, 'error');
+        }
+    }
+
+    if (readySwitch) {
+        readySwitch.addEventListener('change', () => {
+            if (skipSwitch && skipSwitch.checked) return; // should be disabled
+            const status = readySwitch.checked ? 'ready_for_review' : 'in_progress';
+            sendStatusUpdate(status);
+        });
+    }
+
+    if (skipSwitch) {
+        skipSwitch.addEventListener('change', () => {
+            if (skipSwitch.checked) {
+                if (readySwitch) { readySwitch.checked = false; readySwitch.disabled = true; }
+                sendStatusUpdate('skip');
+            } else {
+                if (readySwitch) readySwitch.disabled = false;
+                const status = readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress';
+                sendStatusUpdate(status);
+            }
+        });
+    }
+
+    if (reviewApproveBtn) {
+        reviewApproveBtn.addEventListener('click', () => sendStatusUpdate('approved'));
+    }
+    if (reviewRejectBtn) {
+        reviewRejectBtn.addEventListener('click', () => sendStatusUpdate('rejected'));
+    }
+    if (reviewSkipBtn) {
+        reviewSkipBtn.addEventListener('click', () => sendStatusUpdate('skip'));
+    }
 
     
     // --- Application Initialization ---

@@ -268,6 +268,21 @@
                     <div id="layer-view-container">
                         <p><em>No layers yet. Use "Add to Layers".</em></p>
                     </div>
+                    <div id="image-status-controls" class="image-status-controls">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ready-switch">
+                            Ready
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="skip-switch">
+                            Skip
+                        </label>
+                    </div>
+                    <div id="review-mode-controls" class="review-mode-controls" style="display:none;">
+                        <button id="review-skip-btn">Skip</button>
+                        <button id="review-approve-btn">Approve</button>
+                        <button id="review-reject-btn">Reject</button>
+                    </div>
                     <div class="export-controls">
                         <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
                         <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
