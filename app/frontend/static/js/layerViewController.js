@@ -76,6 +76,13 @@ class LayerViewController {
             nameInput.type = 'text';
             nameInput.value = layer.name || '';
             nameInput.title = 'Layer name';
+            nameInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    nameInput.blur();
+                }
+            });
             nameInput.addEventListener('change', (e) => {
                 e.stopPropagation();
                 layer.name = nameInput.value;
@@ -88,6 +95,13 @@ class LayerViewController {
             classInput.placeholder = 'label';
             classInput.value = layer.classLabel || '';
             classInput.title = 'Class label';
+            classInput.addEventListener('mousedown', (e) => e.stopPropagation());
+            classInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    classInput.blur();
+                }
+            });
             classInput.addEventListener('change', (e) => {
                 e.stopPropagation();
                 layer.classLabel = classInput.value.trim();

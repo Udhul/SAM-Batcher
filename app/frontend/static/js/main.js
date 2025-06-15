@@ -821,6 +821,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('layer-name-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.name = event.detail.name || '';
+            onImageDataChange('layer-modified', { layerId: layer.layerId });
+        }
+    });
+
+    document.addEventListener('layer-class-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.classLabel = event.detail.classLabel || '';
+            onImageDataChange('layer-modified', { layerId: layer.layerId });
+        }
+    });
+
     document.addEventListener('active-image-set', (event) => {
         if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
             activeImageState.status = event.detail.status || 'unprocessed';
