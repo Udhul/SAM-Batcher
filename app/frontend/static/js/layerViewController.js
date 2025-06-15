@@ -25,7 +25,7 @@ class LayerViewController {
 
     addLayers(newLayers) {
         if (Array.isArray(newLayers) && newLayers.length > 0) {
-            this.layers.push(...newLayers.map(l => ({ ...l })));
+            this.layers.unshift(...newLayers.map(l => ({ ...l })));
             this.render();
         }
     }
@@ -53,9 +53,10 @@ class LayerViewController {
             }
         } else {
             if (this.selectedLayerIds.length === 1 && this.selectedLayerIds[0] === layerId) {
-                return;
+                this.selectedLayerIds = [];
+            } else {
+                this.selectedLayerIds = [layerId];
             }
-            this.selectedLayerIds = [layerId];
         }
         this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [...this.selectedLayerIds] });
         this.render();

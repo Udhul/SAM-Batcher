@@ -44,6 +44,8 @@
  *   - Methods:
  *     - `getCurrentCanvasInputs()`: Returns current points, box, and combined user mask.
  */
+const FADED_MASK_OPACITY = 0.33; // opacity used for faded layers
+
 class CanvasManager {
     constructor() {
         this.Utils = window.Utils || {
@@ -476,9 +478,9 @@ class CanvasManager {
             visibleLayers.forEach(l => {
                 let op = 1.0;
                 if (this.mode === 'creation') {
-                    op = 0.2;
+                    op = FADED_MASK_OPACITY;
                 } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
-                    op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : 0.2;
+                    op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
                 this._drawBinaryMask(l.maskData, l.color, op);
             });

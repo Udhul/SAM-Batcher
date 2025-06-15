@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayColor: utils.getRandomHexColor(),
                 maskData: null
             };
-            activeImageState.layers.push(newLayer);
+            activeImageState.layers.unshift(newLayer);
             onImageDataChange('layer-added', { layerIds: [newLayer.layerId] });
             canvasManager.setMode('edit');
         });
@@ -749,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 maskData: mask.segmentation || mask
             }));
 
-            activeImageState.layers.push(...newLayers);
+            activeImageState.layers.unshift(...newLayers);
             onImageDataChange('layer-added', { layerIds: ids });
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
         } catch (err) {
