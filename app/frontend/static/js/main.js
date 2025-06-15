@@ -110,12 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State Variables for main.js orchestration ---
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
-    let activeImageState = null; // {imageHash, filename, width, height, layers, status}
-
-    function deriveStatusFromLayers() {
-        if (!activeImageState) return 'unprocessed';
-        return (activeImageState.layers && activeImageState.layers.length > 0) ? 'in_progress' : 'unprocessed';
-    }
+    let activeImageState = null; // {imageHash, filename, layers: []}
 
     async function restoreSessionFromServer() {
         try {
@@ -151,8 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     width: data.active_image.width,
                     height: data.active_image.height,
                     imageDataBase64: data.active_image.image_data,
-                    existingMasks: data.active_image.masks,
-                    status: data.active_image.status
+                    existingMasks: data.active_image.masks
                 });
             }
         } catch (err) {
@@ -255,11 +249,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // == ImagePoolHandler Events ==
     document.addEventListener('active-image-set', (event) => {
-        const { imageHash, filename, width, height, imageDataBase64, existingMasks, status } = event.detail;
+        const { imageHash, filename, width, height, imageDataBase64, existingMasks } = event.detail;
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
         syncLayerCache();
-        activeImageState = { imageHash, filename, width, height, layers: [], status: status || 'unprocessed' };
+        activeImageState = { imageHash, filename, width, height, layers: [] };
         if (imageLayerCache[imageHash]) {
             activeImageState.layers = imageLayerCache[imageHash].map(l => ({ ...l }));
         } else if (existingMasks && existingMasks.length > 0) {
@@ -434,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (addEmptyLayerBtn) {
+        if (addEmptyLayerBtn) {
         addEmptyLayerBtn.addEventListener('click', () => {
             if (!activeImageState) return;
             const newLayer = {
@@ -449,7 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
             activeImageState.layers.push(newLayer);
             if (layerViewController) layerViewController.addLayers([newLayer]);
             syncLayerCache();
-            updateStatusToggleUI(activeImageState.status || 'unprocessed', true);
+            const currStatus = skipSwitch && skipSwitch.checked ? 'skip'
+                : (readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress');
+            updateStatusToggleUI(currStatus, true);
         });
     }
 
@@ -692,6 +688,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await apiClient.commitMasks(activeProjectId, activeImageHash, { final_masks: masksToCommit, notes: '' });
             if (!data.success) throw new Error(data.error || 'Commit failed');
+            if (data.image_status) {
+                utils.dispatchCustomEvent('image-status-updated', { imageHash: activeImageHash, status: data.image_status });
+            }
 
             const ids = data.final_layer_ids || [];
             const newLayers = selected.map((mask, idx) => ({
@@ -707,11 +706,10 @@ document.addEventListener('DOMContentLoaded', () => {
             activeImageState.layers.push(...newLayers);
             if (layerViewController) layerViewController.addLayers(newLayers);
             syncLayerCache();
-            if (data.image_status) {
-                utils.dispatchCustomEvent('image-status-updated', { imageHash: activeImageHash, status: data.image_status });
-            }
+            const currStatus = skipSwitch && skipSwitch.checked ? 'skip'
+                : (readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress');
+            updateStatusToggleUI(currStatus, true);
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
-            updateStatusToggleUI(activeImageState.status || 'unprocessed', true);
         } catch (err) {
             uiManager.showGlobalStatus(`Add failed: ${utils.escapeHTML(err.message)}`, 'error');
         }
@@ -776,7 +774,9 @@ document.addEventListener('DOMContentLoaded', () => {
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         canvasManager.setManualPredictions(null);
         syncLayerCache();
-        updateStatusToggleUI(activeImageState.status || 'unprocessed', true);
+        const currStatus = skipSwitch && skipSwitch.checked ? 'skip'
+            : (readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress');
+        updateStatusToggleUI(currStatus, true);
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (projectId && imageHash) {
@@ -793,10 +793,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateStatusToggleUI(status, enabled = true) {
-        const noLayers = !activeImageState || !(activeImageState.layers && activeImageState.layers.length > 0);
+        const hasLayers = activeImageState && Array.isArray(activeImageState.layers) && activeImageState.layers.length > 0;
         if (readySwitch) {
             readySwitch.checked = status === 'ready_for_review';
-            readySwitch.disabled = !enabled || (skipSwitch && skipSwitch.checked) || noLayers;
+            readySwitch.disabled = !enabled || (skipSwitch && skipSwitch.checked) || !hasLayers;
         }
         if (skipSwitch) {
             skipSwitch.checked = status === 'skip';
@@ -805,22 +805,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.addEventListener('active-image-set', (event) => {
-        if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
-            activeImageState.status = event.detail.status || 'unprocessed';
-        }
         updateStatusToggleUI(event.detail.status || 'unprocessed', true);
     });
 
     document.addEventListener('active-image-cleared', () => {
-        activeImageState = null;
         updateStatusToggleUI('unprocessed', false);
     });
 
     document.addEventListener('image-status-updated', (event) => {
         if (event.detail && event.detail.status) {
-            if (activeImageState && activeImageState.imageHash === event.detail.imageHash) {
-                activeImageState.status = event.detail.status;
-            }
             updateStatusToggleUI(event.detail.status, true);
         }
     });
@@ -832,9 +825,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await apiClient.updateImageStatus(projectId, imageHash, newStatus);
             if (res.success) {
-                if (activeImageState && activeImageState.imageHash === imageHash) {
-                    activeImageState.status = newStatus;
-                }
                 utils.dispatchCustomEvent('image-status-updated', { imageHash, status: newStatus });
             } else {
                 throw new Error(res.error || 'Status update failed');
@@ -847,7 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (readySwitch) {
         readySwitch.addEventListener('change', () => {
             if (skipSwitch && skipSwitch.checked) return; // should be disabled
-            const status = readySwitch.checked ? 'ready_for_review' : deriveStatusFromLayers();
+            const status = readySwitch.checked ? 'ready_for_review' : 'in_progress';
             sendStatusUpdate(status);
         });
     }
@@ -858,11 +848,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (readySwitch) { readySwitch.checked = false; readySwitch.disabled = true; }
                 sendStatusUpdate('skip');
             } else {
-                if (readySwitch) {
-                    const noLayers = !activeImageState || !(activeImageState.layers && activeImageState.layers.length > 0);
-                    readySwitch.disabled = noLayers;
-                }
-                const status = readySwitch && readySwitch.checked ? 'ready_for_review' : deriveStatusFromLayers();
+                if (readySwitch) readySwitch.disabled = false;
+                const status = readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress';
                 sendStatusUpdate(status);
             }
         });
