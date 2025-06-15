@@ -140,8 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
             layerViewController.setLayers(activeImageState.layers);
         }
         if (!skipUpdates.canvasLayers) {
-            canvasManager.setAnnotationLayers(activeImageState.layers);
-            canvasManager.setSelectedLayerIds(layerViewController ? layerViewController.getSelectedLayerIds() : []);
+            if (typeof canvasManager.setAnnotationLayers === 'function') {
+                canvasManager.setAnnotationLayers(activeImageState.layers);
+            }
+            if (typeof canvasManager.setSelectedLayerIds === 'function') {
+                const sel = layerViewController ? layerViewController.getSelectedLayerIds() : [];
+                canvasManager.setSelectedLayerIds(sel);
+            }
         }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
@@ -805,6 +810,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('layer-selected', (event) => {
         const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
         canvasManager.setSelectedLayerIds(ids);
+        if (canvasManager.manualPredictions || canvasManager.automaskPredictions) {
+            canvasManager.clearAllCanvasInputs(false);
+            canvasManager.setManualPredictions(null);
+            canvasManager.setAutomaskPredictions(null);
+        }
     });
 
     document.addEventListener('layer-deleted', async (event) => {
@@ -813,6 +823,11 @@ document.addEventListener('DOMContentLoaded', () => {
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
         onImageDataChange('layer-deleted', { layerId: id });
         canvasManager.setSelectedLayerIds(layerViewController ? layerViewController.getSelectedLayerIds() : []);
+        if (canvasManager.manualPredictions || canvasManager.automaskPredictions) {
+            canvasManager.clearAllCanvasInputs(false);
+            canvasManager.setManualPredictions(null);
+            canvasManager.setAutomaskPredictions(null);
+        }
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (projectId && imageHash) {
@@ -882,6 +897,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (layer) {
             layer.visible = !!event.detail.visible;
             onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+            if (canvasManager.manualPredictions || canvasManager.automaskPredictions) {
+                canvasManager.clearAllCanvasInputs(false);
+                canvasManager.setManualPredictions(null);
+                canvasManager.setAutomaskPredictions(null);
+            }
         }
     });
 
