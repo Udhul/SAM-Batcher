@@ -105,7 +105,7 @@ def init_project_db(project_id: str, project_name: str) -> None:
     CREATE TABLE IF NOT EXISTS Mask_Layers (
         layer_id TEXT PRIMARY KEY,
         image_hash_ref TEXT NOT NULL,
-        layer_type TEXT NOT NULL, -- "automask", "interactive_prompt", "final_edited"
+        layer_type TEXT NOT NULL, -- "automask" or "final_edited"
         created_at TEXT NOT NULL,
         model_details TEXT, -- JSON: {"name": "sam2_hiera_b+", "params": {...}}
         prompt_details TEXT, -- JSON: {"points": ..., "labels": ..., "box": ..., "amg_params": ...}

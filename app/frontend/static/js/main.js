@@ -139,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!skipUpdates.layerView && layerViewController) {
             layerViewController.setLayers(activeImageState.layers);
         }
+        if (!skipUpdates.canvasLayers) {
+            canvasManager.setLayers(activeImageState.layers);
+        }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
             updateStatusToggleUI(s, true);
@@ -330,8 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageElement = new Image();
         imageElement.onload = () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
+            const hadState = !!canvasStateCache[imageHash];
             restoreCanvasState(imageHash);
-            processAndDisplayExistingMasks(existingMasks, filename, width, height); // Pass dimensions
+            if (!hadState) {
+                if (activeImageState.layers && activeImageState.layers.length > 0) {
+                    canvasManager.setMode('edit');
+                } else {
+                    canvasManager.setMode('creation');
+                }
+            }
             uiManager.clearGlobalStatus();
             onImageDataChange('image-loaded', { imageHash });
         };
@@ -341,61 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
         imageElement.src = imageDataBase64;
     });
 
-    function processAndDisplayExistingMasks(existingMasks, filename, imgWidth, imgHeight) {
-        if (existingMasks && existingMasks.length > 0) {
-
-            const finalMasks = existingMasks.filter(m => m.layer_type === 'final_edited');
-            const autoMaskLayers = existingMasks.filter(m => m.layer_type === 'automask');
-            let loadedMaskMessage = null;
-
-            if (finalMasks.length > 0) {
-                const latestFinal = finalMasks.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
-                try {
-                    let maskDataContainer = latestFinal.mask_data_rle;
-                    if (typeof maskDataContainer === 'string') {
-                        maskDataContainer = JSON.parse(maskDataContainer);
-                    }
-                    let binaryMaskArray = null;
-                    if (maskDataContainer && maskDataContainer.type === 'raw_list_final' && maskDataContainer.data) {
-                        binaryMaskArray = maskDataContainer.data;
-                    } else if (maskDataContainer && maskDataContainer.counts && maskDataContainer.size) {
-                        binaryMaskArray = utils.rleToBinaryMask(maskDataContainer, imgHeight, imgWidth); // Use passed dimensions
-                        if (!binaryMaskArray) console.warn("RLE to Binary conversion for final_edited mask failed.");
-                    }
-
-                    if (binaryMaskArray) {
-                        canvasManager.setManualPredictions({ masks_data: [binaryMaskArray], scores: [latestFinal.metadata?.score || 1.0] });
-                        loadedMaskMessage = `Loaded final edited mask for '${utils.escapeHTML(filename)}'.`;
-                    }
-                } catch (e) { console.error("Error parsing final_edited mask data:", e); }
-            } else if (autoMaskLayers.length > 0 && !loadedMaskMessage) {
-                const latestAuto = autoMaskLayers.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
-                try {
-                    let allMaskObjectsInLayer = latestAuto.mask_data_rle;
-                    if (typeof allMaskObjectsInLayer === 'string') {
-                        allMaskObjectsInLayer = JSON.parse(allMaskObjectsInLayer);
-                    }
-                    const binaryMasksForCanvas = allMaskObjectsInLayer.map(item => {
-                        let rleData = item.segmentation_rle || item; // Backend might send RLE directly or nested
-                        if (rleData && rleData.type === 'raw_list' && rleData.data) { // Already binary
-                            return rleData.data;
-                        } else if (rleData && rleData.counts && rleData.size) { // COCO RLE
-                            const mask = utils.rleToBinaryMask(rleData, imgHeight, imgWidth); // Use passed dimensions
-                            if (!mask) console.warn("RLE to Binary for automask item failed.");
-                            return mask;
-                        }
-                        return null;
-                    }).filter(Boolean);
-
-                    if (binaryMasksForCanvas.length > 0) {
-                        canvasManager.setAutomaskPredictions({ masks_data: binaryMasksForCanvas, count: binaryMasksForCanvas.length });
-                        loadedMaskMessage = `Loaded previous automask results for '${utils.escapeHTML(filename)}'.`;
-                    }
-                } catch (e) { console.error("Error parsing automask layer data:", e); }
-            }
-            if(loadedMaskMessage) uiManager.showGlobalStatus(loadedMaskMessage, 'info', 4000);
-        }
-    }
 
 
     // == CanvasManager Events ==
@@ -485,8 +440,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayColor: utils.getRandomHexColor(),
                 maskData: null
             };
-            activeImageState.layers.push(newLayer);
+            activeImageState.layers.unshift(newLayer);
             onImageDataChange('layer-added', { layerIds: [newLayer.layerId] });
+            canvasManager.clearAllCanvasInputs(false);
+            canvasManager.setMode('edit');
         });
     }
 
@@ -745,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 maskData: mask.segmentation || mask
             }));
 
-            activeImageState.layers.push(...newLayers);
+            activeImageState.layers.unshift(...newLayers);
             onImageDataChange('layer-added', { layerIds: ids });
             uiManager.showGlobalStatus(`${newLayers.length} layer(s) added.`, 'success');
         } catch (err) {
@@ -755,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasManager.clearAllCanvasInputs(false);
         canvasManager.setManualPredictions(null);
         canvasManager.setAutomaskPredictions(null);
+        canvasManager.setMode('edit');
     }
 
     if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
@@ -798,19 +756,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.addEventListener('layer-selected', (event) => {
+    document.addEventListener('layers-selected', (event) => {
         if (!activeImageState) return;
-        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
-        if (layer && layer.maskData) {
-            canvasManager.setManualPredictions({ masks_data: [layer.maskData], scores: [1.0] });
-        }
+        const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
+        canvasManager.clearAllCanvasInputs(false);
+        canvasManager.setMode('edit', ids);
+        canvasManager.setLayers(activeImageState.layers);
     });
 
     document.addEventListener('layer-deleted', async (event) => {
         if (!activeImageState) return;
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
-        canvasManager.setManualPredictions(null);
+        canvasManager.setLayers(activeImageState.layers);
         onImageDataChange('layer-deleted', { layerId: id });
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
@@ -859,6 +817,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('layer-visibility-changed', (event) => {
+        if (!activeImageState) return;
+        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
+        if (layer) {
+            layer.visible = event.detail.visible;
+            canvasManager.setLayers(activeImageState.layers);
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { visible: layer.visible }).catch(() => {});
+            }
+        }
+    });
+
     document.addEventListener('layer-color-changed', (event) => {
         if (!activeImageState) return;
         const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
@@ -872,6 +844,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
+            canvasManager.setLayers(activeImageState.layers);
+        }
+    });
+
+    document.addEventListener('canvas-layer-selection-changed', (event) => {
+        if (layerViewController) {
+            layerViewController.setSelectedLayers(event.detail.layerIds || []);
         }
     });
 

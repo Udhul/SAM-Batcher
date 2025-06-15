@@ -44,6 +44,8 @@
  *   - Methods:
  *     - `getCurrentCanvasInputs()`: Returns current points, box, and combined user mask.
  */
+const FADED_MASK_OPACITY = 0.33; // opacity used for faded layers
+
 class CanvasManager {
     constructor() {
         this.Utils = window.Utils || {
@@ -109,6 +111,10 @@ class CanvasManager {
 
         this.currentPredictionMultiBox = false;
         this.selectedManualMaskIndex = 0;
+
+        this.layers = []; // [{layerId, maskData, visible, color}]
+        this.selectedLayerIds = [];
+        this.mode = 'edit'; // 'creation', 'edit', 'review'
 
         this.interactionState = {
             isDrawingBox: false,
@@ -271,7 +277,7 @@ class CanvasManager {
             this.renderMaskToggleControls();
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
-        this.drawPredictionMaskLayer();
+        this.setMode('creation');
     }
 
     setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
@@ -285,7 +291,7 @@ class CanvasManager {
         this.currentPredictionMultiBox = false;
         this.selectedManualMaskIndex = 0;
         this.renderMaskToggleControls();
-        this.drawPredictionMaskLayer();
+        this.setMode('creation');
     }
 
     clearAllCanvasInputs(clearImageAlso = false) {
@@ -466,6 +472,19 @@ class CanvasManager {
         }
 
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+
+        const visibleLayers = (this.layers || []).filter(l => l.visible && l.maskData);
+        if (visibleLayers.length > 0) {
+            visibleLayers.forEach(l => {
+                let op = 1.0;
+                if (this.mode === 'creation') {
+                    op = FADED_MASK_OPACITY;
+                } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
+                    op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
+                }
+                this._drawBinaryMask(l.maskData, l.color, op);
+            });
+        }
 
         let activePredictions = [];
         if (this.automaskPredictions && this.automaskPredictions.length > 0) {
@@ -677,6 +696,13 @@ class CanvasManager {
             const calc_a_val = s * Math.min(l, 1 - l); // Renamed calc_a to avoid conflict
             const f = n => l - calc_a_val * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
             return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4)), Math.round(a * 255)];
+        } else if (colorStr.startsWith('#')) {
+            const hex = colorStr.replace('#','');
+            const bigint = parseInt(hex.length === 3 ? hex.split('').map(c=>c+c).join('') : hex, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return [r, g, b, 255];
         } else if (colorStr.startsWith('rgb')) {
             const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
             if (!match) return [255, 0, 0, 178];
@@ -756,6 +782,39 @@ class CanvasManager {
         }
     }
 
+    _drawBinaryMask(maskData, colorStr, opacity = 1.0) {
+        if (!maskData || !maskData.length || !maskData[0].length) return;
+        const maskHeight = maskData.length;
+        const maskWidth = maskData[0].length;
+
+        if (this.tempMaskPixelCanvas.width !== maskWidth || this.tempMaskPixelCanvas.height !== maskHeight) {
+            this.tempMaskPixelCanvas.width = maskWidth;
+            this.tempMaskPixelCanvas.height = maskHeight;
+        }
+
+        this.tempMaskPixelCtx.clearRect(0, 0, maskWidth, maskHeight);
+        const imageData = this.tempMaskPixelCtx.createImageData(maskWidth, maskHeight);
+        const pixelData = imageData.data;
+        const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
+        const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
+
+        for (let y = 0; y < maskHeight; y++) {
+            for (let x = 0; x < maskWidth; x++) {
+                if (maskData[y][x]) {
+                    const idx = (y * maskWidth + x) * 4;
+                    pixelData[idx] = r;
+                    pixelData[idx + 1] = g;
+                    pixelData[idx + 2] = b;
+                    pixelData[idx + 3] = finalAlpha;
+                }
+            }
+        }
+
+        this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
+        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
+            this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+    }
+
     _dispatchEvent(eventType, data) {
         // console.log(`Canvas dispatching: canvas-${eventType}`, data);
         const event = new CustomEvent(`canvas-${eventType}`, { detail: data });
@@ -832,6 +891,40 @@ class CanvasManager {
         document.addEventListener(`canvas-${eventType}`, callback);
     }
 
+    setLayers(layers) {
+        this.layers = Array.isArray(layers) ? layers.map(l => ({
+            layerId: l.layerId,
+            maskData: l.maskData,
+            visible: l.visible !== false,
+            color: l.displayColor || l.color || this.Utils.getRandomHexColor()
+        })) : [];
+        this.drawPredictionMaskLayer();
+    }
+
+    setMode(mode, selectedLayerIds = []) {
+        this.mode = mode || 'edit';
+        if (this.mode === 'creation') {
+            if (this.selectedLayerIds.length !== 0) {
+                this.selectedLayerIds = [];
+                this._dispatchEvent('layer-selection-changed', { layerIds: [] });
+            }
+        } else {
+            const newList = Array.isArray(selectedLayerIds) ? [...selectedLayerIds] : [];
+            const changed = JSON.stringify(newList) !== JSON.stringify(this.selectedLayerIds);
+            this.selectedLayerIds = newList;
+            if (changed) this._dispatchEvent('layer-selection-changed', { layerIds: [...this.selectedLayerIds] });
+        }
+        if (this.mode === 'edit') {
+            this.manualPredictions = [];
+            this.automaskPredictions = [];
+            this.currentPredictionMultiBox = false;
+            this.selectedManualMaskIndex = 0;
+            this.renderMaskToggleControls();
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+
     lockCanvas(message = 'Processing...') {
         if (this.canvasLockEl) {
             this.canvasLockEl.style.display = 'flex'; // Use flex for centering
@@ -854,7 +947,10 @@ class CanvasManager {
             manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
             automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions)),
             selectedManualMaskIndex: this.selectedManualMaskIndex,
-            currentPredictionMultiBox: this.currentPredictionMultiBox
+            currentPredictionMultiBox: this.currentPredictionMultiBox,
+            layers: JSON.parse(JSON.stringify(this.layers)),
+            selectedLayerIds: JSON.parse(JSON.stringify(this.selectedLayerIds)),
+            mode: this.mode
         };
     }
 
@@ -869,6 +965,9 @@ class CanvasManager {
         this.automaskPredictions = state.automaskPredictions || [];
         this.selectedManualMaskIndex = state.selectedManualMaskIndex || 0;
         this.currentPredictionMultiBox = state.currentPredictionMultiBox || false;
+        this.layers = state.layers || [];
+        this.selectedLayerIds = state.selectedLayerIds || [];
+        this.mode = state.mode || 'edit';
         if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
