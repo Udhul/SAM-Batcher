@@ -149,6 +149,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 status: activeImageState.status
             });
         }
+        if (!skipUpdates.skipAutoStatus && changeType !== 'status-changed') {
+            if (activeImageState.status === 'ready_for_review') {
+                sendStatusUpdate('in_progress');
+            }
+        }
     }
 
     async function restoreSessionFromServer() {
@@ -710,7 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const masksToCommit = selected.map((mask, idx) => ({
             segmentation: mask.segmentation || mask,
             source_layer_ids: [],
-            name: `Mask ${activeImageState.layers.length + idx + 1}`
+            name: `Mask ${activeImageState.layers.length + idx + 1}`,
+            display_color: utils.getRandomHexColor()
         }));
 
         const activeProjectId = stateManager.getActiveProjectId();
@@ -735,17 +741,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 classLabel: '',
                 status: 'edited',
                 visible: true,
-                displayColor: utils.getRandomHexColor(),
+                displayColor: masksToCommit[idx].display_color,
                 maskData: mask.segmentation || mask
             }));
-
-            const pid = stateManager.getActiveProjectId();
-            const ih = activeImageState.imageHash;
-            if (pid && ih) {
-                newLayers.forEach(l => {
-                    apiClient.updateMaskLayer(pid, ih, l.layerId, { display_color: l.displayColor }).catch(() => {});
-                });
-            }
 
             activeImageState.layers.push(...newLayers);
             onImageDataChange('layer-added', { layerIds: ids });
@@ -841,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
                 });
             }
-            onImageDataChange('layer-modified', { layerId: layer.layerId });
+            onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
         }
     });
 
@@ -873,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
                 });
             }
-            onImageDataChange('layer-modified', { layerId: layer.layerId });
+            onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
         }
     });
 

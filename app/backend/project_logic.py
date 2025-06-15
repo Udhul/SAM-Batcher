@@ -608,13 +608,16 @@ def commit_final_masks(project_id: str, image_hash: str, final_masks_data: List[
         current_layer_id = f"{layer_id_base}_{i}"
         db_manager.save_mask_layer(
             project_id, current_layer_id, image_hash, "final_edited",
-            model_details=None, # Or some info about client-side editing tool
+            model_details=None,  # Or some info about client-side editing tool
             prompt_details={
                 "source_layer_ids": mask_entry.get("source_layer_ids"),
                 "client_edit_time": datetime.utcnow().isoformat()
             },
-            mask_data_rle=json.dumps(rle_for_db), # Store the single RLE for this final mask
-            metadata={"name": mask_entry.get("name", f"final_mask_{i}")},
+            mask_data_rle=json.dumps(rle_for_db),  # Store the single RLE for this final mask
+            metadata={
+                "name": mask_entry.get("name", f"final_mask_{i}"),
+                "display_color": mask_entry.get("display_color")
+            },
             is_selected_for_final=True,
             name=mask_entry.get("name")
         )
