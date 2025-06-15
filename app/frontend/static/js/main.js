@@ -803,20 +803,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.addEventListener('layer-selected', (event) => {
+    document.addEventListener('layers-selected', (event) => {
         if (!activeImageState) return;
-        const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
-        if (layer) {
-            canvasManager.setMode('edit', [layer.layerId]);
-            canvasManager.setLayers(activeImageState.layers);
-        }
+        const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
+        canvasManager.setMode('edit', ids);
+        canvasManager.setLayers(activeImageState.layers);
     });
 
     document.addEventListener('layer-deleted', async (event) => {
         if (!activeImageState) return;
         const id = event.detail.layerId;
         activeImageState.layers = activeImageState.layers.filter(l => l.layerId !== id);
-        canvasManager.setMode('edit');
         canvasManager.setLayers(activeImageState.layers);
         onImageDataChange('layer-deleted', { layerId: id });
         const projectId = stateManager.getActiveProjectId();
@@ -894,6 +891,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             onImageDataChange('layer-modified', { layerId: layer.layerId }, { skipAutoStatus: true });
             canvasManager.setLayers(activeImageState.layers);
+        }
+    });
+
+    document.addEventListener('canvas-layer-selection-changed', (event) => {
+        if (layerViewController) {
+            layerViewController.setSelectedLayers(event.detail.layerIds || []);
         }
     });
 

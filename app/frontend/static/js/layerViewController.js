@@ -9,7 +9,7 @@ class LayerViewController {
         this.containerEl = typeof containerSelector === 'string' ? document.querySelector(containerSelector) : containerSelector;
         this.stateManager = stateManager;
         this.layers = [];
-        this.selectedLayerId = null;
+        this.selectedLayerIds = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
     }
 
@@ -17,6 +17,9 @@ class LayerViewController {
         // Clone incoming array so external mutations (e.g., from ActiveImageState)
         // do not directly modify our internal list and cause double updates.
         this.layers = Array.isArray(layers) ? layers.map(l => ({ ...l })) : [];
+        // Remove selections that no longer exist
+        this.selectedLayerIds = this.selectedLayerIds.filter(id =>
+            this.layers.some(l => l.layerId === id));
         this.render();
     }
 
@@ -27,10 +30,34 @@ class LayerViewController {
         }
     }
 
-    selectLayer(layerId) {
-        if (this.selectedLayerId === layerId) return;
-        this.selectedLayerId = layerId;
-        this.Utils.dispatchCustomEvent('layer-selected', { layerId });
+    setSelectedLayers(layerIds) {
+        this.selectedLayerIds = Array.isArray(layerIds) ? [...layerIds] : [];
+        this.render();
+    }
+
+    clearSelection() {
+        if (this.selectedLayerIds.length > 0) {
+            this.selectedLayerIds = [];
+            this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [] });
+            this.render();
+        }
+    }
+
+    selectLayer(layerId, additive = false) {
+        if (additive) {
+            const idx = this.selectedLayerIds.indexOf(layerId);
+            if (idx !== -1) {
+                this.selectedLayerIds.splice(idx, 1);
+            } else {
+                this.selectedLayerIds.push(layerId);
+            }
+        } else {
+            if (this.selectedLayerIds.length === 1 && this.selectedLayerIds[0] === layerId) {
+                return;
+            }
+            this.selectedLayerIds = [layerId];
+        }
+        this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [...this.selectedLayerIds] });
         this.render();
     }
 
@@ -38,7 +65,11 @@ class LayerViewController {
         const idx = this.layers.findIndex(l => l.layerId === layerId);
         if (idx !== -1) {
             this.layers.splice(idx, 1);
-            if (this.selectedLayerId === layerId) this.selectedLayerId = null;
+            const selIdx = this.selectedLayerIds.indexOf(layerId);
+            if (selIdx !== -1) {
+                this.selectedLayerIds.splice(selIdx, 1);
+                this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [...this.selectedLayerIds] });
+            }
             this.Utils.dispatchCustomEvent('layer-deleted', { layerId });
             this.render();
         }
@@ -54,7 +85,7 @@ class LayerViewController {
             const li = document.createElement('li');
             li.className = 'layer-item';
             li.dataset.layerId = layer.layerId;
-            if (layer.layerId === this.selectedLayerId) li.classList.add('selected');
+            if (this.selectedLayerIds.includes(layer.layerId)) li.classList.add('selected');
 
             const visBtn = document.createElement('button');
             visBtn.className = 'layer-vis-toggle';
@@ -142,7 +173,10 @@ class LayerViewController {
                 }
             });
 
-            li.addEventListener('click', () => this.selectLayer(layer.layerId));
+            li.addEventListener('click', (e) => {
+                const additive = e.shiftKey;
+                this.selectLayer(layer.layerId, additive);
+            });
 
             li.appendChild(visBtn);
             li.appendChild(colorSwatch);

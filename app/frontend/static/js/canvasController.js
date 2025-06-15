@@ -275,8 +275,7 @@ class CanvasManager {
             this.renderMaskToggleControls();
         }
         this.automaskPredictions = []; // Clear automasks when manual predictions come in
-        this.mode = 'creation';
-        this.drawPredictionMaskLayer();
+        this.setMode('creation');
     }
 
     setAutomaskPredictions(predictionData) { // predictionData is { masks_data: [{segmentation, area, ...}], count: ... }
@@ -290,8 +289,7 @@ class CanvasManager {
         this.currentPredictionMultiBox = false;
         this.selectedManualMaskIndex = 0;
         this.renderMaskToggleControls();
-        this.mode = 'creation';
-        this.drawPredictionMaskLayer();
+        this.setMode('creation');
     }
 
     clearAllCanvasInputs(clearImageAlso = false) {
@@ -903,7 +901,17 @@ class CanvasManager {
 
     setMode(mode, selectedLayerIds = []) {
         this.mode = mode || 'edit';
-        this.selectedLayerIds = Array.isArray(selectedLayerIds) ? selectedLayerIds : [];
+        if (this.mode === 'creation') {
+            if (this.selectedLayerIds.length !== 0) {
+                this.selectedLayerIds = [];
+                this._dispatchEvent('layer-selection-changed', { layerIds: [] });
+            }
+        } else {
+            const newList = Array.isArray(selectedLayerIds) ? [...selectedLayerIds] : [];
+            const changed = JSON.stringify(newList) !== JSON.stringify(this.selectedLayerIds);
+            this.selectedLayerIds = newList;
+            if (changed) this._dispatchEvent('layer-selection-changed', { layerIds: [...this.selectedLayerIds] });
+        }
         if (this.mode === 'edit') {
             this.manualPredictions = [];
             this.automaskPredictions = [];
