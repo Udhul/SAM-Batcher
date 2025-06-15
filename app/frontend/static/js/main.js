@@ -808,14 +808,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function sendStatusUpdate(newStatus) {
+    async function sendStatusUpdate(status, sync = false) {
         const projectId = stateManager.getActiveProjectId();
         const imageHash = stateManager.getActiveImageHash();
         if (!projectId || !imageHash) return;
         try {
-            const res = await apiClient.updateImageStatus(projectId, imageHash, newStatus);
+            const res = sync
+                ? await apiClient.syncImageStatusWithLayers(projectId, imageHash)
+                : await apiClient.updateImageStatus(projectId, imageHash, status);
             if (res.success) {
-                utils.dispatchCustomEvent('image-status-updated', { imageHash, status: newStatus });
+                const finalStatus = res.status || status;
+                utils.dispatchCustomEvent('image-status-updated', { imageHash, status: finalStatus });
             } else {
                 throw new Error(res.error || 'Status update failed');
             }
@@ -827,8 +830,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (readySwitch) {
         readySwitch.addEventListener('change', () => {
             if (skipSwitch && skipSwitch.checked) return; // should be disabled
-            const status = readySwitch.checked ? 'ready_for_review' : 'in_progress';
-            sendStatusUpdate(status);
+            if (readySwitch.checked) {
+                sendStatusUpdate('ready_for_review');
+            } else {
+                sendStatusUpdate(null, true); // revert based on layers
+            }
         });
     }
 
@@ -839,8 +845,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 sendStatusUpdate('skip');
             } else {
                 if (readySwitch) readySwitch.disabled = false;
-                const status = readySwitch && readySwitch.checked ? 'ready_for_review' : 'in_progress';
-                sendStatusUpdate(status);
+                if (readySwitch && readySwitch.checked) {
+                    sendStatusUpdate('ready_for_review');
+                } else {
+                    sendStatusUpdate(null, true);
+                }
             }
         });
     }

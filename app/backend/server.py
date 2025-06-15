@@ -337,8 +337,13 @@ async def api_update_image_status(project_id: str, image_hash: str, payload: dic
     status = payload.get('status')
     if not status:
         raise HTTPException(status_code=400, detail='New status is required')
+
+    if status == 'sync_with_layers':
+        new_status = await run_in_threadpool(project_logic.sync_image_status_with_layers, project_id, image_hash)
+        return {'success': True, 'status': new_status}
+
     await run_in_threadpool(db_manager.update_image_status, project_id, image_hash, status)
-    return {'success': True, 'message': 'Image status updated.'}
+    return {'success': True, 'status': status}
 
 
 

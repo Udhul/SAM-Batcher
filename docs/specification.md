@@ -215,9 +215,9 @@ The system will employ a client-server architecture.
     *   **Client:** Loads new image onto canvas, displays existing masks, updates UI.
 *   **Set Image Status:**
 *   **Client:** Below the layer list two toggle switches allow setting the status to **Ready** for review or **Skip**. Turning on Skip disables the Ready switch. When a new image loads, the switches reflect its current status; if no image is loaded they are disabled. Toggling either switch sends an update to the server.
-    *   **Client Request:** `PUT /api/project/<project_id>/images/<image_hash>/status` with `{"status": "ready_for_review"}` or `{"status": "skip"}`. Turning a switch off sends `{"status": "in_progress"}` if masks exist.
-    *   **Server:** Updates the status in the Project State DB.
-    *   **Server Response:** `{"success": true, "message": "Image status updated."}`
+    *   **Client Request:** `PUT /api/project/<project_id>/images/<image_hash>/status` with `{"status": "ready_for_review"}` or `{"status": "skip"}`. Turning a switch off sends `{"status": "sync_with_layers"}` to revert to `in_progress` or `unprocessed` based on existing masks.
+    *   **Server:** Updates the status in the Project State DB, or synchronizes with mask layers when `status` is `sync_with_layers`.
+    *   **Server Response:** `{"success": true, "status": "in_progress"}` (or resulting status)
     *   **Client:** Dispatches `image-status-updated` so the image pool refreshes.
 
 **4.5. Image Annotation Workflow**
@@ -319,7 +319,7 @@ The system will employ a client-server architecture.
 *   `GET /api/project/<project_id>/images` (List/gallery images from pool, with pagination/filters)
 *   `GET /api/project/<project_id>/images/next_unprocessed?current_image_hash=<optional_hash>`
 *   `POST /api/project/<project_id>/images/set_active` (Set current image for annotation)
-*   `PUT /api/project/<project_id>/images/<image_hash>/status` (Update image status)
+*   `PUT /api/project/<project_id>/images/<image_hash>/status` (Update image status; payload `{"status": "sync_with_layers"}` reverts based on current mask layers)
 *   `GET /api/project/<project_id>/images/<image_hash>/data` (Fetch raw image data if not sent with set_active) - *Potentially combined with set_active*
 *   `GET /api/image/thumbnail/<project_id>/<image_hash>` (For gallery view - server generates on demand or pre-generates)
 
