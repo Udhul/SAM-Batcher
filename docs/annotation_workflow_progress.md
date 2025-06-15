@@ -33,6 +33,7 @@ It will be updated as new sprints add functionality.
 - **Image Pool Refresh**: Status update events now trigger the image pool to reload so changes are visible immediately.
 - **Bug Fix**: Removing the final mask layer now correctly changes the image status back to `unprocessed`.
 - **Status Toggles**: The annotation view now has "Ready" and "Skip" switches to update image status, dispatching refresh events. Switches are automatically updated when a new image loads and disabled when no image is active.
+- **Unified Change Handler**: A new `onImageDataChange()` function synchronizes the layer view, caches and status toggles whenever image or layer data changes.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
