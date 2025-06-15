@@ -219,6 +219,10 @@ class APIClient {
         return this._request(`/project/${projectId}/images/${imageHash}/layers/${layerId}`, 'DELETE');
     }
 
+    async updateMaskLayer(projectId, imageHash, layerId, payload) {
+        return this._request(`/project/${projectId}/images/${imageHash}/layers/${layerId}`, 'PUT', payload);
+    }
+
     // --- Export Endpoints ---
     async requestExport(projectId, payload) {
         // payload: { format, export_schema, filters: { image_statuses, layer_statuses } }

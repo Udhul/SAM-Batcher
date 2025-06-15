@@ -498,6 +498,29 @@ def delete_mask_layer(project_id: str, layer_id: str) -> None:
     conn.close()
     update_last_modified(project_id)
 
+def update_mask_layer_basic(project_id: str, layer_id: str, name: Optional[str] = None,
+                            class_label: Optional[str] = None) -> None:
+    """Update simple editable fields for a mask layer."""
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    updates = []
+    params: List[Any] = []
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+    if class_label is not None:
+        updates.append("metadata = json_set(COALESCE(metadata,'{}'), '$.class_label', ?)")
+        params.append(class_label)
+    if not updates:
+        conn.close()
+        return
+    query = f"UPDATE Mask_Layers SET {', '.join(updates)} WHERE layer_id = ?"
+    params.append(layer_id)
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
+    update_last_modified(project_id)
+
 # --- General Utility ---
 def list_project_ids() -> List[str]:
     """Lists project IDs by finding .sqlite files in PROJECTS_DATA_DIR."""

@@ -826,6 +826,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
         if (layer) {
             layer.name = event.detail.name || '';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { name: layer.name }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
             onImageDataChange('layer-modified', { layerId: layer.layerId });
         }
     });
@@ -835,6 +842,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const layer = activeImageState.layers.find(l => l.layerId === event.detail.layerId);
         if (layer) {
             layer.classLabel = event.detail.classLabel || '';
+            const pid = stateManager.getActiveProjectId();
+            const ih = activeImageState.imageHash;
+            if (pid && ih) {
+                apiClient.updateMaskLayer(pid, ih, layer.layerId, { class_label: layer.classLabel }).catch(err => {
+                    uiManager.showGlobalStatus(`Layer update failed: ${utils.escapeHTML(err.message)}`, 'error');
+                });
+            }
             onImageDataChange('layer-modified', { layerId: layer.layerId });
         }
     });
