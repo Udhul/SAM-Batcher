@@ -394,12 +394,15 @@ document.addEventListener('DOMContentLoaded', () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
             const hadState = !!canvasStateCache[imageHash];
             restoreCanvasState(imageHash);
+            layerViewController && layerViewController.setSelectedLayers([]);
             if (!hadState) {
                 if (activeImageState.layers && activeImageState.layers.length > 0) {
-                    canvasManager.setMode('edit');
+                    canvasManager.setMode('edit', []);
                 } else {
                     canvasManager.setMode('creation');
                 }
+            } else {
+                canvasManager.setMode('edit', []);
             }
             uiManager.clearGlobalStatus();
             onImageDataChange('image-loaded', { imageHash });
