@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let reviewHistory = [];
     let reviewHistoryIndex = -1;
     let navigatingHistory = false;
+    let suppressStatusChangeEvents = false;
 
     function deriveStatusFromLayers() {
         if (!activeImageState) return 'unprocessed';
@@ -190,7 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
+            suppressStatusChangeEvents = true;
             updateStatusToggleUI(s, true);
+            suppressStatusChangeEvents = false;
         }
         if (changeType === 'status-changed' && !skipUpdates.statusEvent) {
             utils.dispatchCustomEvent('image-status-updated', {
@@ -958,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (readySwitch) {
         readySwitch.addEventListener('change', () => {
+            if (suppressStatusChangeEvents) return;
             if (skipSwitch && skipSwitch.checked) return; // should be disabled
             const status = readySwitch.checked ? 'ready_for_review' : deriveStatusFromLayers();
             sendStatusUpdate(status);
@@ -966,6 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (skipSwitch) {
         skipSwitch.addEventListener('change', () => {
+            if (suppressStatusChangeEvents) return;
             if (skipSwitch.checked) {
                 if (readySwitch) { readySwitch.checked = false; readySwitch.disabled = true; }
                 sendStatusUpdate('skip');
