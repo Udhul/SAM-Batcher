@@ -518,7 +518,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }));
     } else if (existingMasks && existingMasks.length > 0) {
       const validMasks = existingMasks.filter(
-        (m) => m.layer_type !== "interactive_prompt",
+        (m) => m.status !== "interactive_prompt",
       );
       activeImageState.layers = validMasks.map((m, idx) => {
         let parsed = m.mask_data_rle;
@@ -542,7 +542,7 @@ document.addEventListener("DOMContentLoaded", () => {
           layerId: m.layer_id || `layer_${idx}`,
           name: m.name || `Mask ${idx + 1}`,
           classLabel: m.class_label || "",
-          status: m.layer_type || "prediction",
+          status: m.status || "prediction",
           visible: true,
           displayColor: m.display_color || utils.getRandomHexColor(),
           maskData: parsed,
@@ -894,7 +894,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await apiClient.getImageMasks(
         activeProjectId,
         activeImageHash,
-        "automask",
+        "prediction",
       );
       if (res.success && res.masks && res.masks.length > 0) {
         const latest = res.masks[0];

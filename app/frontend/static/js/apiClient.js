@@ -312,9 +312,9 @@ class APIClient {
       payload,
     );
   }
-  async getImageMasks(projectId, imageHash, layerType = null) {
+  async getImageMasks(projectId, imageHash, status = null) {
     let query = "";
-    if (layerType) query = `?layer_type=${layerType}`;
+    if (status) query = `?status=${status}`;
     return this._request(
       `/project/${projectId}/images/${imageHash}/masks${query}`,
     );

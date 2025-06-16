@@ -614,14 +614,14 @@ async def api_commit_masks(project_id: str, image_hash: str, payload: dict):
 
 @app.get("/api/project/{project_id}/images/{image_hash}/masks")
 async def api_get_image_masks(
-    project_id: str, image_hash: str, layer_type: Optional[str] = None
+    project_id: str, image_hash: str, status: Optional[str] = None
 ):
     if project_id != get_active_project_id():
         raise HTTPException(
             status_code=403, detail="Operation only allowed on the active project"
         )
     mask_layers = await run_in_threadpool(
-        db_manager.get_mask_layers_for_image, project_id, image_hash, layer_type
+        db_manager.get_mask_layers_for_image, project_id, image_hash, status
     )
     return {"success": True, "masks": mask_layers}
 

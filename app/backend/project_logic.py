@@ -200,6 +200,9 @@ def delete_project(project_id: str) -> Dict[str, Any]:
 def load_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
     if not os.path.exists(db_manager.get_db_path(project_id)):
         return None
+    conn = db_manager.get_db_connection(project_id)
+    db_manager.ensure_mask_layers_schema(conn)
+    conn.close()
     info = db_manager.get_project_info(project_id)
     # Could add more data like image count, etc.
     image_list, pagination = db_manager.get_images_from_pool(
@@ -619,13 +622,13 @@ def process_automask_request(
         project_id,
         layer_id,
         image_hash,
-        "automask",
-        model_details=sam_inference.get_model_info(),
-        prompt_details={"amg_params": amg_params},
-        mask_data_rle=json.dumps(
-            processed_mask_data_for_db
-        ),  # List of RLEs and their metadata
-        metadata={"source_amg_params": amg_params, "count": len(auto_masks_anns)},
+        "prediction",
+        processed_mask_data_for_db,
+        source_metadata={
+            "type": "automask",
+            "model": sam_inference.get_model_info(),
+            "amg_params": amg_params,
+        },
     )
     new_status = sync_image_status_with_layers(project_id, image_hash)
 
@@ -752,21 +755,15 @@ def commit_final_masks(
             project_id,
             current_layer_id,
             image_hash,
-            "final_edited",
-            model_details=None,  # Or some info about client-side editing tool
-            prompt_details={
+            "edited",
+            rle_for_db,
+            name=mask_entry.get("name"),
+            display_color=mask_entry.get("display_color"),
+            source_metadata={
+                "type": "edit_commit",
                 "source_layer_ids": mask_entry.get("source_layer_ids"),
                 "client_edit_time": datetime.utcnow().isoformat(),
             },
-            mask_data_rle=json.dumps(
-                rle_for_db
-            ),  # Store the single RLE for this final mask
-            metadata={
-                "name": mask_entry.get("name", f"final_mask_{i}"),
-                "display_color": mask_entry.get("display_color"),
-            },
-            is_selected_for_final=True,
-            name=mask_entry.get("name"),
         )
         committed_layer_ids.append(current_layer_id)
 

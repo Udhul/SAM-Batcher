@@ -50,6 +50,24 @@ def get_db_connection(
     return conn
 
 
+def ensure_mask_layers_schema(conn: sqlite3.Connection) -> None:
+    """Add new columns to Mask_Layers table if they are missing."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(Mask_Layers)")
+    existing = {row[1] for row in cursor.fetchall()}
+    migrations = {
+        "class_label": "ALTER TABLE Mask_Layers ADD COLUMN class_label TEXT",
+        "status": "ALTER TABLE Mask_Layers ADD COLUMN status TEXT",
+        "display_color": "ALTER TABLE Mask_Layers ADD COLUMN display_color TEXT",
+        "source_metadata": "ALTER TABLE Mask_Layers ADD COLUMN source_metadata TEXT",
+        "updated_at": "ALTER TABLE Mask_Layers ADD COLUMN updated_at TEXT",
+    }
+    for col, stmt in migrations.items():
+        if col not in existing:
+            cursor.execute(stmt)
+    conn.commit()
+
+
 def init_project_db(project_id: str, project_name: str) -> None:
     """Initializes a new project database with the required schema."""
     conn = get_db_connection(project_id)
@@ -126,18 +144,25 @@ def init_project_db(project_id: str, project_name: str) -> None:
     CREATE TABLE IF NOT EXISTS Mask_Layers (
         layer_id TEXT PRIMARY KEY,
         image_hash_ref TEXT NOT NULL,
-        layer_type TEXT NOT NULL, -- "automask" or "final_edited"
+        layer_type TEXT NOT NULL, -- legacy status field
         created_at TEXT NOT NULL,
-        model_details TEXT, -- JSON: {"name": "sam2_hiera_b+", "params": {...}}
-        prompt_details TEXT, -- JSON: {"points": ..., "labels": ..., "box": ..., "amg_params": ...}
-        mask_data_rle TEXT NOT NULL, -- COCO RLE string or JSON representation of it
-        metadata TEXT, -- JSON: {"scores": [...], "iou_preds": ..., "area": ..., "bbox": ...}
-        is_selected_for_final BOOLEAN DEFAULT FALSE, -- If this contributes to a "final_mask" (can be multiple per image)
-        name TEXT, -- Optional user-given name for the mask (e.g., "object_1")
+        model_details TEXT,
+        prompt_details TEXT,
+        mask_data_rle TEXT NOT NULL,
+        metadata TEXT,
+        is_selected_for_final BOOLEAN DEFAULT FALSE,
+        name TEXT,
+        class_label TEXT,
+        status TEXT,
+        display_color TEXT,
+        source_metadata TEXT,
+        updated_at TEXT,
         FOREIGN KEY (image_hash_ref) REFERENCES Images(image_hash) ON DELETE CASCADE
     )
     """
     )
+
+    ensure_mask_layers_schema(conn)
 
     # Project_Settings Table
     cursor.execute(
@@ -574,7 +599,7 @@ def get_layers_by_image_and_statuses(
     params: List[Any] = list(image_hashes)
     if layer_statuses:
         placeholders_layers = ",".join(["?"] * len(layer_statuses))
-        query += f" AND layer_type IN ({placeholders_layers})"
+        query += f" AND status IN ({placeholders_layers})"
         params.extend(layer_statuses)
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
@@ -582,15 +607,20 @@ def get_layers_by_image_and_statuses(
     layers = []
     for row in cursor.fetchall():
         layer = dict(row)
-        if layer["model_details"]:
+        if layer.get("source_metadata"):
+            try:
+                layer["source_metadata"] = json.loads(layer["source_metadata"])
+            except json.JSONDecodeError:
+                pass
+        if layer.get("model_details"):
             layer["model_details"] = json.loads(layer["model_details"])
-        if layer["prompt_details"]:
+        if layer.get("prompt_details"):
             layer["prompt_details"] = json.loads(layer["prompt_details"])
         try:
             layer["mask_data_rle"] = json.loads(layer["mask_data_rle"])
         except (json.JSONDecodeError, TypeError):
             pass
-        if layer["metadata"]:
+        if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
         layers.append(layer)
     conn.close()
@@ -602,37 +632,55 @@ def save_mask_layer(
     project_id: str,
     layer_id: str,
     image_hash_ref: str,
-    layer_type: str,
-    model_details: Optional[Dict],
-    prompt_details: Optional[Dict],
+    status: str,
     mask_data_rle: Any,
-    metadata: Optional[Dict],
-    is_selected_for_final: bool = False,
     name: Optional[str] = None,
+    class_label: Optional[str] = None,
+    display_color: Optional[str] = None,
+    source_metadata: Optional[Dict] = None,
 ) -> None:
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     cursor.execute(
         """
-    INSERT INTO Mask_Layers (layer_id, image_hash_ref, layer_type, created_at, model_details,
-                             prompt_details, mask_data_rle, metadata, is_selected_for_final, name)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Mask_Layers (
+        layer_id,
+        image_hash_ref,
+        status,
+        mask_data_rle,
+        name,
+        class_label,
+        display_color,
+        source_metadata,
+        created_at,
+        updated_at,
+        layer_type,
+        model_details,
+        prompt_details,
+        metadata,
+        is_selected_for_final
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             layer_id,
             image_hash_ref,
-            layer_type,
-            datetime.utcnow().isoformat(),
-            json.dumps(model_details) if model_details else None,
-            json.dumps(prompt_details) if prompt_details else None,
+            status,
             (
                 json.dumps(mask_data_rle)
-                if isinstance(mask_data_rle, dict)
+                if isinstance(mask_data_rle, (dict, list))
                 else mask_data_rle
-            ),  # RLE can be string or dict for pycocotools
-            json.dumps(metadata) if metadata else None,
-            is_selected_for_final,
+            ),
             name,
+            class_label,
+            display_color,
+            json.dumps(source_metadata) if source_metadata else None,
+            datetime.utcnow().isoformat(),
+            datetime.utcnow().isoformat(),
+            status,
+            None,
+            None,
+            None,
+            False,
         ),
     )
     conn.commit()
@@ -656,21 +704,24 @@ def get_mask_layers_for_image(
     layers = []
     for row in cursor.fetchall():
         layer = dict(row)
-        if layer["model_details"]:
+        if layer.get("source_metadata"):
+            try:
+                layer["source_metadata"] = json.loads(layer["source_metadata"])
+            except json.JSONDecodeError:
+                pass
+        if layer.get("model_details"):
             layer["model_details"] = json.loads(layer["model_details"])
-        if layer["prompt_details"]:
+        if layer.get("prompt_details"):
             layer["prompt_details"] = json.loads(layer["prompt_details"])
         try:
-            layer["mask_data_rle"] = json.loads(
-                layer["mask_data_rle"]
-            )  # Assume it's stored as JSON string if it's a dict
+            layer["mask_data_rle"] = json.loads(layer["mask_data_rle"])
         except (json.JSONDecodeError, TypeError):
-            pass  # If it's already a string (e.g. direct COCO RLE string), keep as is
-        if layer["metadata"]:
+            pass
+        if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
-            if "class_label" in layer["metadata"] and "class_label" not in layer:
+            if "class_label" in layer["metadata"] and not layer.get("class_label"):
                 layer["class_label"] = layer["metadata"].get("class_label")
-            if "display_color" in layer["metadata"] and "display_color" not in layer:
+            if "display_color" in layer["metadata"] and not layer.get("display_color"):
                 layer["display_color"] = layer["metadata"].get("display_color")
         layers.append(layer)
     conn.close()
@@ -713,20 +764,17 @@ def update_mask_layer_basic(
     if name is not None:
         updates.append("name = ?")
         params.append(name)
-    meta_clauses = []
     if class_label is not None:
-        meta_clauses.append("'$.class_label', ?")
+        updates.append("class_label = ?")
         params.append(class_label)
     if display_color is not None:
-        meta_clauses.append("'$.display_color', ?")
+        updates.append("display_color = ?")
         params.append(display_color)
-    if meta_clauses:
-        updates.append(
-            f"metadata = json_set(COALESCE(metadata,'{{}}'), {', '.join(meta_clauses)})"
-        )
     if not updates:
         conn.close()
         return
+    updates.append("updated_at = ?")
+    params.append(datetime.utcnow().isoformat())
     query = f"UPDATE Mask_Layers SET {', '.join(updates)} WHERE layer_id = ?"
     params.append(layer_id)
     cursor.execute(query, params)
@@ -740,7 +788,13 @@ def update_mask_layer_status(project_id: str, layer_id: str, status: str) -> Non
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE Mask_Layers SET layer_type = ? WHERE layer_id = ?", (status, layer_id)
+        "UPDATE Mask_Layers SET layer_type = ?, status = ?, updated_at = ? WHERE layer_id = ?",
+        (
+            status,
+            status,
+            datetime.utcnow().isoformat(),
+            layer_id,
+        ),
     )
     conn.commit()
     conn.close()
