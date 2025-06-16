@@ -201,7 +201,6 @@ def load_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
     if not os.path.exists(db_manager.get_db_path(project_id)):
         return None
     conn = db_manager.get_db_connection(project_id)
-    db_manager.ensure_mask_layers_schema(conn)
     conn.close()
     info = db_manager.get_project_info(project_id)
     # Could add more data like image count, etc.

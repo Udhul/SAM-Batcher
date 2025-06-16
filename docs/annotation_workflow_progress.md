@@ -5,13 +5,14 @@ This document tracks the progress of implementing the features described in
 It will be updated as new sprints add functionality.
 
 ## Completed Features
+
 - **Main Layout**: The canvas and Layer View display side by side within the
   `image-section`, matching the specification.
 - **Layer View Panel**: Initial controller supports layer listing with
   visibility toggle, color swatch, editable name and class label fields, status
   tag display, selection highlighting and deletion.
 - **Add to Layers Workflow**: Predictions can be added to the Layer View instead
-  of committing a single final mask. The *Add Empty Layer* button is also
+  of committing a single final mask. The _Add Empty Layer_ button is also
   available.
 - **Image Pool Filter**: Filter dropdown includes new statuses
   (`unprocessed`, `in_progress`, `ready_for_review`, `approved`, `rejected`,
@@ -47,14 +48,16 @@ It will be updated as new sprints add functionality.
 - **Default Mode on Load**: Loading an image now enters Edit mode if layers exist and skips legacy prediction data, preventing stray red masks from appearing.
 - **Legacy Prediction Removal**: Old code paths for restoring saved prediction masks have been deleted. Existing masks always load as layers.
 - **Review Mode**: Added controls to cycle through images marked `ready_for_review` with Approve/Reject/Skip actions and a history-aware **Prev** button.
-- **Layer Data Schema**: Mask records now use dedicated columns (`class_label`, `status`, `display_color`, `source_metadata`, `updated_at`) with automatic migrations for older projects.
+- **Layer Data Schema**: Mask records now use dedicated columns (`class_label`, `status`, `display_color`, `source_metadata`, `updated_at`).
 - **Active Image State**: `main.js` now maintains a full `ActiveImageState` object including `creation` and `edit` sections. New `/api/project/<id>/image/<hash>/state` endpoints keep this state in sync with the backend.
 
 ## Partially Implemented / In Progress
+
 - **Edit Mode Tools**: Selecting a layer only displays its mask; brush/eraser,
   lasso, and other edit tools have not been implemented.
 
 ## Planned Tasks (Priority Order)
+
 1. **Database and API Refactor**
    - Migrate the `Images` and `Mask_Layers` tables to the new schema with image
      statuses (`unprocessed`, `in_progress`, `ready_for_review`, `approved`,

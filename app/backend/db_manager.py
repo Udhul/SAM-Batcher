@@ -50,24 +50,6 @@ def get_db_connection(
     return conn
 
 
-def ensure_mask_layers_schema(conn: sqlite3.Connection) -> None:
-    """Add new columns to Mask_Layers table if they are missing."""
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(Mask_Layers)")
-    existing = {row[1] for row in cursor.fetchall()}
-    migrations = {
-        "class_label": "ALTER TABLE Mask_Layers ADD COLUMN class_label TEXT",
-        "status": "ALTER TABLE Mask_Layers ADD COLUMN status TEXT",
-        "display_color": "ALTER TABLE Mask_Layers ADD COLUMN display_color TEXT",
-        "source_metadata": "ALTER TABLE Mask_Layers ADD COLUMN source_metadata TEXT",
-        "updated_at": "ALTER TABLE Mask_Layers ADD COLUMN updated_at TEXT",
-    }
-    for col, stmt in migrations.items():
-        if col not in existing:
-            cursor.execute(stmt)
-    conn.commit()
-
-
 def init_project_db(project_id: str, project_name: str) -> None:
     """Initializes a new project database with the required schema."""
     conn = get_db_connection(project_id)
@@ -161,8 +143,6 @@ def init_project_db(project_id: str, project_name: str) -> None:
     )
     """
     )
-
-    ensure_mask_layers_schema(conn)
 
     # Project_Settings Table
     cursor.execute(
