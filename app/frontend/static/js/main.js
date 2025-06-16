@@ -96,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewSkipBtn = document.getElementById('review-skip-btn');
     const reviewApproveBtn = document.getElementById('review-approve-btn');
     const reviewRejectBtn = document.getElementById('review-reject-btn');
+    const reviewPrevBtn = document.getElementById('review-prev-btn');
+    const toggleReviewModeBtn = document.getElementById('toggle-review-mode-btn');
+    const reviewModeControls = document.getElementById('review-mode-controls');
+    const imageStatusControls = document.getElementById('image-status-controls');
 
     if (openAutoMaskOverlayBtn && autoMaskOverlay) {
         openAutoMaskOverlayBtn.addEventListener('click', () => utils.showElement(autoMaskOverlay, 'flex'));
@@ -109,6 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let predictionDebounceTimer = null;
     let currentAutoMaskAbortController = null;
     let activeImageState = null; // {imageHash, filename, width, height, layers, status}
+    let reviewMode = false;
+    let reviewHistory = [];
+    let reviewHistoryIndex = -1;
+    let navigatingHistory = false;
+    let suppressStatusChangeEvents = false;
 
     function deriveStatusFromLayers() {
         if (!activeImageState) return 'unprocessed';
@@ -130,6 +139,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateStatusToggleUI('unprocessed', false);
 
+    function enterReviewMode() {
+        reviewMode = true;
+        reviewHistory = [];
+        reviewHistoryIndex = -1;
+        utils.showElement(reviewModeControls, 'flex');
+        utils.hideElement(imageStatusControls);
+        if (toggleReviewModeBtn) {
+            toggleReviewModeBtn.textContent = 'Exit Review';
+            toggleReviewModeBtn.classList.add('review-active');
+        }
+        utils.hideElement(addEmptyLayerBtn);
+        utils.hideElement(commitMasksBtn);
+        utils.hideElement(openAutoMaskOverlayBtn);
+        utils.hideElement(autoMaskBtn);
+        utils.hideElement(recoverAutoMaskBtn);
+        utils.hideElement(clearInputsBtn);
+        if (reviewPrevBtn) reviewPrevBtn.disabled = true;
+        if (imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+    }
+
+    function exitReviewMode() {
+        reviewMode = false;
+        utils.hideElement(reviewModeControls);
+        utils.showElement(imageStatusControls, 'flex');
+        if (toggleReviewModeBtn) {
+            toggleReviewModeBtn.textContent = 'Start Review';
+            toggleReviewModeBtn.classList.remove('review-active');
+        }
+        utils.showElement(addEmptyLayerBtn);
+        utils.showElement(commitMasksBtn);
+        utils.showElement(openAutoMaskOverlayBtn);
+        utils.showElement(autoMaskBtn);
+        utils.showElement(recoverAutoMaskBtn);
+        utils.showElement(clearInputsBtn);
+        reviewHistory = [];
+        reviewHistoryIndex = -1;
+    }
+
     function onImageDataChange(changeType, details = {}, skipUpdates = {}) {
         if (!activeImageState) return;
         if (!skipUpdates.cache) {
@@ -144,7 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!skipUpdates.statusToggle) {
             const s = activeImageState.status || deriveStatusFromLayers();
+            suppressStatusChangeEvents = true;
             updateStatusToggleUI(s, true);
+            suppressStatusChangeEvents = false;
         }
         if (changeType === 'status-changed' && !skipUpdates.statusEvent) {
             utils.dispatchCustomEvent('image-status-updated', {
@@ -152,10 +201,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 status: activeImageState.status
             });
         }
-        if (!skipUpdates.skipAutoStatus && changeType !== 'status-changed') {
-            if (activeImageState.status === 'ready_for_review') {
-                sendStatusUpdate('in_progress');
-            }
+        if (!skipUpdates.skipAutoStatus &&
+            ['layer-added','layer-modified','layer-deleted'].includes(changeType) &&
+            activeImageState.status === 'ready_for_review') {
+            sendStatusUpdate('in_progress');
         }
     }
 
@@ -300,6 +349,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const { imageHash, filename, width, height, imageDataBase64, existingMasks, status } = event.detail;
         uiManager.showGlobalStatus(`Loading image '${utils.escapeHTML(filename)}' for annotation...`, 'loading', 0);
 
+        if (reviewMode) {
+            if (navigatingHistory) {
+                navigatingHistory = false;
+            } else {
+                if (reviewHistoryIndex < reviewHistory.length - 1) {
+                    reviewHistory = reviewHistory.slice(0, reviewHistoryIndex + 1);
+                }
+                reviewHistory.push(imageHash);
+                reviewHistoryIndex = reviewHistory.length - 1;
+            }
+            if (reviewPrevBtn) reviewPrevBtn.disabled = reviewHistoryIndex <= 0;
+        }
+
         syncLayerCache();
         activeImageState = { imageHash, filename, width, height, layers: [], status: status || 'unprocessed' };
         if (imageLayerCache[imageHash]) {
@@ -335,12 +397,15 @@ document.addEventListener('DOMContentLoaded', () => {
             canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
             const hadState = !!canvasStateCache[imageHash];
             restoreCanvasState(imageHash);
+            layerViewController && layerViewController.setSelectedLayers([]);
             if (!hadState) {
                 if (activeImageState.layers && activeImageState.layers.length > 0) {
-                    canvasManager.setMode('edit');
+                    canvasManager.setMode('edit', []);
                 } else {
                     canvasManager.setMode('creation');
                 }
+            } else {
+                canvasManager.setMode('edit', []);
             }
             uiManager.clearGlobalStatus();
             onImageDataChange('image-loaded', { imageHash });
@@ -896,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (readySwitch) {
         readySwitch.addEventListener('change', () => {
+            if (suppressStatusChangeEvents) return;
             if (skipSwitch && skipSwitch.checked) return; // should be disabled
             const status = readySwitch.checked ? 'ready_for_review' : deriveStatusFromLayers();
             sendStatusUpdate(status);
@@ -904,6 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (skipSwitch) {
         skipSwitch.addEventListener('change', () => {
+            if (suppressStatusChangeEvents) return;
             if (skipSwitch.checked) {
                 if (readySwitch) { readySwitch.checked = false; readySwitch.disabled = true; }
                 sendStatusUpdate('skip');
@@ -916,13 +983,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (reviewApproveBtn) {
-        reviewApproveBtn.addEventListener('click', () => sendStatusUpdate('approved'));
+        reviewApproveBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('approved');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
     }
     if (reviewRejectBtn) {
-        reviewRejectBtn.addEventListener('click', () => sendStatusUpdate('rejected'));
+        reviewRejectBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('rejected');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
     }
     if (reviewSkipBtn) {
-        reviewSkipBtn.addEventListener('click', () => sendStatusUpdate('skip'));
+        reviewSkipBtn.addEventListener('click', async () => {
+            await sendStatusUpdate('skip');
+            if (reviewMode && imagePoolHandler) imagePoolHandler.loadNextImageByStatuses(['ready_for_review']);
+        });
+    }
+
+    if (reviewPrevBtn) {
+        reviewPrevBtn.addEventListener('click', async () => {
+            if (!reviewMode || reviewHistoryIndex <= 0) return;
+            reviewHistoryIndex -= 1;
+            navigatingHistory = true;
+            const prevHash = reviewHistory[reviewHistoryIndex];
+            if (imagePoolHandler) await imagePoolHandler.handleSelectImage(prevHash);
+            if (reviewPrevBtn) reviewPrevBtn.disabled = reviewHistoryIndex <= 0;
+        });
+    }
+
+    if (toggleReviewModeBtn) {
+        toggleReviewModeBtn.addEventListener('click', () => {
+            if (reviewMode) {
+                exitReviewMode();
+            } else {
+                enterReviewMode();
+            }
+        });
     }
 
     

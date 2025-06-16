@@ -281,13 +281,19 @@
                         </label>
                     </div>
                     <div id="review-mode-controls" class="review-mode-controls" style="display:none;">
+                        <button id="review-prev-btn" title="Go to previous reviewed image">Prev</button>
                         <button id="review-skip-btn">Skip</button>
                         <button id="review-approve-btn">Approve</button>
                         <button id="review-reject-btn">Reject</button>
                     </div>
                     <div class="export-controls">
-                        <button id="save-masks-btn" title="Download a PNG preview of the current canvas with overlays">Save Overlay Preview</button>
-                        <button id="export-coco-btn" title="Export selected/all project data in COCO format">Export COCO JSON</button>
+                        <button id="save-masks-btn" class="icon-btn" title="Download a PNG preview of the current canvas with overlays">
+                            <span class="icon">💾</span><span class="sr-only">Save Overlay Preview</span>
+                        </button>
+                        <button id="export-coco-btn" class="icon-btn" title="Export selected/all project data in COCO format">
+                            <span class="icon">📤</span><span class="sr-only">Export COCO JSON</span>
+                        </button>
+                        <button id="toggle-review-mode-btn">Start Review</button>
                     </div>
                 </div>
             </div>

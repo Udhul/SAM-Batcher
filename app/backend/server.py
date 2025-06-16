@@ -319,6 +319,18 @@ async def api_get_next_unprocessed(project_id: str, current_image_hash: Optional
     return {'success': True, 'message': 'No more unprocessed images'}
 
 
+@app.get('/api/project/{project_id}/images/next_by_status')
+async def api_get_next_by_status(project_id: str, statuses: str, current_image_hash: Optional[str] = None):
+    """Get the next image whose status is in the provided comma-separated list."""
+    if project_id != get_active_project_id():
+        raise HTTPException(status_code=403, detail='Operation only allowed on the active project')
+    status_list = [s.strip() for s in statuses.split(',') if s.strip()]
+    next_image_info = await run_in_threadpool(db_manager.get_next_image_by_statuses, project_id, status_list, current_image_hash)
+    if next_image_info:
+        return {'success': True, 'image_hash': next_image_info['image_hash'], 'filename': next_image_info.get('original_filename')}
+    return {'success': True, 'message': 'No matching images'}
+
+
 @app.post('/api/project/{project_id}/images/set_active')
 async def api_set_active_image(project_id: str, payload: dict):
     if project_id != get_active_project_id():

@@ -46,6 +46,7 @@ It will be updated as new sprints add functionality.
 - **Prediction Clearing**: Selecting layers or adding empty layers now clears creation inputs using `canvasManager.clearAllCanvasInputs`.
 - **Default Mode on Load**: Loading an image now enters Edit mode if layers exist and skips legacy prediction data, preventing stray red masks from appearing.
 - **Legacy Prediction Removal**: Old code paths for restoring saved prediction masks have been deleted. Existing masks always load as layers.
+- **Review Mode**: Added controls to cycle through images marked `ready_for_review` with Approve/Reject/Skip actions and a history-aware **Prev** button.
 
 ## Partially Implemented / In Progress
 - **Active Image State**: `main.js` keeps a basic `activeImageState` with loaded
@@ -56,7 +57,6 @@ It will be updated as new sprints add functionality.
   `display_color`, or `source_metadata` columns.
 - **Edit Mode Tools**: Selecting a layer only displays its mask; brush/eraser,
   lasso, and other edit tools have not been implemented.
-- **Review Mode Interface**: No dedicated review workflow exists yet.
 
 ## Planned Tasks (Priority Order)
 1. **Database and API Refactor**
