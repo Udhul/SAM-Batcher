@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Ensure Utils is available (it's an object with static methods)
   const utils = window.Utils; // Assuming utils.js defines a global Utils
 
-  const apiClient = new APIClient();
+  const apiClient = window.apiClient || new APIClient();
   const stateManager = new StateManager();
   const uiManager = new UIManager();
   const canvasManager = new CanvasManager();

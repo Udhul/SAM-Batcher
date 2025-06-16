@@ -406,6 +406,9 @@ class APIClient {
 // Expose the class for direct access in case other modules load before main.js
 if (typeof window !== "undefined") {
   window.APIClient = APIClient;
+  if (!window.apiClient) {
+    window.apiClient = new APIClient();
+  }
 }
 
 // Instantiate when DOM is ready and make it globally accessible
