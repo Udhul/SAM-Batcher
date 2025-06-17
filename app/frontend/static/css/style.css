@@ -81,11 +81,11 @@ header p {
 .config-section,
 .image-section,
 .auto-mask-section,
-  overflow: hidden; /* prevent children from expanding parent */
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
+.image-pool-section{
+  background: white;
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .image-pool-section {
@@ -1061,7 +1061,6 @@ input[type="file"]#image-upload {
 }
 .review-mode-controls #review-approve-btn {
   background-color: #28a745;
-  height: 100%;
   color: #fff;
 }
 .review-mode-controls #review-reject-btn {
