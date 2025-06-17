@@ -129,13 +129,23 @@ class ExportDialog {
     const projectId = this.stateManager.getActiveProjectId();
     if (!projectId) return;
     try {
+      const filters = this.gatherFilters();
       const stats = await this.apiClient.getExportStats(projectId, {
-        filters: this.gatherFilters(),
+        filters,
       });
       this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
-      if (stats.label_counts) {
-        const labels = Object.keys(stats.label_counts);
+
+      // Fetch label suggestions using only image filters
+      const baseFilters = { ...filters, class_labels: [] };
+      const labelStats = await this.apiClient.getExportStats(projectId, {
+        filters: baseFilters,
+      });
+      if (labelStats.label_counts) {
+        const labels = Object.keys(labelStats.label_counts).sort();
         this.maskTagify.settings.whitelist = ["All Layers", "Visible Layers", ...labels];
+        if (this.maskTagify.dropdown) {
+          this.maskTagify.dropdown.refilter();
+        }
       }
     } catch (e) {
       this.statsBox.textContent = "Stats unavailable";

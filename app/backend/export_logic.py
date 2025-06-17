@@ -44,11 +44,17 @@ def _convert_rle_to_bbox_and_area(rle: Dict) -> Tuple[List[int], int]:
     """Converts a COCO RLE object to a bounding box and area using pycocotools."""
     from pycocotools import mask as mask_utils
 
-    if not rle or 'counts' not in rle or 'size' not in rle:
+    if not rle or "counts" not in rle or "size" not in rle:
         return [0, 0, 0, 0], 0
 
-    if isinstance(rle['counts'], str):
-        rle = {'size': rle['size'], 'counts': rle['counts'].encode('utf-8')}
+    # Handle different representations for the RLE counts
+    if isinstance(rle["counts"], list):
+        # Uncompressed RLE list -> compress using pycocotools
+        height, width = rle["size"]
+        rle = mask_utils.frPyObjects(rle, height, width)
+    elif isinstance(rle["counts"], str):
+        # Stored as UTF-8 string
+        rle = {"size": rle["size"], "counts": rle["counts"].encode("utf-8")}
 
     bbox = mask_utils.toBbox(rle).tolist()
     area = mask_utils.area(rle).item()
@@ -101,14 +107,17 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
         )
     if class_labels:
         all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
+
     label_counts: Dict[str, int] = {}
     for layer in all_layers:
         label = layer.get("class_label")
         if not label:
             continue
         label_counts[label] = label_counts.get(label, 0) + 1
+
+    filtered_hashes = {layer["image_hash_ref"] for layer in all_layers}
     return {
-        "num_images": len(set(image_hashes)),
+        "num_images": len(filtered_hashes),
         "num_layers": len(all_layers),
         "label_counts": label_counts,
     }
@@ -144,23 +153,37 @@ def prepare_export_data(
 
         if layer_ids:
             all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
-            image_hashes.extend([l["image_hash_ref"] for l in all_layers if l["image_hash_ref"] not in image_hashes])
+            image_hashes.extend(
+                [
+                    l["image_hash_ref"]
+                    for l in all_layers
+                    if l["image_hash_ref"] not in image_hashes
+                ]
+            )
         else:
             if image_statuses:
                 image_hashes.extend(
                     [
                         h
-                        for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                        for h in db_manager.get_image_hashes_by_statuses(
+                            project_id, image_statuses
+                        )
                         if h not in image_hashes
                     ]
                 )
-            all_layers = db_manager.get_layers_by_image_and_statuses(project_id, image_hashes, layer_statuses)
+            all_layers = db_manager.get_layers_by_image_and_statuses(
+                project_id, image_hashes, layer_statuses
+            )
 
         if not image_hashes:
             return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
 
         if class_labels:
             all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
+
+        image_hashes = sorted({layer["image_hash_ref"] for layer in all_layers})
+        if not image_hashes:
+            return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
 
         unique_labels = sorted({layer.get("class_label") for layer in all_layers if layer.get("class_label")})
         category_map: Dict[Optional[str], int] = {}
