@@ -173,6 +173,51 @@
                     </div>
                 </div>
 
+                <div id="export-overlay" class="modal-overlay" style="display:none;">
+                    <div class="modal-content export-modal">
+                        <button id="close-export-overlay" class="modal-close">&times;</button>
+                        <h3>Export Annotations</h3>
+                        <div class="export-dialog-section">
+                            <label><input type="checkbox" id="export-current-image-cb"> Current Image Only</label>
+                        </div>
+                        <div class="export-dialog-section">
+                            <label><input type="checkbox" id="export-by-status-cb" checked> All Images by Status</label>
+                            <div id="export-status-options">
+                                <label><input type="checkbox" class="export-status-checkbox" value="unprocessed"> Unprocessed</label>
+                                <label><input type="checkbox" class="export-status-checkbox" value="in_progress"> In Progress</label>
+                                <label><input type="checkbox" class="export-status-checkbox" value="ready_for_review"> Ready</label>
+                                <label><input type="checkbox" class="export-status-checkbox" value="approved" checked> Approved</label>
+                                <label><input type="checkbox" class="export-status-checkbox" value="rejected"> Rejected</label>
+                                <label><input type="checkbox" class="export-status-checkbox" value="skip"> Skip</label>
+                            </div>
+                        </div>
+                        <div class="export-dialog-section">
+                            <label><input type="radio" name="export-mask-scope" value="visible" checked> Only visible layers</label>
+                            <label><input type="radio" name="export-mask-scope" value="all"> All layers</label>
+                            <label><input type="radio" name="export-mask-scope" value="labels"> By label</label>
+                            <div id="export-label-options" style="display:none;">
+                                <div id="export-labels-container"></div>
+                            </div>
+                        </div>
+                        <div class="export-dialog-section">
+                            <label for="export-format-select">Format:</label>
+                            <select id="export-format-select">
+                                <option value="coco_rle_json">COCO Instance Segmentation</option>
+                                <option value="project_db_json">Project DB JSON</option>
+                            </select>
+                        </div>
+                        <div class="export-dialog-section">
+                            <label for="export-destination-select">Destination:</label>
+                            <select id="export-destination-select">
+                                <option value="client">Client Download</option>
+                                <option value="server">Server File</option>
+                            </select>
+                        </div>
+                        <div id="export-stats-box" class="export-dialog-section">Images: 0, Layers: 0</div>
+                        <button id="perform-export-btn">Export!</button>
+                    </div>
+                </div>
+
                 <div id="image-pool-section" class="image-pool-section">
                     <div class="image-pool-controls" style="display:none;"> <!-- Hide for now -->
                         <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
@@ -313,6 +358,7 @@
     <script src="{{ url_for('static', path='js/projectHandler.js') }}"></script> <!-- Project management UI -->
     <script src="{{ url_for('static', path='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
     <script src="{{ url_for('static', path='js/layerViewController.js') }}"></script> <!-- Layer view management -->
+    <script src="{{ url_for('static', path='js/exportDialog.js') }}"></script>
     <script src="{{ url_for('static', path='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>

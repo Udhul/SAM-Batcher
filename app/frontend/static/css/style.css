@@ -1333,6 +1333,20 @@ input[type="file"]#image-upload {
   max-width: 520px;
 }
 
+.export-modal {
+  width: 40%;
+  max-width: 520px;
+}
+
+.export-dialog-section {
+  margin-bottom: 10px;
+}
+
+#export-stats-box {
+  font-size: 14px;
+  margin-top: 5px;
+}
+
 .source-inputs-row {
   display: flex;
   gap: 10px;

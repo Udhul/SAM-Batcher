@@ -54,8 +54,73 @@ def _convert_rle_to_bbox_and_area(rle: Dict) -> Tuple[List[int], int]:
     area = mask_utils.area(rle).item()
     return bbox, area
 
-def prepare_export_data(project_id: str, filters: Dict[str, List[str]],
-                        export_format: str, export_schema: str) -> Optional[BytesIO]:
+
+def _export_db_as_json(project_id: str) -> BytesIO:
+    """Return a JSON dump of the entire project database."""
+    tables = [
+        "Project_Info",
+        "Image_Sources",
+        "Source_Image_Exemptions",
+        "Images",
+        "Mask_Layers",
+        "Project_Settings",
+    ]
+    conn = db_manager.get_db_connection(project_id)
+    cursor = conn.cursor()
+    db_json: Dict[str, List[Dict[str, Any]]] = {}
+    for table in tables:
+        cursor.execute(f"SELECT * FROM {table}")
+        rows = [dict(row) for row in cursor.fetchall()]
+        db_json[table] = rows
+    conn.close()
+    return BytesIO(json.dumps(db_json, indent=2).encode("utf-8"))
+
+
+def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Dict[str, Any]:
+    """Calculate statistics for the given export filters."""
+    image_statuses = filters.get("image_statuses", []) if filters else []
+    layer_statuses = filters.get("layer_statuses", []) if filters else []
+    image_hashes = filters.get("image_hashes", []) if filters else []
+    if image_statuses:
+        image_hashes.extend(
+            [
+                h
+                for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                if h not in image_hashes
+            ]
+        )
+    all_layers = db_manager.get_layers_by_image_and_statuses(
+        project_id, image_hashes, layer_statuses
+    )
+    label_counts: Dict[str, int] = {}
+    for layer in all_layers:
+        label = layer.get("class_label")
+        if not label:
+            continue
+        label_counts[label] = label_counts.get(label, 0) + 1
+    return {
+        "num_images": len(set(image_hashes)),
+        "num_layers": len(all_layers),
+        "label_counts": label_counts,
+    }
+
+
+def save_export_to_server(project_id: str, file_like: BytesIO, filename: str) -> str:
+    """Save export data to an exports directory on the server and return the path."""
+    export_dir = os.path.join(config.PROJECTS_DATA_DIR, project_id, "exports")
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    path = os.path.join(export_dir, f"{timestamp}_{filename}")
+    with open(path, "wb") as f:
+        f.write(file_like.getvalue())
+    return path
+
+def prepare_export_data(
+    project_id: str,
+    filters: Dict[str, List[str]],
+    export_format: str,
+    export_schema: str,
+) -> Tuple[Optional[BytesIO], str]:
 
     project_info_db = db_manager.get_project_info(project_id)
 
@@ -64,10 +129,18 @@ def prepare_export_data(project_id: str, filters: Dict[str, List[str]],
 
         image_statuses = filters.get("image_statuses", []) if filters else []
         layer_statuses = filters.get("layer_statuses", []) if filters else []
+        image_hashes = filters.get("image_hashes", []) if filters else []
+        if image_statuses:
+            image_hashes.extend(
+                [
+                    h
+                    for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                    if h not in image_hashes
+                ]
+            )
 
-        image_hashes = db_manager.get_image_hashes_by_statuses(project_id, image_statuses) if image_statuses else []
         if not image_hashes:
-            return BytesIO(json.dumps(coco_output).encode("utf-8"))
+            return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
 
         all_layers = db_manager.get_layers_by_image_and_statuses(project_id, image_hashes, layer_statuses)
 
@@ -110,8 +183,12 @@ def prepare_export_data(project_id: str, filters: Dict[str, List[str]],
             })
             annotation_id += 1
 
-        return BytesIO(json.dumps(coco_output, indent=2).encode("utf-8"))
+        return BytesIO(json.dumps(coco_output, indent=2).encode("utf-8")), f"{project_id}_coco.json"
 
+    elif export_format == "project_db_json":
+        return _export_db_as_json(project_id), f"{project_id}_db.json"
     else:
-        print(f"Unsupported export format '{export_format}' or schema '{export_schema}'.")
-        return None
+        print(
+            f"Unsupported export format '{export_format}' or schema '{export_schema}'."
+        )
+        return None, ""

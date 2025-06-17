@@ -720,6 +720,18 @@ def count_mask_layers_for_image(project_id: str, image_hash: str) -> int:
     return count
 
 
+def get_all_class_labels(project_id: str) -> List[str]:
+    """Return a list of distinct class labels used in the project."""
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT DISTINCT class_label FROM Mask_Layers WHERE class_label IS NOT NULL"
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["class_label"] for row in rows]
+
+
 def delete_mask_layer(project_id: str, layer_id: str) -> None:
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
