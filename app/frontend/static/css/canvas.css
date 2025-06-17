@@ -3,16 +3,16 @@
 
 /* Canvas Toolbar (specific to canvas interactions) */
 .canvas-toolbar {
-    display: grid;
-    grid-template-columns: 10% 45% 40% 1% 1%; /* Make room for gap */
-    gap: 10px;
-    padding: 10px 15px;
-    background-color: #f8f9fa;
-    border-radius: 6px;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  display: grid;
+  grid-template-columns: 10% 45% 40% 1% 1%; /* Make room for gap */
+  gap: 10px;
+  padding: 10px 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .toolbar-col,
@@ -21,271 +21,277 @@
 .toolbar-col-3,
 .toolbar-col-4,
 .toolbar-col-5 {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .left-controls {
-    flex-direction: column;
-    align-items: stretch;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-
-
 .mask-toggle-container {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .mask-toggle-container label {
-    font-size: 12px;
-    color: #495057;
-    display: flex;
-    align-items: center;
-    gap: 3px;
+  font-size: 12px;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
-
 
 /* Opacity Controls within Canvas Toolbar */
 .opacity-controls {
-    display: flex;
-    gap: 15px; /* Spacing between individual opacity controls */
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  gap: 15px; /* Spacing between individual opacity controls */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
 }
 
 .opacity-control {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .opacity-control label {
-    font-size: 12px; /* Smaller label */
-    font-weight: 500;
-    white-space: nowrap;
-    color: #495057;
+  font-size: 12px; /* Smaller label */
+  font-weight: 500;
+  white-space: nowrap;
+  color: #495057;
 }
-.opacity-control .opacity-value-display { /* For text like "100%" */
-    font-size: 11px;
-    color: #6c757d;
-    min-width: 25px; /* Ensure space for text */
-    text-align: center;
+.opacity-control .opacity-value-display {
+  /* For text like "100%" */
+  font-size: 11px;
+  color: #6c757d;
+  min-width: 25px; /* Ensure space for text */
+  text-align: center;
 }
 
 .opacity-control input[type="range"] {
-    width: 80px; /* Smaller sliders */
-    height: 5px; /* Thinner track */
-    background: #ddd;
-    border-radius: 3px;
-    outline: none;
-    cursor: pointer;
-    -webkit-appearance: none; /* Override default Safari/Chrome styles */
-    appearance: none;
+  width: 80px; /* Smaller sliders */
+  height: 5px; /* Thinner track */
+  background: #ddd;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none; /* Override default Safari/Chrome styles */
+  appearance: none;
 }
 
 /* Webkit (Chrome, Safari) */
 .opacity-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px; /* Smaller thumb */
-    height: 14px;
-    background: #007bff;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    margin-top: -4.5px; /* Adjust thumb position to center on track */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; /* Smaller thumb */
+  height: 14px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: -4.5px; /* Adjust thumb position to center on track */
 }
 .opacity-control input[type="range"]::-webkit-slider-thumb:hover {
-    background: #0056b3;
+  background: #0056b3;
 }
 
 /* Mozilla (Firefox) */
 .opacity-control input[type="range"]::-moz-range-track {
-    width: 100%;
-    height: 5px;
-    background: #ddd;
-    border-radius: 3px;
-    border: none;
+  width: 100%;
+  height: 5px;
+  background: #ddd;
+  border-radius: 3px;
+  border: none;
 }
 .opacity-control input[type="range"]::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: #007bff;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s;
+  width: 14px;
+  height: 14px;
+  background: #007bff;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 .opacity-control input[type="range"]::-moz-range-thumb:hover {
-    background: #0056b3;
+  background: #0056b3;
 }
 
 /* MS (Edge, IE) */
 .opacity-control input[type="range"]::-ms-track {
-    width: 100%;
-    height: 5px;
-    background: transparent; /* IE track needs to be transparent */
-    border-color: transparent;
-    color: transparent;
-    cursor: pointer;
+  width: 100%;
+  height: 5px;
+  background: transparent; /* IE track needs to be transparent */
+  border-color: transparent;
+  color: transparent;
+  cursor: pointer;
 }
 .opacity-control input[type="range"]::-ms-fill-lower {
-    background: #007bff; /* Color of the track before thumb */
-    border-radius: 3px;
+  background: #007bff; /* Color of the track before thumb */
+  border-radius: 3px;
 }
 .opacity-control input[type="range"]::-ms-fill-upper {
-    background: #ddd; /* Color of the track after thumb */
-    border-radius: 3px;
+  background: #ddd; /* Color of the track after thumb */
+  border-radius: 3px;
 }
 .opacity-control input[type="range"]::-ms-thumb {
-    width: 14px;
-    height: 14px;
-    background: #007bff;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    margin-top: 0px; /* Adjust if needed */
-    transition: background-color 0.2s;
+  width: 14px;
+  height: 14px;
+  background: #007bff;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  margin-top: 0px; /* Adjust if needed */
+  transition: background-color 0.2s;
 }
 .opacity-control input[type="range"]::-ms-thumb:hover {
-    background: #0056b3;
+  background: #0056b3;
 }
 
-
 /* Image Display Area & Canvas Container */
-.image-display-area { /* This is the direct parent of .canvas-container */
-    display: flex;
-    flex-direction: column; /* Stack toolbar and canvas container */
-    gap: 1px; /* Space between toolbar and canvas container */
-    flex-grow: 1; /* Allow it to take available vertical space */
-    min-height: 0; /* Important for flex item to shrink properly if content overflows */
+.image-display-area {
+  /* This is the direct parent of .canvas-container */
+  display: flex;
+  flex-direction: column; /* Stack toolbar and canvas container */
+  gap: 1px; /* Space between toolbar and canvas container */
+  flex-grow: 1; /* Allow it to take available vertical space */
+  min-height: 0; /* Important for flex item to shrink properly if content overflows */
 }
 
 .canvas-container {
-    position: relative; /* For absolute positioning of canvases and overlay */
-    display: flex; /* For centering canvases if they are smaller than container */
-    justify-content: center;
-    align-items: center;
-    min-height: 70vh; /* Ensure the canvas area has height before JS sizing */
-    /* max-height: calc(100vh - 250px); /* Example: viewport height minus header/toolbar/footer */
-    flex-grow: 1; /* Allow canvas container to fill available space in image-display-area */
-    background-color: #e9ecef; /* Slightly darker background for canvas area */
-    border: 1px solid #dee2e6; /* Softer border */
-    border-radius: 6px;
-    overflow: hidden; /* Ensure canvases don't overflow rounded corners */
-    width: 100%; /* Take full width of its parent */
+  position: relative; /* For absolute positioning of canvases and overlay */
+  display: flex; /* For centering canvases if they are smaller than container */
+  justify-content: center;
+  align-items: center;
+  flex: 1 1 auto; /* Allow canvas container to fill remaining space */
+  min-height: 0; /* Prevent exceeding parent height */
+  background-color: #e9ecef; /* Slightly darker background for canvas area */
+  border: 1px solid #dee2e6; /* Softer border */
+  border-radius: 6px;
+  overflow: hidden; /* Ensure canvases don't overflow rounded corners */
+  width: 100%; /* Take full width of its parent */
 }
 
 /* Individual Canvases */
 .canvas-container canvas {
-    position: absolute;
-    /* top: 50%; /* Centering handled by flex on parent */
-    /* left: 50%; */
-    /* transform: translate(-50%, -50%); */
-    border-radius: 3px; /* Slight rounding on canvas edges */
-    /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Softer shadow */
-    /* Canvases will be sized by JS, these are fallbacks or if JS fails */
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain; /* Ensure image within canvas respects aspect ratio if canvas is forced to a size */
+  position: absolute;
+  /* top: 50%; /* Centering handled by flex on parent */
+  /* left: 50%; */
+  /* transform: translate(-50%, -50%); */
+  border-radius: 3px; /* Slight rounding on canvas edges */
+  /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Softer shadow */
+  /* Canvases will be sized by JS, these are fallbacks or if JS fails */
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* Ensure image within canvas respects aspect ratio if canvas is forced to a size */
 }
 
-#image-canvas { z-index: 1; border-radius: 0px;}
-#prediction-mask-canvas { z-index: 2; }
+#image-canvas {
+  z-index: 1;
+  border-radius: 0px;
+}
+#prediction-mask-canvas {
+  z-index: 2;
+}
 #user-input-canvas {
-    z-index: 3;
-    cursor: crosshair; /* Default cursor for drawing */
+  z-index: 3;
+  cursor: crosshair; /* Default cursor for drawing */
 }
 
 /* Canvas Lock Overlay */
 #canvas-lock {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.65);
-    display: none; /* Hidden by default, shown by JS */
-    justify-content: center;
-    align-items: center;
-    z-index: 1000; /* Ensure it's on top of all canvases */
-    border-radius: 6px; /* Match parent container */
-    color: white;
-    text-align: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  display: none; /* Hidden by default, shown by JS */
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Ensure it's on top of all canvases */
+  border-radius: 6px; /* Match parent container */
+  color: white;
+  text-align: center;
 }
 
 .canvas-lock-content {
-    text-align: center;
-    color: white;
+  text-align: center;
+  color: white;
 }
 
 .canvas-lock-message {
-    margin-top: 15px;
-    font-size: 1.1em;
-    font-weight: 500;
+  margin-top: 15px;
+  font-size: 1.1em;
+  font-weight: 500;
 }
 
-.spinner { /* Spinner within the lock overlay */
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(255, 255, 255, 0.25); /* Lighter border */
-    border-top-color: white; /* Spinner color */
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite; /* Faster spin */
-    margin: 0 auto 10px auto; /* Center spinner and space from message */
+.spinner {
+  /* Spinner within the lock overlay */
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.25); /* Lighter border */
+  border-top-color: white; /* Spinner color */
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite; /* Faster spin */
+  margin: 0 auto 10px auto; /* Center spinner and space from message */
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
-
 
 /* Responsive adjustments for canvas toolbar */
 @media (max-width: 768px) {
-    .canvas-toolbar {
-        grid-template-columns: 1fr;
-    }
-    .toolbar-col,
-    .toolbar-col-1,
-    .toolbar-col-2,
-    .toolbar-col-3,
-    .toolbar-col-4,
-    .toolbar-col-5 {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .opacity-controls {
-        justify-content: space-between;
-        width: 100%;
-    }
-    .opacity-control {
-        flex-grow: 1;
-        min-width: 120px;
-    }
-    .opacity-control input[type="range"] {
-        width: 100%;
-    }
-    .canvas-container {
-        min-height: 300px; /* Adjust min-height for smaller screens */
-    }
+  .canvas-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .toolbar-col,
+  .toolbar-col-1,
+  .toolbar-col-2,
+  .toolbar-col-3,
+  .toolbar-col-4,
+  .toolbar-col-5 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .opacity-controls {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .opacity-control {
+    flex-grow: 1;
+    min-width: 120px;
+  }
+  .opacity-control input[type="range"] {
+    width: 100%;
+  }
+  .canvas-container {
+    min-height: 300px; /* Adjust min-height for smaller screens */
+  }
 }
 
 @media (max-width: 480px) {
-    .opacity-controls {
-        flex-direction: column; /* Stack opacity controls vertically */
-        gap: 10px;
-        align-items: stretch;
-    }
-    .opacity-control {
-        min-width: none; /* Reset min-width */
-    }
+  .opacity-controls {
+    flex-direction: column; /* Stack opacity controls vertically */
+    gap: 10px;
+    align-items: stretch;
+  }
+  .opacity-control {
+    min-width: none; /* Reset min-width */
+  }
 }
