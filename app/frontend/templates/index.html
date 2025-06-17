@@ -7,6 +7,7 @@
     <title>SAM2 Interactive Segmenter</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='css/canvas.css') }}">
+    <link href="{{ url_for('static', path='vendor/tagify/tagify.css') }}" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/x-icon" href="{{ url_for('assets', path='favicon.ico') }}">
 </head>
 <body>
@@ -178,25 +179,18 @@
                         <button id="close-export-overlay" class="modal-close">&times;</button>
                         <h3>Export Annotations</h3>
                         <div class="export-dialog-section">
-                            <label><input type="checkbox" id="export-current-image-cb"> Current Image Only</label>
+                            <label><input type="radio" name="export-image-scope" value="current" id="export-current-radio"> Current Image Only</label>
+                            <label><input type="radio" name="export-image-scope" value="all" id="export-all-radio" checked> All Images</label>
                         </div>
                         <div class="export-dialog-section">
-                            <label><input type="checkbox" id="export-by-status-cb" checked> All Images by Status</label>
-                            <div id="export-status-options">
-                                <label><input type="checkbox" class="export-status-checkbox" value="unprocessed"> Unprocessed</label>
-                                <label><input type="checkbox" class="export-status-checkbox" value="in_progress"> In Progress</label>
-                                <label><input type="checkbox" class="export-status-checkbox" value="ready_for_review"> Ready</label>
-                                <label><input type="checkbox" class="export-status-checkbox" value="approved" checked> Approved</label>
-                                <label><input type="checkbox" class="export-status-checkbox" value="rejected"> Rejected</label>
-                                <label><input type="checkbox" class="export-status-checkbox" value="skip"> Skip</label>
-                            </div>
+                            <input name="export-status-input" id="export-status-input" placeholder="Image status filter">
                         </div>
                         <div class="export-dialog-section">
                             <label><input type="radio" name="export-mask-scope" value="visible" checked> Only visible layers</label>
                             <label><input type="radio" name="export-mask-scope" value="all"> All layers</label>
                             <label><input type="radio" name="export-mask-scope" value="labels"> By label</label>
                             <div id="export-label-options" style="display:none;">
-                                <div id="export-labels-container"></div>
+                                <input name="export-label-input" id="export-label-input" placeholder="Select labels">
                             </div>
                         </div>
                         <div class="export-dialog-section">
@@ -350,6 +344,8 @@
 
     <!-- Ordered JavaScript Modules import -->
     <script src="{{ url_for('static', path='js/utils.js') }}"></script> <!-- General frontend utilities -->
+    <script src="{{ url_for('static', path='vendor/tagify/tagify.polyfills.min.js') }}"></script>
+    <script src="{{ url_for('static', path='vendor/tagify/tagify.js') }}"></script>
     <script src="{{ url_for('static', path='js/apiClient.js') }}"></script> <!-- API communication -->
     <script src="{{ url_for('static', path='js/stateManager.js') }}"></script> <!-- Global frontend state -->
     <script src="{{ url_for('static', path='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->

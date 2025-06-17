@@ -80,6 +80,7 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
     """Calculate statistics for the given export filters."""
     image_statuses = filters.get("image_statuses", []) if filters else []
     layer_statuses = filters.get("layer_statuses", []) if filters else []
+    class_labels = filters.get("class_labels", []) if filters else []
     image_hashes = filters.get("image_hashes", []) if filters else []
     if image_statuses:
         image_hashes.extend(
@@ -92,6 +93,8 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
     all_layers = db_manager.get_layers_by_image_and_statuses(
         project_id, image_hashes, layer_statuses
     )
+    if class_labels:
+        all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
     label_counts: Dict[str, int] = {}
     for layer in all_layers:
         label = layer.get("class_label")
@@ -129,6 +132,7 @@ def prepare_export_data(
 
         image_statuses = filters.get("image_statuses", []) if filters else []
         layer_statuses = filters.get("layer_statuses", []) if filters else []
+        class_labels = filters.get("class_labels", []) if filters else []
         image_hashes = filters.get("image_hashes", []) if filters else []
         if image_statuses:
             image_hashes.extend(
@@ -143,6 +147,8 @@ def prepare_export_data(
             return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
 
         all_layers = db_manager.get_layers_by_image_and_statuses(project_id, image_hashes, layer_statuses)
+        if class_labels:
+            all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
 
         unique_labels = sorted({layer.get("class_label") for layer in all_layers if layer.get("class_label")})
         category_map = {label: idx + 1 for idx, label in enumerate(unique_labels)}
