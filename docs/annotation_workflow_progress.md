@@ -58,19 +58,19 @@ It will be updated as new sprints add functionality.
 
 ## Planned Tasks (Priority Order)
 
-1. **Database and API Refactor**
-   - Migrate the `Images` and `Mask_Layers` tables to the new schema with image
+1. ~~**Database and API Refactor**~~
+   - ~~Migrate the `Images` and `Mask_Layers` tables to the new schema with image
      statuses (`unprocessed`, `in_progress`, `ready_for_review`, `approved`,
      `rejected`, `skip`) and per-layer fields (`class_label`, `status`,
-     `display_color`, `source_metadata`, `updated_at`).
-   - Adjust CRUD helpers and update existing endpoints to read/write the new
-     schema.
-   - Introduce `/api/project/<id>/image/<hash>/state` `GET`/`PUT` endpoints for
-     full `ActiveImageState` synchronization.
-2. **Frontend State Management**
-   - Implement the full `ActiveImageState` object with `creation` and `edit`
-     subobjects and automatic saving/loading through the new API endpoints.
-   - Update `layerViewController` and `canvasController` to operate on this state.
+     `display_color`, `source_metadata`, `updated_at`).~~
+   - ~~Adjust CRUD helpers and update existing endpoints to read/write the new
+     schema.~~
+   - ~~Introduce `/api/project/<id>/image/<hash>/state` `GET`/`PUT` endpoints for
+     full `ActiveImageState` synchronization.~~
+2. ~~**Frontend State Management**~~
+   - ~~Implement the full `ActiveImageState` object with `creation` and `edit`
+     subobjects and automatic saving/loading through the new API endpoints.~~
+   - ~~Update `layerViewController` and `canvasController` to operate on this state.~~
 3. **Edit Mode Implementation**
    - Add an `editModeController` with brush/eraser, lasso, and action buttons
      (grow, shrink, smooth, invert, undo/redo, save, cancel).
