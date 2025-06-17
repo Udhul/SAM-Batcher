@@ -55,7 +55,7 @@ header p {
 .main-layout {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 5px;
   width: 100%;
 }
 
@@ -81,11 +81,18 @@ header p {
 .config-section,
 .image-section,
 .auto-mask-section,
-.image-pool-section {
+.image-pool-section{
   background: white;
   padding: 8px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.image-pool-section {
+  height: 26vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .image-section {
@@ -93,7 +100,7 @@ header p {
   grid-template-columns: 75% 1fr;
   gap: 5px;
   align-items: stretch;
-  height: 65vh;
+  height: 75vh;
   min-height: 0; /* allow flex parents to control height */
 }
 .image-display-area {
@@ -572,7 +579,7 @@ ul.image-sources-list li span {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 5px;
   flex-wrap: wrap;
 }
 .image-pool-controls button,
@@ -617,14 +624,15 @@ ul.image-sources-list li span {
 #image-gallery-container {
   display: flex;
   gap: 10px;
-  padding: 10px;
+  padding: 5px;
   background-color: #f8f9fa;
   border: 1px solid #e9ecef;
   border-radius: 4px;
-  min-height: 100px;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
+  flex: 1;
+  min-height: 0;
 }
 #image-gallery-container p em {
   color: #6c757d;
@@ -637,7 +645,7 @@ ul.image-sources-list li span {
   background-color: #fff;
   border: 1px solid #ddd;
   border-radius: 4px;
-  padding: 8px;
+  padding: 5px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -647,6 +655,7 @@ ul.image-sources-list li span {
   justify-content: space-between;
   flex: 0 0 auto;
   width: 120px;
+  height: 100%;
   scroll-snap-align: center;
 }
 .image-card:hover {
@@ -660,26 +669,30 @@ ul.image-sources-list li span {
 }
 .image-card img {
   width: 100%;
-  height: 80px; /* Fixed height for thumbnail */
-  object-fit: cover; /* Crop to fit */
+  flex: 1;
+  min-height: 0;
+  object-fit: scale-down;
   border-radius: 3px;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
 }
 .image-card-name {
-  font-size: 12px;
+  font-size: 11px;
   color: #333;
-  word-break: break-all; /* Break long filenames */
-  line-height: 1.2;
+  line-height: 1.2em;
   margin-bottom: 4px;
-  flex-grow: 1; /* Allow name to take space */
+  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .image-status-badge {
   display: inline-block;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 8px;
   color: white;
   text-transform: capitalize;
+  flex-shrink: 0;
 }
 .image-status-badge.unprocessed {
   background-color: #6c757d;
