@@ -705,9 +705,12 @@ async def api_export_data(project_id: str, payload: dict):
     )
     if not file_like_object:
         raise HTTPException(status_code=500, detail="Failed to generate export data")
-    filename = f"export.dat"
-    return FileResponse(
-        file_like_object, media_type="application/octet-stream", filename=filename
+    file_like_object.seek(0)
+    filename = "export.dat"
+    return StreamingResponse(
+        file_like_object,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
