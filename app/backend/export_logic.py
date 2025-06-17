@@ -82,17 +82,23 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
     layer_statuses = filters.get("layer_statuses", []) if filters else []
     class_labels = filters.get("class_labels", []) if filters else []
     image_hashes = filters.get("image_hashes", []) if filters else []
-    if image_statuses:
-        image_hashes.extend(
-            [
-                h
-                for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
-                if h not in image_hashes
-            ]
+    layer_ids = filters.get("layer_ids", []) if filters else []
+
+    if layer_ids:
+        all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
+        image_hashes.extend([l["image_hash_ref"] for l in all_layers if l["image_hash_ref"] not in image_hashes])
+    else:
+        if image_statuses:
+            image_hashes.extend(
+                [
+                    h
+                    for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                    if h not in image_hashes
+                ]
+            )
+        all_layers = db_manager.get_layers_by_image_and_statuses(
+            project_id, image_hashes, layer_statuses
         )
-    all_layers = db_manager.get_layers_by_image_and_statuses(
-        project_id, image_hashes, layer_statuses
-    )
     if class_labels:
         all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
     label_counts: Dict[str, int] = {}
@@ -134,27 +140,42 @@ def prepare_export_data(
         layer_statuses = filters.get("layer_statuses", []) if filters else []
         class_labels = filters.get("class_labels", []) if filters else []
         image_hashes = filters.get("image_hashes", []) if filters else []
-        if image_statuses:
-            image_hashes.extend(
-                [
-                    h
-                    for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
-                    if h not in image_hashes
-                ]
-            )
+        layer_ids = filters.get("layer_ids", []) if filters else []
+
+        if layer_ids:
+            all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
+            image_hashes.extend([l["image_hash_ref"] for l in all_layers if l["image_hash_ref"] not in image_hashes])
+        else:
+            if image_statuses:
+                image_hashes.extend(
+                    [
+                        h
+                        for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                        if h not in image_hashes
+                    ]
+                )
+            all_layers = db_manager.get_layers_by_image_and_statuses(project_id, image_hashes, layer_statuses)
 
         if not image_hashes:
             return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
 
-        all_layers = db_manager.get_layers_by_image_and_statuses(project_id, image_hashes, layer_statuses)
         if class_labels:
             all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
 
         unique_labels = sorted({layer.get("class_label") for layer in all_layers if layer.get("class_label")})
-        category_map = {label: idx + 1 for idx, label in enumerate(unique_labels)}
-        coco_output["categories"] = [
-            {"id": cid, "name": label, "supercategory": label.split("_")[0]} for label, cid in category_map.items()
-        ]
+        category_map: Dict[Optional[str], int] = {}
+        categories: List[Dict[str, Any]] = []
+        if unique_labels:
+            for idx, label in enumerate(unique_labels):
+                category_map[label] = idx + 1
+                categories.append({"id": idx + 1, "name": label, "supercategory": label.split("_")[0]})
+            default_cat_id = len(unique_labels) + 1
+            categories.append({"id": default_cat_id, "name": "unlabeled", "supercategory": "none"})
+            category_map[None] = default_cat_id
+        else:
+            categories.append({"id": 1, "name": "unlabeled", "supercategory": "none"})
+            category_map[None] = 1
+        coco_output["categories"] = categories
 
         image_id_map = {}
         for idx, img_hash in enumerate(image_hashes):
@@ -171,10 +192,11 @@ def prepare_export_data(
             image_id_map[img_hash] = idx + 1
 
         annotation_id = 1
+        default_cat = category_map.get(None)
         for layer in all_layers:
             img_id = image_id_map.get(layer["image_hash_ref"])
-            category_id = category_map.get(layer.get("class_label"))
-            if not img_id or not category_id:
+            category_id = category_map.get(layer.get("class_label"), default_cat)
+            if not img_id or category_id is None:
                 continue
             rle_obj = layer["mask_data_rle"]
             bbox, area = _convert_rle_to_bbox_and_area(rle_obj)

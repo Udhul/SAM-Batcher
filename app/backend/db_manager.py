@@ -607,6 +607,38 @@ def get_layers_by_image_and_statuses(
     return layers
 
 
+def get_layers_by_ids(project_id: str, layer_ids: List[str]) -> List[Dict[str, Any]]:
+    """Return mask layers specified by layer_ids."""
+    if not layer_ids:
+        return []
+    placeholders = ",".join(["?"] * len(layer_ids))
+    query = f"SELECT * FROM Mask_Layers WHERE layer_id IN ({placeholders})"
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(query, layer_ids)
+    layers = []
+    for row in cursor.fetchall():
+        layer = dict(row)
+        if layer.get("source_metadata"):
+            try:
+                layer["source_metadata"] = json.loads(layer["source_metadata"])
+            except json.JSONDecodeError:
+                pass
+        if layer.get("model_details"):
+            layer["model_details"] = json.loads(layer["model_details"])
+        if layer.get("prompt_details"):
+            layer["prompt_details"] = json.loads(layer["prompt_details"])
+        try:
+            layer["mask_data_rle"] = json.loads(layer["mask_data_rle"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if layer.get("metadata"):
+            layer["metadata"] = json.loads(layer["metadata"])
+        layers.append(layer)
+    conn.close()
+    return layers
+
+
 # --- Mask Layers ---
 def save_mask_layer(
     project_id: str,

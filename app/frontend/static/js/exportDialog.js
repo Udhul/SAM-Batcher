@@ -15,9 +15,7 @@ class ExportDialog {
     this.openBtn = document.getElementById("export-coco-btn");
     this.imageScopeRadios = document.getElementsByName("export-image-scope");
     this.statusInput = document.getElementById("export-status-input");
-    this.labelSection = document.getElementById("export-label-options");
-    this.labelInput = document.getElementById("export-label-input");
-    this.maskRadios = document.getElementsByName("export-mask-scope");
+    this.maskInput = document.getElementById("export-mask-input");
     this.formatSelect = document.getElementById("export-format-select");
     this.destinationSelect = document.getElementById("export-destination-select");
     this.statsBox = document.getElementById("export-stats-box");
@@ -29,17 +27,12 @@ class ExportDialog {
     if (this.closeBtn) {
       this.closeBtn.addEventListener("click", () => this.hide());
     }
-    if (this.maskRadios) {
-      this.maskRadios.forEach((r) =>
-        r.addEventListener("change", () => {
-          this.labelSection.style.display = r.value === "labels" ? "block" : "none";
-          this.updateStats();
-        })
-      );
-    }
     if (this.imageScopeRadios) {
       Array.from(this.imageScopeRadios).forEach((r) =>
-        r.addEventListener("change", () => this.updateStats())
+        r.addEventListener("change", () => {
+          this._toggleStatusInput();
+          this.updateStats();
+        })
       );
     }
     if (this.exportBtn) {
@@ -67,8 +60,8 @@ class ExportDialog {
     this.statusTagify.on("add", () => this.updateStats());
     this.statusTagify.on("remove", () => this.updateStats());
 
-    this.labelTagify = new Tagify(this.labelInput, {
-      whitelist: [],
+    this.maskTagify = new Tagify(this.maskInput, {
+      whitelist: ["All Layers", "Visible Layers"],
       maxTags: 10,
       dropdown: {
         maxItems: 20,
@@ -77,10 +70,12 @@ class ExportDialog {
         closeOnSelect: false,
       },
     });
-    this.labelTagify.on("add", () => this.updateStats());
-    this.labelTagify.on("remove", () => this.updateStats());
+    this.maskTagify.addTags(["All Layers"]);
+    this.maskTagify.on("add", () => this.updateStats());
+    this.maskTagify.on("remove", () => this.updateStats());
 
     this.updateStats();
+    this._toggleStatusInput();
   }
 
   _getImageScope() {
@@ -88,23 +83,44 @@ class ExportDialog {
     return r ? r.value : "all";
   }
 
-  _getMaskScope() {
-    const r = Array.from(this.maskRadios).find((x) => x.checked);
-    return r ? r.value : "visible";
+  _getMaskValues() {
+    return this.maskTagify.value.map((t) => t.value);
+  }
+
+  _getVisibleLayerIds() {
+    if (window.layerViewController && Array.isArray(window.layerViewController.layers)) {
+      return window.layerViewController.layers
+        .filter((l) => l.visible)
+        .map((l) => l.layerId);
+    }
+    return [];
+  }
+
+  _toggleStatusInput() {
+    const scope = this._getImageScope();
+    const wrapper = this.statusInput.parentElement;
+    if (wrapper) {
+      wrapper.style.display = scope === "current" ? "none" : "block";
+    }
   }
 
   gatherFilters() {
-    const filters = { image_statuses: [], layer_statuses: [], class_labels: [], image_hashes: [] };
+    const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [] };
     const scope = this._getImageScope();
     if (scope === "current") {
       const hash = this.stateManager.getActiveImageHash();
       if (hash) filters.image_hashes.push(hash);
+    } else {
+      filters.image_statuses = this.statusTagify.value.map((t) => t.value);
     }
-    filters.image_statuses = this.statusTagify.value.map((t) => t.value);
 
-    const maskScope = this._getMaskScope();
-    if (maskScope === "labels") {
-      filters.class_labels = this.labelTagify.value.map((t) => t.value);
+    const values = this._getMaskValues();
+    if (!values.includes("All Layers")) {
+      if (values.includes("Visible Layers") && scope === "current") {
+        filters.layer_ids = this._getVisibleLayerIds();
+      }
+      const labels = values.filter((v) => v !== "All Layers" && v !== "Visible Layers");
+      if (labels.length > 0) filters.class_labels = labels;
     }
     return filters;
   }
@@ -119,7 +135,7 @@ class ExportDialog {
       this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
       if (stats.label_counts) {
         const labels = Object.keys(stats.label_counts);
-        this.labelTagify.settings.whitelist = labels;
+        this.maskTagify.settings.whitelist = ["All Layers", "Visible Layers", ...labels];
       }
     } catch (e) {
       this.statsBox.textContent = "Stats unavailable";
@@ -146,6 +162,7 @@ class ExportDialog {
 
   show() {
     if (this.overlay) this.overlay.style.display = "flex";
+    this._toggleStatusInput();
     this.updateStats();
   }
 

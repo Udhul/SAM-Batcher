@@ -186,12 +186,7 @@
                             <input name="export-status-input" id="export-status-input" placeholder="Image status filter">
                         </div>
                         <div class="export-dialog-section">
-                            <label><input type="radio" name="export-mask-scope" value="visible" checked> Only visible layers</label>
-                            <label><input type="radio" name="export-mask-scope" value="all"> All layers</label>
-                            <label><input type="radio" name="export-mask-scope" value="labels"> By label</label>
-                            <div id="export-label-options" style="display:none;">
-                                <input name="export-label-input" id="export-label-input" placeholder="Select labels">
-                            </div>
+                            <input name="export-mask-input" id="export-mask-input" placeholder="Select layers or labels">
                         </div>
                         <div class="export-dialog-section">
                             <label for="export-format-select">Format:</label>
@@ -345,7 +340,7 @@
     <!-- Ordered JavaScript Modules import -->
     <script src="{{ url_for('static', path='js/utils.js') }}"></script> <!-- General frontend utilities -->
     <script src="{{ url_for('static', path='vendor/tagify/tagify.polyfills.min.js') }}"></script>
-    <script src="{{ url_for('static', path='vendor/tagify/tagify.js') }}"></script>
+    <script src="{{ url_for('static', path='vendor/tagify/tagify.min.js') }}"></script>
     <script src="{{ url_for('static', path='js/apiClient.js') }}"></script> <!-- API communication -->
     <script src="{{ url_for('static', path='js/stateManager.js') }}"></script> <!-- Global frontend state -->
     <script src="{{ url_for('static', path='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
