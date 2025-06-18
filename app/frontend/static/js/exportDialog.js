@@ -105,7 +105,7 @@ class ExportDialog {
   }
 
   gatherFilters() {
-    const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [] };
+    const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [], visible_only: false };
     const scope = this._getImageScope();
     if (scope === "current") {
       const hash = this.stateManager.getActiveImageHash();
@@ -116,8 +116,12 @@ class ExportDialog {
 
     const values = this._getMaskValues();
     if (!values.includes("All Layers")) {
-      if (values.includes("Visible Layers") && scope === "current") {
-        filters.layer_ids = this._getVisibleLayerIds();
+      if (values.includes("Visible Layers")) {
+        if (scope === "current") {
+          filters.layer_ids = this._getVisibleLayerIds();
+        } else {
+          filters.visible_only = true;
+        }
       }
       const labels = values.filter((v) => v !== "All Layers" && v !== "Visible Layers");
       if (labels.length > 0) filters.class_labels = labels;
@@ -164,7 +168,6 @@ class ExportDialog {
     try {
       await this.apiClient.requestExport(projectId, payload);
       this.uiManager.showGlobalStatus("Export started", "success");
-      this.hide();
     } catch (e) {
       this.uiManager.showGlobalStatus(`Export error: ${e.message}`, "error");
     }

@@ -254,6 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
         classLabel: l.classLabel,
         status: l.status,
         displayColor: l.displayColor,
+        visible: l.visible,
       })),
     };
     try {
@@ -509,7 +510,7 @@ document.addEventListener("DOMContentLoaded", () => {
           name: m.name || `Mask ${idx + 1}`,
           classLabel: m.classLabel || "",
           status: m.status || "prediction",
-          visible: true,
+          visible: m.visible !== false,
           displayColor: m.displayColor || utils.getRandomHexColor(),
           maskData: parsed,
         };
@@ -548,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
           name: m.name || `Mask ${idx + 1}`,
           classLabel: m.class_label || "",
           status: m.status || "prediction",
-          visible: true,
+          visible: m.visible !== false,
           displayColor: m.display_color || utils.getRandomHexColor(),
           maskData: parsed,
         };

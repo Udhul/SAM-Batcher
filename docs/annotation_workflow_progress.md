@@ -23,6 +23,9 @@ It will be updated as new sprints add functionality.
 - **Export Dialog**: Added frontend overlay with options for image selection,
   mask filtering, export format and destination. Backend provides export stats
   and supports saving exports server-side or downloading to the client.
+- **Layer Visibility**: Visibility toggles are now stored in the database and
+  used as an optional export filter. Overlay exports draw only the visible
+  layers when requested.
 - **Database Helpers**: Added `get_image_hashes_by_statuses` and
   `get_layers_by_image_and_statuses` for more efficient export queries.
 - **Image Status Handling**: Backend uses the new status values

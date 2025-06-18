@@ -12,15 +12,18 @@ import zipfile
 from io import BytesIO
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from PIL import Image, ImageColor
 
 try:
     from .... import config # For running from within app/backend
     from . import db_manager
+    from . import project_logic
 except ImportError:
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..')) # Add project_root to path
     import config
     import app.backend.db_manager as db_manager
+    import app.backend.project_logic as project_logic
 
 # For RLE to Binary conversion if needed during export
 # from pycocotools import mask as mask_utils
@@ -82,6 +85,41 @@ def _export_db_as_json(project_id: str) -> BytesIO:
     return BytesIO(json.dumps(db_json, indent=2).encode("utf-8"))
 
 
+def _generate_overlay_zip(project_id: str, image_hashes: List[str], layers: List[Dict[str, Any]]) -> BytesIO:
+    """Create a ZIP file of images overlaid with their masks."""
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        for img_hash in image_hashes:
+            img_info = db_manager.get_image_by_hash(project_id, img_hash)
+            if not img_info:
+                continue
+            ext = os.path.splitext(img_info.get("original_filename") or "img.jpg")[1]
+            img_path = project_logic.get_sharded_image_path(project_id, img_hash, ext)
+            if not os.path.exists(img_path):
+                continue
+            img = Image.open(img_path).convert("RGBA")
+            overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            for layer in [l for l in layers if l["image_hash_ref"] == img_hash]:
+                rle = layer["mask_data_rle"]
+                from pycocotools import mask as mask_utils
+
+                mask = mask_utils.decode(rle)
+                mask_img = Image.fromarray(mask.astype("uint8") * 255, mode="L")
+                color = layer.get("display_color") or "#ff0000"
+                try:
+                    rgba = ImageColor.getcolor(color, "RGBA")
+                except ValueError:
+                    rgba = (255, 0, 0, 128)
+                color_img = Image.new("RGBA", img.size, rgba)
+                overlay.paste(color_img, (0, 0), mask_img)
+            combined = Image.alpha_composite(img, overlay).convert("RGB")
+            out_buffer = BytesIO()
+            combined.save(out_buffer, format="PNG")
+            zf.writestr(f"{img_hash}.png", out_buffer.getvalue())
+    zip_buffer.seek(0)
+    return zip_buffer
+
+
 def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Dict[str, Any]:
     """Calculate statistics for the given export filters."""
     image_statuses = filters.get("image_statuses", []) if filters else []
@@ -89,6 +127,7 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
     class_labels = filters.get("class_labels", []) if filters else []
     image_hashes = filters.get("image_hashes", []) if filters else []
     layer_ids = filters.get("layer_ids", []) if filters else []
+    visible_only = filters.get("visible_only") if filters else False
 
     if layer_ids:
         all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
@@ -103,7 +142,7 @@ def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Di
                 ]
             )
         all_layers = db_manager.get_layers_by_image_and_statuses(
-            project_id, image_hashes, layer_statuses
+            project_id, image_hashes, layer_statuses, visible_only
         )
     if class_labels:
         all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
@@ -150,9 +189,12 @@ def prepare_export_data(
         class_labels = filters.get("class_labels", []) if filters else []
         image_hashes = filters.get("image_hashes", []) if filters else []
         layer_ids = filters.get("layer_ids", []) if filters else []
+        visible_only = filters.get("visible_only") if filters else False
 
         if layer_ids:
             all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
+            if visible_only:
+                all_layers = [l for l in all_layers if l.get("visible", True)]
             image_hashes.extend(
                 [
                     l["image_hash_ref"]
@@ -172,7 +214,7 @@ def prepare_export_data(
                     ]
                 )
             all_layers = db_manager.get_layers_by_image_and_statuses(
-                project_id, image_hashes, layer_statuses
+                project_id, image_hashes, layer_statuses, visible_only
             )
 
         if not image_hashes:
@@ -236,6 +278,11 @@ def prepare_export_data(
 
         return BytesIO(json.dumps(coco_output, indent=2).encode("utf-8")), f"{project_id}_coco.json"
 
+    elif export_format == "overlay_images_zip":
+        if not image_hashes:
+            return BytesIO(), f"{project_id}_overlays.zip"
+        zip_file = _generate_overlay_zip(project_id, image_hashes, all_layers)
+        return zip_file, f"{project_id}_overlays.zip"
     elif export_format == "project_db_json":
         return _export_db_as_json(project_id), f"{project_id}_db.json"
     else:
