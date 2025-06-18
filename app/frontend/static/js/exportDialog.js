@@ -14,6 +14,7 @@ class ExportDialog {
     this.closeBtn = document.getElementById("close-export-overlay");
     this.openBtn = document.getElementById("export-coco-btn");
     this.imageScopeRadios = document.getElementsByName("export-image-scope");
+    this.statusSection = document.getElementById("export-status-section");
     this.statusInput = document.getElementById("export-status-input");
     this.maskInput = document.getElementById("export-mask-input");
     this.formatSelect = document.getElementById("export-format-select");
@@ -29,7 +30,10 @@ class ExportDialog {
     }
     if (this.imageScopeRadios) {
       Array.from(this.imageScopeRadios).forEach((r) =>
-        r.addEventListener("change", () => this.updateStats())
+        r.addEventListener("change", () => {
+          this._updateStatusVisibility();
+          this.updateStats();
+        })
       );
     }
     if (this.exportBtn) {
@@ -70,10 +74,19 @@ class ExportDialog {
           closeOnSelect: false,
         },
       });
-      this.maskTagify.on("add", () => this.updateStats());
+      this.maskTagify.on("add", (e) => {
+        const val = e.detail.data.value;
+        if (val === "Any Visible or Tagged") {
+          this.maskTagify.removeTag("Only Visible and Tagged", true);
+        } else if (val === "Only Visible and Tagged") {
+          this.maskTagify.removeTag("Any Visible or Tagged", true);
+        }
+        this.updateStats();
+      });
       this.maskTagify.on("remove", () => this.updateStats());
     }
 
+    this._updateStatusVisibility();
     this.updateStats();
   }
 
@@ -95,6 +108,13 @@ class ExportDialog {
     return [];
   }
 
+  _updateStatusVisibility() {
+    if (this.statusSection) {
+      const scope = this._getImageScope();
+      this.statusSection.style.display = scope === "all" ? "block" : "none";
+    }
+  }
+
 
   gatherFilters() {
     const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [] };
@@ -104,9 +124,11 @@ class ExportDialog {
       const hash = this.stateManager.getActiveImageHash();
       if (hash) filters.image_hashes.push(hash);
     }
-    filters.image_statuses = this.statusTagify
-      ? this.statusTagify.value.map((t) => t.value)
-      : [];
+    if (scope === "all") {
+      filters.image_statuses = this.statusTagify
+        ? this.statusTagify.value.map((t) => t.value)
+        : [];
+    }
 
     const values = this._getMaskValues();
     const idxOr = values.indexOf("Any Visible or Tagged");
@@ -199,6 +221,7 @@ class ExportDialog {
 
   show() {
     if (this.overlay) this.overlay.style.display = "flex";
+    this._updateStatusVisibility();
     this.updateStats();
   }
 
