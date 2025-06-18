@@ -139,8 +139,11 @@ class ExportDialog {
       });
       this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
 
-      // Fetch label suggestions using only image filters
-      const baseFilters = { ...filters, class_labels: [] };
+      // Fetch label suggestions using only image scope filters
+      const baseFilters = {
+        image_statuses: filters.image_statuses,
+        image_hashes: filters.image_hashes,
+      };
       const labelStats = await this.apiClient.getExportStats(projectId, {
         filters: baseFilters,
       });
