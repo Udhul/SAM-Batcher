@@ -1410,8 +1410,8 @@ input[type="file"]#image-upload {
     vertical-align: middle;
     border-radius: 3px;
     padding: .3em .5em;
-    border: 1px solid #CCC;
-    background: #F3F3F3;
+    /* border: 1px solid #CCC;
+    background: #F3F3F3; */
     margin: .2em;
     font-size: .85em;
     color: black;
@@ -1438,12 +1438,9 @@ input[type="file"]#image-upload {
 }
 
 .tagify__tag {
-  font-size: 12px;
-}
-
-.tagify__tag--selected {
-  background-color: #63CFB3;
-  border-color: #63CFB3;
+  font-size: 0.85em;
+  background: #63CFB3;
+  border: 1px solid #CCC;
 }
 
 #export-stats-box {

@@ -68,10 +68,11 @@ class ExportDialog {
         whitelist: ["Any Visible or Tagged", "Only Visible and Tagged"],
         maxTags: 10,
         dropdown: {
-          maxItems: 20,
+          maxItems: 40,
           classname: "tags-look",
           enabled: 0,
           closeOnSelect: false,
+          fuzzySearch: true,  
         },
       });
       this.maskTagify.on("add", (e) => {
