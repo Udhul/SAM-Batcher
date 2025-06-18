@@ -77,9 +77,13 @@ class ExportDialog {
       this.maskTagify.on("add", (e) => {
         const val = e.detail.data.value;
         if (val === "Any Visible or Tagged") {
-          this.maskTagify.removeTag("Only Visible and Tagged", true);
+          if (this.maskTagify.getTagIndex("Only Visible and Tagged") !== -1) {
+            this.maskTagify.removeTag("Only Visible and Tagged");
+          }
         } else if (val === "Only Visible and Tagged") {
-          this.maskTagify.removeTag("Any Visible or Tagged", true);
+          if (this.maskTagify.getTagIndex("Any Visible or Tagged") !== -1) {
+            this.maskTagify.removeTag("Any Visible or Tagged");
+          }
         }
         this.updateStats();
       });
