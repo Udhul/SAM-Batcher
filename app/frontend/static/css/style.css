@@ -1342,6 +1342,14 @@ input[type="file"]#image-upload {
   margin-bottom: 10px;
 }
 
+.export-dialog-section .tagify {
+  width: 100%;
+}
+
+.export-dialog-section input {
+  width: 100%;
+}
+
 #perform-export-btn {
   padding: 8px 12px;
   background-color: #6c757d;
@@ -1397,6 +1405,15 @@ input[type="file"]#image-upload {
     white-space: nowrap;
     text-indent: -20px;
     border: 0;
+}
+
+.tagify__tag {
+  font-size: 12px;
+}
+
+.tagify__tag--selected {
+  background-color: #63CFB3;
+  border-color: #63CFB3;
 }
 
 #export-stats-box {

@@ -47,6 +47,7 @@ class ExportDialog {
       "approved",
       "rejected",
     ];
+    this.statusOptions = statusOptions;
     if (this.statusInput) {
       this.statusTagify = new Tagify(this.statusInput, {
         whitelist: statusOptions,
@@ -58,7 +59,6 @@ class ExportDialog {
           closeOnSelect: false,
         },
       });
-      this.statusTagify.addTags(["approved"]);
       this.statusTagify.on("add", () => this.updateStats());
       this.statusTagify.on("remove", () => this.updateStats());
     }
@@ -76,14 +76,16 @@ class ExportDialog {
       });
       this.maskTagify.on("add", (e) => {
         const val = e.detail.data.value;
-        if (val === "Any Visible or Tagged") {
-          if (this.maskTagify.getTagIndex("Only Visible and Tagged") !== -1) {
-            this.maskTagify.removeTag("Only Visible and Tagged");
-          }
-        } else if (val === "Only Visible and Tagged") {
-          if (this.maskTagify.getTagIndex("Any Visible or Tagged") !== -1) {
-            this.maskTagify.removeTag("Any Visible or Tagged");
-          }
+        const other =
+          val === "Any Visible or Tagged"
+            ? "Only Visible and Tagged"
+            : val === "Only Visible and Tagged"
+            ? "Any Visible or Tagged"
+            : null;
+        if (other && this.maskTagify.value.some((t) => t.value === other)) {
+          const remain = this.maskTagify.value.filter((t) => t.value !== other);
+          this.maskTagify.removeAllTags();
+          this.maskTagify.addTags(remain.map((t) => t.value));
         }
         this.updateStats();
       });
@@ -129,9 +131,10 @@ class ExportDialog {
       if (hash) filters.image_hashes.push(hash);
     }
     if (scope === "all") {
-      filters.image_statuses = this.statusTagify
+      const selected = this.statusTagify
         ? this.statusTagify.value.map((t) => t.value)
         : [];
+      filters.image_statuses = selected.length > 0 ? selected : this.statusOptions;
     }
 
     const values = this._getMaskValues();
@@ -225,6 +228,15 @@ class ExportDialog {
 
   show() {
     if (this.overlay) this.overlay.style.display = "flex";
+    const currentRadio = document.getElementById("export-current-radio");
+    const allRadio = document.getElementById("export-all-radio");
+    if (currentRadio && allRadio) {
+      const hasImage = !!this.stateManager.getActiveImageHash();
+      currentRadio.disabled = !hasImage;
+      if (!hasImage && currentRadio.checked) {
+        allRadio.checked = true;
+      }
+    }
     this._updateStatusVisibility();
     this.updateStats();
   }
