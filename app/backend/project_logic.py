@@ -800,6 +800,7 @@ def update_mask_layer_basic(
     name: Optional[str] = None,
     class_label: Optional[str] = None,
     display_color: Optional[str] = None,
+    visible: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Update editable attributes of a layer and return success."""
     db_manager.update_mask_layer_basic(
@@ -808,6 +809,7 @@ def update_mask_layer_basic(
         name=name,
         class_label=class_label,
         display_color=display_color,
+        visible=visible,
     )
     return {"success": True, "message": "Layer updated."}
 
@@ -847,6 +849,7 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
                 "name": m.get("name"),
                 "classLabel": m.get("class_label") or meta.get("class_label"),
                 "status": m.get("status") or m.get("layer_type"),
+                "visible": bool(m.get("visible", True)),
                 "displayColor": m.get("display_color") or meta.get("display_color"),
                 "maskDataRLE": mask_rle,
                 "sourceMetadata": source_meta,
@@ -881,13 +884,15 @@ def update_image_state(
         name = layer.get("name")
         class_label = layer.get("classLabel")
         display_color = layer.get("displayColor")
-        if any(v is not None for v in (name, class_label, display_color)):
+        visible = layer.get("visible")
+        if any(v is not None for v in (name, class_label, display_color, visible)):
             db_manager.update_mask_layer_basic(
                 project_id,
                 lid,
                 name=name,
                 class_label=class_label,
                 display_color=display_color,
+                visible=visible,
             )
         if layer.get("status"):
             db_manager.update_mask_layer_status(project_id, lid, layer["status"])

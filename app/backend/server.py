@@ -652,6 +652,7 @@ async def api_update_mask_layer(
     name = payload.get("name")
     class_label = payload.get("class_label")
     display_color = payload.get("display_color")
+    visible = payload.get("visible")
     result = await run_in_threadpool(
         project_logic.update_mask_layer_basic,
         project_id,
@@ -660,6 +661,7 @@ async def api_update_mask_layer(
         name,
         class_label,
         display_color,
+        visible,
     )
     return result
 
@@ -696,22 +698,49 @@ async def api_export_data(project_id: str, payload: dict):
         raise HTTPException(
             status_code=403, detail="Operation only allowed on the active project"
         )
-    file_like_object = await run_in_threadpool(
+    file_like, filename = await run_in_threadpool(
         export_logic.prepare_export_data,
         project_id,
         payload.get("filters", {}),
         payload.get("format", config.DEFAULT_EXPORT_FORMAT),
         payload.get("export_schema", "coco_instance_segmentation"),
     )
-    if not file_like_object:
+    if not file_like:
         raise HTTPException(status_code=500, detail="Failed to generate export data")
-    file_like_object.seek(0)
-    filename = "export.dat"
+    file_like.seek(0)
+    dest = payload.get("destination", "client")
+    if dest == "server":
+        save_path = await run_in_threadpool(
+            export_logic.save_export_to_server, project_id, file_like, filename
+        )
+        return {"success": True, "path": save_path}
     return StreamingResponse(
-        file_like_object,
+        file_like,
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@app.post("/api/project/{project_id}/export_stats")
+async def api_export_stats(project_id: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(
+            status_code=403, detail="Operation only allowed on the active project"
+        )
+    stats = await run_in_threadpool(
+        export_logic.calculate_export_stats, project_id, payload.get("filters", {})
+    )
+    return stats
+
+
+@app.get("/api/project/{project_id}/labels")
+async def api_get_labels(project_id: str):
+    if project_id != get_active_project_id():
+        raise HTTPException(
+            status_code=403, detail="Operation only allowed on the active project"
+        )
+    labels = await run_in_threadpool(db_manager.get_all_class_labels, project_id)
+    return {"labels": labels}
 
 
 def run_server(

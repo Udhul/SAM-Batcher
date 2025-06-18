@@ -7,6 +7,7 @@
     <title>SAM2 Interactive Segmenter</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='css/canvas.css') }}">
+    <link href="{{ url_for('static', path='vendor/tagify/tagify.css') }}" rel="stylesheet" type="text/css" />
     <link rel="icon" type="image/x-icon" href="{{ url_for('assets', path='favicon.ico') }}">
 </head>
 <body>
@@ -173,6 +174,40 @@
                     </div>
                 </div>
 
+                <div id="export-overlay" class="modal-overlay" style="display:none;">
+                    <div class="modal-content export-modal">
+                        <button id="close-export-overlay" class="modal-close">&times;</button>
+                        <h3>Export Annotations</h3>
+                        <div class="export-dialog-section export-radio-group">
+                            <label><input type="radio" name="export-image-scope" value="current" id="export-current-radio"> Current Image Only</label>
+                            <label><input type="radio" name="export-image-scope" value="all" id="export-all-radio" checked> All Images</label>
+                        </div>
+                        <div class="export-dialog-section" id="export-status-section">
+                            <input name="export-status-input" id="export-status-input" placeholder="Image status filter">
+                        </div>
+                        <div class="export-dialog-section">
+                            <input name="export-mask-input" id="export-mask-input" placeholder="Visibility & labels">
+                        </div>
+                        <div class="export-dialog-section">
+                            <label for="export-format-select">Format:</label>
+                            <select id="export-format-select">
+                                <option value="coco_rle_json">COCO Instance Segmentation</option>
+                                <option value="project_db_json">Project DB JSON</option>
+                                <option value="overlay_images_zip">Overlay Images ZIP</option>
+                            </select>
+                        </div>
+                        <div class="export-dialog-section">
+                            <label for="export-destination-select">Destination:</label>
+                            <select id="export-destination-select">
+                                <option value="client">Client Download</option>
+                                <option value="server">Server File</option>
+                            </select>
+                        </div>
+                        <div id="export-stats-box" class="export-dialog-section">Images: 0, Layers: 0</div>
+                        <button id="perform-export-btn">Export!</button>
+                    </div>
+                </div>
+
                 <div id="image-pool-section" class="image-pool-section">
                     <div class="image-pool-controls" style="display:none;"> <!-- Hide for now -->
                         <button id="prev-image-btn" title="Load previous image in pool">< Prev</button>
@@ -305,6 +340,8 @@
 
     <!-- Ordered JavaScript Modules import -->
     <script src="{{ url_for('static', path='js/utils.js') }}"></script> <!-- General frontend utilities -->
+    <script src="{{ url_for('static', path='vendor/tagify/tagify.polyfills.min.js') }}"></script>
+    <script src="{{ url_for('static', path='vendor/tagify/tagify.min.js') }}"></script>
     <script src="{{ url_for('static', path='js/apiClient.js') }}"></script> <!-- API communication -->
     <script src="{{ url_for('static', path='js/stateManager.js') }}"></script> <!-- Global frontend state -->
     <script src="{{ url_for('static', path='js/canvasController.js') }}"></script> <!-- Canvas specific logic -->
@@ -313,6 +350,7 @@
     <script src="{{ url_for('static', path='js/projectHandler.js') }}"></script> <!-- Project management UI -->
     <script src="{{ url_for('static', path='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
     <script src="{{ url_for('static', path='js/layerViewController.js') }}"></script> <!-- Layer view management -->
+    <script src="{{ url_for('static', path='js/exportDialog.js') }}"></script>
     <script src="{{ url_for('static', path='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>
 </html>

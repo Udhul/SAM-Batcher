@@ -137,6 +137,7 @@ def init_project_db(project_id: str, project_name: str) -> None:
         class_label TEXT,
         status TEXT,
         display_color TEXT,
+        visible BOOLEAN DEFAULT 1,
         source_metadata TEXT,
         updated_at TEXT,
         FOREIGN KEY (image_hash_ref) REFERENCES Images(image_hash) ON DELETE CASCADE
@@ -569,7 +570,10 @@ def get_image_hashes_by_statuses(project_id: str, statuses: List[str]) -> List[s
 
 
 def get_layers_by_image_and_statuses(
-    project_id: str, image_hashes: List[str], layer_statuses: List[str]
+    project_id: str,
+    image_hashes: List[str],
+    layer_statuses: List[str],
+    visible_only: Optional[bool] = None,
 ) -> List[Dict[str, Any]]:
     """Returns mask layers for given images filtered by layer_type/status."""
     if not image_hashes:
@@ -581,6 +585,9 @@ def get_layers_by_image_and_statuses(
         placeholders_layers = ",".join(["?"] * len(layer_statuses))
         query += f" AND status IN ({placeholders_layers})"
         params.extend(layer_statuses)
+    if visible_only is not None:
+        query += " AND visible = ?"
+        params.append(1 if visible_only else 0)
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     cursor.execute(query, params)
@@ -602,6 +609,40 @@ def get_layers_by_image_and_statuses(
             pass
         if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
+        layer["visible"] = bool(layer.get("visible", 1))
+        layers.append(layer)
+    conn.close()
+    return layers
+
+
+def get_layers_by_ids(project_id: str, layer_ids: List[str]) -> List[Dict[str, Any]]:
+    """Return mask layers specified by layer_ids."""
+    if not layer_ids:
+        return []
+    placeholders = ",".join(["?"] * len(layer_ids))
+    query = f"SELECT * FROM Mask_Layers WHERE layer_id IN ({placeholders})"
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(query, layer_ids)
+    layers = []
+    for row in cursor.fetchall():
+        layer = dict(row)
+        if layer.get("source_metadata"):
+            try:
+                layer["source_metadata"] = json.loads(layer["source_metadata"])
+            except json.JSONDecodeError:
+                pass
+        if layer.get("model_details"):
+            layer["model_details"] = json.loads(layer["model_details"])
+        if layer.get("prompt_details"):
+            layer["prompt_details"] = json.loads(layer["prompt_details"])
+        try:
+            layer["mask_data_rle"] = json.loads(layer["mask_data_rle"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if layer.get("metadata"):
+            layer["metadata"] = json.loads(layer["metadata"])
+        layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
     return layers
@@ -617,6 +658,7 @@ def save_mask_layer(
     name: Optional[str] = None,
     class_label: Optional[str] = None,
     display_color: Optional[str] = None,
+    visible: bool = True,
     source_metadata: Optional[Dict] = None,
 ) -> None:
     conn = get_db_connection(project_id)
@@ -631,6 +673,7 @@ def save_mask_layer(
         name,
         class_label,
         display_color,
+        visible,
         source_metadata,
         created_at,
         updated_at,
@@ -639,7 +682,7 @@ def save_mask_layer(
         prompt_details,
         metadata,
         is_selected_for_final
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             layer_id,
@@ -653,6 +696,7 @@ def save_mask_layer(
             name,
             class_label,
             display_color,
+            1 if visible else 0,
             json.dumps(source_metadata) if source_metadata else None,
             datetime.utcnow().isoformat(),
             datetime.utcnow().isoformat(),
@@ -703,6 +747,7 @@ def get_mask_layers_for_image(
                 layer["class_label"] = layer["metadata"].get("class_label")
             if "display_color" in layer["metadata"] and not layer.get("display_color"):
                 layer["display_color"] = layer["metadata"].get("display_color")
+        layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
     return layers
@@ -720,6 +765,18 @@ def count_mask_layers_for_image(project_id: str, image_hash: str) -> int:
     return count
 
 
+def get_all_class_labels(project_id: str) -> List[str]:
+    """Return a list of distinct class labels used in the project."""
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT DISTINCT class_label FROM Mask_Layers WHERE class_label IS NOT NULL"
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["class_label"] for row in rows]
+
+
 def delete_mask_layer(project_id: str, layer_id: str) -> None:
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
@@ -735,6 +792,7 @@ def update_mask_layer_basic(
     name: Optional[str] = None,
     class_label: Optional[str] = None,
     display_color: Optional[str] = None,
+    visible: Optional[bool] = None,
 ) -> None:
     """Update simple editable fields for a mask layer."""
     conn = get_db_connection(project_id)
@@ -750,6 +808,9 @@ def update_mask_layer_basic(
     if display_color is not None:
         updates.append("display_color = ?")
         params.append(display_color)
+    if visible is not None:
+        updates.append("visible = ?")
+        params.append(1 if visible else 0)
     if not updates:
         conn.close()
         return

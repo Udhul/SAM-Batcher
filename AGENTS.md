@@ -38,3 +38,4 @@ The project currently has no automated test suite.  If tests are added under a `
    - Update progress and todo lists to reflect current state.
 5. Ensure new code integrates cleanly with the project structure described in `docs/project_structure.md`.
 6. Commit concise structured messages describing the change.
+7. Refrain from changing lines of code that are unrelated to the request, unless asked to do general code cleanup or format refactoring.

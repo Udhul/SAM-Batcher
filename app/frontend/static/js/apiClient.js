@@ -401,6 +401,28 @@ class APIClient {
       throw error;
     }
   }
+
+  async getExportStats(projectId, payload) {
+    const url = `${this.baseUrl}/project/${projectId}/export_stats`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Stats Error: ${response.status}`);
+    }
+    return await response.json();
+  }
+
+  async getProjectLabels(projectId) {
+    const url = `${this.baseUrl}/project/${projectId}/labels`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Labels Error: ${response.status}`);
+    }
+    return await response.json();
+  }
 }
 
 // Expose the class for direct access in case other modules load before main.js

@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
     typeof LayerViewController === "function"
       ? new LayerViewController("#layer-view-container", stateManager)
       : null;
+  const exportDialog =
+    typeof ExportDialog === "function"
+      ? new ExportDialog(apiClient, stateManager, uiManager)
+      : null;
 
   // --- (Optional) Make instances globally accessible for debugging ---
   window.apiClient = apiClient;
@@ -71,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.projectHandler = projectHandler;
   window.imagePoolHandler = imagePoolHandler;
   window.layerViewController = layerViewController;
+  window.exportDialog = exportDialog;
 
   console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
   if (projectHandler) console.log("Main.js: ProjectHandler instantiated.");
@@ -249,6 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
         classLabel: l.classLabel,
         status: l.status,
         displayColor: l.displayColor,
+        visible: l.visible,
       })),
     };
     try {
@@ -504,7 +510,7 @@ document.addEventListener("DOMContentLoaded", () => {
           name: m.name || `Mask ${idx + 1}`,
           classLabel: m.classLabel || "",
           status: m.status || "prediction",
-          visible: true,
+          visible: m.visible !== false,
           displayColor: m.displayColor || utils.getRandomHexColor(),
           maskData: parsed,
         };
@@ -543,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
           name: m.name || `Mask ${idx + 1}`,
           classLabel: m.class_label || "",
           status: m.status || "prediction",
-          visible: true,
+          visible: m.visible !== false,
           displayColor: m.display_color || utils.getRandomHexColor(),
           maskData: parsed,
         };
@@ -1077,42 +1083,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (exportCocoBtn) {
-    exportCocoBtn.addEventListener("click", async () => {
-      const activeProjectId = stateManager.getActiveProjectId();
-      if (!activeProjectId) {
-        uiManager.showGlobalStatus("No active project to export.", "error");
-        return;
-      }
-
-      const payload = {
-        format: "coco_rle_json",
-        export_schema: "coco_instance_segmentation",
-        filters: {
-          image_statuses: ["approved"],
-          layer_statuses: ["edited", "approved"],
-        },
-      };
-
-      uiManager.showGlobalStatus("Preparing COCO export...", "loading", 0);
-      try {
-        const data = await apiClient.requestExport(activeProjectId, payload);
-        if (data.success) {
-          uiManager.showGlobalStatus(
-            data.message || "COCO export initiated.",
-            "success",
-          );
-        } else {
-          throw new Error(data.error || "Failed to initiate COCO export.");
-        }
-      } catch (error) {
-        uiManager.showGlobalStatus(
-          `Export error: ${utils.escapeHTML(error.message)}`,
-          "error",
-        );
-      }
-    });
-  }
+  // Export button now handled by ExportDialog
 
   document.addEventListener("layers-selected", (event) => {
     if (!activeImageState) return;
