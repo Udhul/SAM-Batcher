@@ -15,12 +15,15 @@ from datetime import datetime
 from PIL import Image, ImageColor
 
 try:
-    from .... import config # For running from within app/backend
+    from .... import config  # For running from within app/backend
     from . import db_manager
     from . import project_logic
 except ImportError:
     import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..')) # Add project_root to path
+
+    sys.path.append(
+        os.path.join(os.path.dirname(__file__), "..", "..")
+    )  # Add project_root to path
     import config
     import app.backend.db_manager as db_manager
     import app.backend.project_logic as project_logic
@@ -29,19 +32,29 @@ except ImportError:
 # from pycocotools import mask as mask_utils
 # import numpy as np
 
+
 def _prepare_coco_structure(project_info: Dict) -> Dict:
     return {
         "info": {
             "description": f"Annotations from SAM2 Web UI Project: {project_info.get('project_name', 'N/A')}",
             "version": "1.0",
             "year": datetime.utcnow().year,
-            "date_created": datetime.utcnow().isoformat()
+            "date_created": datetime.utcnow().isoformat(),
         },
-        "licenses": [{"name": "CC BY 4.0", "id": 1, "url": "http://creativecommons.org/licenses/by/4.0/"}], # Example license
+        "licenses": [
+            {
+                "name": "CC BY 4.0",
+                "id": 1,
+                "url": "http://creativecommons.org/licenses/by/4.0/",
+            }
+        ],  # Example license
         "images": [],
         "annotations": [],
-        "categories": [{"id": 1, "name": "object", "supercategory": "object"}] # Default category
+        "categories": [
+            {"id": 1, "name": "object", "supercategory": "object"}
+        ],  # Default category
     }
+
 
 def _convert_rle_to_bbox_and_area(rle: Dict) -> Tuple[List[int], int]:
     """Converts a COCO RLE object to a bounding box and area using pycocotools."""
@@ -85,7 +98,9 @@ def _export_db_as_json(project_id: str) -> BytesIO:
     return BytesIO(json.dumps(db_json, indent=2).encode("utf-8"))
 
 
-def _generate_overlay_zip(project_id: str, image_hashes: List[str], layers: List[Dict[str, Any]]) -> BytesIO:
+def _generate_overlay_zip(
+    project_id: str, image_hashes: List[str], layers: List[Dict[str, Any]]
+) -> BytesIO:
     """Create a ZIP file of images overlaid with their masks."""
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zf:
@@ -120,24 +135,35 @@ def _generate_overlay_zip(project_id: str, image_hashes: List[str], layers: List
     return zip_buffer
 
 
-def calculate_export_stats(project_id: str, filters: Dict[str, List[str]]) -> Dict[str, Any]:
+def calculate_export_stats(
+    project_id: str, filters: Dict[str, List[str]]
+) -> Dict[str, Any]:
     """Calculate statistics for the given export filters."""
     image_statuses = filters.get("image_statuses", []) if filters else []
     layer_statuses = filters.get("layer_statuses", []) if filters else []
     class_labels = filters.get("class_labels", []) if filters else []
     image_hashes = filters.get("image_hashes", []) if filters else []
     layer_ids = filters.get("layer_ids", []) if filters else []
-    visible_only = filters.get("visible_only") if filters else False
+    # None means no filter on visibility; True/False explicitly filter
+    visible_only = filters.get("visible_only") if filters else None
 
     if layer_ids:
         all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
-        image_hashes.extend([l["image_hash_ref"] for l in all_layers if l["image_hash_ref"] not in image_hashes])
+        image_hashes.extend(
+            [
+                l["image_hash_ref"]
+                for l in all_layers
+                if l["image_hash_ref"] not in image_hashes
+            ]
+        )
     else:
         if image_statuses:
             image_hashes.extend(
                 [
                     h
-                    for h in db_manager.get_image_hashes_by_statuses(project_id, image_statuses)
+                    for h in db_manager.get_image_hashes_by_statuses(
+                        project_id, image_statuses
+                    )
                     if h not in image_hashes
                 ]
             )
@@ -172,6 +198,7 @@ def save_export_to_server(project_id: str, file_like: BytesIO, filename: str) ->
         f.write(file_like.getvalue())
     return path
 
+
 def prepare_export_data(
     project_id: str,
     filters: Dict[str, List[str]],
@@ -181,7 +208,10 @@ def prepare_export_data(
 
     project_info_db = db_manager.get_project_info(project_id)
 
-    if export_format == "coco_rle_json" and export_schema == "coco_instance_segmentation":
+    if (
+        export_format == "coco_rle_json"
+        and export_schema == "coco_instance_segmentation"
+    ):
         coco_output = _prepare_coco_structure(project_info_db)
 
         image_statuses = filters.get("image_statuses", []) if filters else []
@@ -189,7 +219,8 @@ def prepare_export_data(
         class_labels = filters.get("class_labels", []) if filters else []
         image_hashes = filters.get("image_hashes", []) if filters else []
         layer_ids = filters.get("layer_ids", []) if filters else []
-        visible_only = filters.get("visible_only") if filters else False
+        # None indicates no visibility filter
+        visible_only = filters.get("visible_only") if filters else None
 
         if layer_ids:
             all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
@@ -218,24 +249,40 @@ def prepare_export_data(
             )
 
         if not image_hashes:
-            return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
+            return (
+                BytesIO(json.dumps(coco_output).encode("utf-8")),
+                f"{project_id}_coco.json",
+            )
 
         if class_labels:
             all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
 
         image_hashes = sorted({layer["image_hash_ref"] for layer in all_layers})
         if not image_hashes:
-            return BytesIO(json.dumps(coco_output).encode("utf-8")), f"{project_id}_coco.json"
+            return (
+                BytesIO(json.dumps(coco_output).encode("utf-8")),
+                f"{project_id}_coco.json",
+            )
 
-        unique_labels = sorted({layer.get("class_label") for layer in all_layers if layer.get("class_label")})
+        unique_labels = sorted(
+            {
+                layer.get("class_label")
+                for layer in all_layers
+                if layer.get("class_label")
+            }
+        )
         category_map: Dict[Optional[str], int] = {}
         categories: List[Dict[str, Any]] = []
         if unique_labels:
             for idx, label in enumerate(unique_labels):
                 category_map[label] = idx + 1
-                categories.append({"id": idx + 1, "name": label, "supercategory": label.split("_")[0]})
+                categories.append(
+                    {"id": idx + 1, "name": label, "supercategory": label.split("_")[0]}
+                )
             default_cat_id = len(unique_labels) + 1
-            categories.append({"id": default_cat_id, "name": "unlabeled", "supercategory": "none"})
+            categories.append(
+                {"id": default_cat_id, "name": "unlabeled", "supercategory": "none"}
+            )
             category_map[None] = default_cat_id
         else:
             categories.append({"id": 1, "name": "unlabeled", "supercategory": "none"})
@@ -247,13 +294,15 @@ def prepare_export_data(
             info = db_manager.get_image_by_hash(project_id, img_hash)
             if not info:
                 continue
-            coco_output["images"].append({
-                "id": idx + 1,
-                "width": info["width"],
-                "height": info["height"],
-                "file_name": info.get("original_filename") or f"{img_hash}.jpg",
-                "license": 1
-            })
+            coco_output["images"].append(
+                {
+                    "id": idx + 1,
+                    "width": info["width"],
+                    "height": info["height"],
+                    "file_name": info.get("original_filename") or f"{img_hash}.jpg",
+                    "license": 1,
+                }
+            )
             image_id_map[img_hash] = idx + 1
 
         annotation_id = 1
@@ -265,18 +314,23 @@ def prepare_export_data(
                 continue
             rle_obj = layer["mask_data_rle"]
             bbox, area = _convert_rle_to_bbox_and_area(rle_obj)
-            coco_output["annotations"].append({
-                "id": annotation_id,
-                "image_id": img_id,
-                "category_id": category_id,
-                "segmentation": rle_obj,
-                "area": area,
-                "bbox": bbox,
-                "iscrowd": 0
-            })
+            coco_output["annotations"].append(
+                {
+                    "id": annotation_id,
+                    "image_id": img_id,
+                    "category_id": category_id,
+                    "segmentation": rle_obj,
+                    "area": area,
+                    "bbox": bbox,
+                    "iscrowd": 0,
+                }
+            )
             annotation_id += 1
 
-        return BytesIO(json.dumps(coco_output, indent=2).encode("utf-8")), f"{project_id}_coco.json"
+        return (
+            BytesIO(json.dumps(coco_output, indent=2).encode("utf-8")),
+            f"{project_id}_coco.json",
+        )
 
     elif export_format == "overlay_images_zip":
         if not image_hashes:

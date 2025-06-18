@@ -1355,6 +1355,16 @@ input[type="file"]#image-upload {
 #perform-export-btn:hover:not(:disabled) {
   background-color: #5a6268;
 }
+#perform-export-btn:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+#perform-export-btn.with-layers {
+  background-color: #28a745;
+}
+#perform-export-btn.no-layers {
+  background-color: #fd7e14;
+}
 
 /* Tagify dropdown custom look */
 .tags-look .tagify__dropdown__item{

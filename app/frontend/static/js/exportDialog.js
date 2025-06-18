@@ -46,33 +46,37 @@ class ExportDialog {
       "approved",
       "rejected",
     ];
-    this.statusTagify = new Tagify(this.statusInput, {
-      whitelist: statusOptions,
-      maxTags: 5,
-      dropdown: {
-        maxItems: 20,
-        classname: "tags-look",
-        enabled: 0,
-        closeOnSelect: false,
-      },
-    });
-    this.statusTagify.addTags(["approved"]);
-    this.statusTagify.on("add", () => this.updateStats());
-    this.statusTagify.on("remove", () => this.updateStats());
+    if (this.statusInput) {
+      this.statusTagify = new Tagify(this.statusInput, {
+        whitelist: statusOptions,
+        maxTags: 5,
+        dropdown: {
+          maxItems: 20,
+          classname: "tags-look",
+          enabled: 0,
+          closeOnSelect: false,
+        },
+      });
+      this.statusTagify.addTags(["approved"]);
+      this.statusTagify.on("add", () => this.updateStats());
+      this.statusTagify.on("remove", () => this.updateStats());
+    }
 
-    this.maskTagify = new Tagify(this.maskInput, {
-      whitelist: ["All Layers", "Visible Layers"],
-      maxTags: 10,
-      dropdown: {
-        maxItems: 20,
-        classname: "tags-look",
-        enabled: 0,
-        closeOnSelect: false,
-      },
-    });
-    this.maskTagify.addTags(["All Layers"]);
-    this.maskTagify.on("add", () => this.updateStats());
-    this.maskTagify.on("remove", () => this.updateStats());
+    if (this.maskInput) {
+      this.maskTagify = new Tagify(this.maskInput, {
+        whitelist: ["All Layers", "Visible Layers"],
+        maxTags: 10,
+        dropdown: {
+          maxItems: 20,
+          classname: "tags-look",
+          enabled: 0,
+          closeOnSelect: false,
+        },
+      });
+      this.maskTagify.addTags(["All Layers"]);
+      this.maskTagify.on("add", () => this.updateStats());
+      this.maskTagify.on("remove", () => this.updateStats());
+    }
 
     this.updateStats();
     this._toggleStatusInput();
@@ -84,7 +88,7 @@ class ExportDialog {
   }
 
   _getMaskValues() {
-    return this.maskTagify.value.map((t) => t.value);
+    return this.maskTagify ? this.maskTagify.value.map((t) => t.value) : [];
   }
 
   _getVisibleLayerIds() {
@@ -98,6 +102,7 @@ class ExportDialog {
 
   _toggleStatusInput() {
     const scope = this._getImageScope();
+    if (!this.statusInput) return;
     const wrapper = this.statusInput.parentElement;
     if (wrapper) {
       wrapper.style.display = scope === "current" ? "none" : "block";
@@ -105,26 +110,36 @@ class ExportDialog {
   }
 
   gatherFilters() {
-    const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [], visible_only: false };
+    const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [] };
+    let visibleOnly = null;
     const scope = this._getImageScope();
     if (scope === "current") {
       const hash = this.stateManager.getActiveImageHash();
       if (hash) filters.image_hashes.push(hash);
     } else {
-      filters.image_statuses = this.statusTagify.value.map((t) => t.value);
+      filters.image_statuses = this.statusTagify
+        ? this.statusTagify.value.map((t) => t.value)
+        : [];
     }
 
     const values = this._getMaskValues();
+    if (values.length === 0) {
+      // no layers selected -> indicate empty set
+      return { ...filters, empty: true };
+    }
     if (!values.includes("All Layers")) {
       if (values.includes("Visible Layers")) {
         if (scope === "current") {
           filters.layer_ids = this._getVisibleLayerIds();
         } else {
-          filters.visible_only = true;
+          visibleOnly = true;
         }
       }
       const labels = values.filter((v) => v !== "All Layers" && v !== "Visible Layers");
       if (labels.length > 0) filters.class_labels = labels;
+    }
+    if (visibleOnly !== null) {
+      filters.visible_only = visibleOnly;
     }
     return filters;
   }
@@ -134,10 +149,14 @@ class ExportDialog {
     if (!projectId) return;
     try {
       const filters = this.gatherFilters();
-      const stats = await this.apiClient.getExportStats(projectId, {
-        filters,
-      });
-      this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
+      if (filters.empty) {
+        this.statsBox.textContent = `Images: 0, Layers: 0`;
+        this._setButtonState(0, 0);
+      } else {
+        const stats = await this.apiClient.getExportStats(projectId, { filters });
+        this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
+        this._setButtonState(stats.num_images, stats.num_layers);
+      }
 
       // Fetch label suggestions using only image scope filters
       const baseFilters = {
@@ -156,6 +175,22 @@ class ExportDialog {
       }
     } catch (e) {
       this.statsBox.textContent = "Stats unavailable";
+      this._setButtonState(0, 0);
+    }
+  }
+
+  _setButtonState(numImages, numLayers) {
+    if (!this.exportBtn) return;
+    this.exportBtn.classList.remove("with-layers", "no-layers");
+    if (numImages === 0) {
+      this.exportBtn.disabled = true;
+    } else {
+      this.exportBtn.disabled = false;
+      if (numLayers === 0) {
+        this.exportBtn.classList.add("no-layers");
+      } else {
+        this.exportBtn.classList.add("with-layers");
+      }
     }
   }
 

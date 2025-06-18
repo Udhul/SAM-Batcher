@@ -50,7 +50,6 @@ def get_db_connection(
     return conn
 
 
-
 def init_project_db(project_id: str, project_name: str) -> None:
     """Initializes a new project database with the required schema."""
     conn = get_db_connection(project_id)
