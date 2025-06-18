@@ -50,6 +50,25 @@ def get_db_connection(
     return conn
 
 
+# Cache of projects already checked for the `visible` column
+_checked_visible_column: set[str] = set()
+
+
+def _ensure_visible_column(project_id: str) -> None:
+    """Add `visible` column to Mask_Layers table if it does not exist."""
+    if project_id in _checked_visible_column:
+        return
+    conn = get_db_connection(project_id)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(Mask_Layers)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "visible" not in columns:
+        cursor.execute("ALTER TABLE Mask_Layers ADD COLUMN visible BOOLEAN DEFAULT 1")
+        conn.commit()
+    conn.close()
+    _checked_visible_column.add(project_id)
+
+
 def init_project_db(project_id: str, project_name: str) -> None:
     """Initializes a new project database with the required schema."""
     conn = get_db_connection(project_id)
@@ -576,6 +595,7 @@ def get_layers_by_image_and_statuses(
     visible_only: Optional[bool] = None,
 ) -> List[Dict[str, Any]]:
     """Returns mask layers for given images filtered by layer_type/status."""
+    _ensure_visible_column(project_id)
     if not image_hashes:
         return []
     placeholders_imgs = ",".join(["?"] * len(image_hashes))
@@ -617,6 +637,7 @@ def get_layers_by_image_and_statuses(
 
 def get_layers_by_ids(project_id: str, layer_ids: List[str]) -> List[Dict[str, Any]]:
     """Return mask layers specified by layer_ids."""
+    _ensure_visible_column(project_id)
     if not layer_ids:
         return []
     placeholders = ",".join(["?"] * len(layer_ids))
@@ -661,6 +682,7 @@ def save_mask_layer(
     visible: bool = True,
     source_metadata: Optional[Dict] = None,
 ) -> None:
+    _ensure_visible_column(project_id)
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     cursor.execute(
@@ -715,6 +737,7 @@ def save_mask_layer(
 def get_mask_layers_for_image(
     project_id: str, image_hash: str, layer_type: Optional[str] = None
 ) -> List[Dict[str, Any]]:
+    _ensure_visible_column(project_id)
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     query = "SELECT * FROM Mask_Layers WHERE image_hash_ref = ?"
@@ -795,6 +818,7 @@ def update_mask_layer_basic(
     visible: Optional[bool] = None,
 ) -> None:
     """Update simple editable fields for a mask layer."""
+    _ensure_visible_column(project_id)
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
     updates = []
