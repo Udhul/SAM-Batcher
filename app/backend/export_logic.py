@@ -144,8 +144,7 @@ def calculate_export_stats(
     class_labels = filters.get("class_labels", []) if filters else []
     image_hashes = filters.get("image_hashes", []) if filters else []
     layer_ids = filters.get("layer_ids", []) if filters else []
-    # None means no filter on visibility; True/False explicitly filter
-    visible_only = filters.get("visible_only") if filters else None
+    visibility_mode = filters.get("visibility_mode") if filters else None
 
     if layer_ids:
         all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
@@ -167,11 +166,29 @@ def calculate_export_stats(
                     if h not in image_hashes
                 ]
             )
+        visible_filter = True if visibility_mode == "and" else None
         all_layers = db_manager.get_layers_by_image_and_statuses(
-            project_id, image_hashes, layer_statuses, visible_only
+            project_id, image_hashes, layer_statuses, visible_filter
         )
-    if class_labels:
-        all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
+
+    filtered_layers: List[Dict[str, Any]] = []
+    for layer in all_layers:
+        include = True
+        if visibility_mode == "and":
+            include = layer.get("visible", True)
+            if class_labels:
+                include = include and layer.get("class_label") in class_labels
+        elif visibility_mode == "or":
+            include = layer.get("visible", True)
+            if class_labels and layer.get("class_label") in class_labels:
+                include = True
+        else:  # none
+            if class_labels:
+                include = layer.get("class_label") in class_labels
+        if include:
+            filtered_layers.append(layer)
+
+    all_layers = filtered_layers
 
     label_counts: Dict[str, int] = {}
     for layer in all_layers:
@@ -219,12 +236,11 @@ def prepare_export_data(
         class_labels = filters.get("class_labels", []) if filters else []
         image_hashes = filters.get("image_hashes", []) if filters else []
         layer_ids = filters.get("layer_ids", []) if filters else []
-        # None indicates no visibility filter
-        visible_only = filters.get("visible_only") if filters else None
+        visibility_mode = filters.get("visibility_mode") if filters else None
 
         if layer_ids:
             all_layers = db_manager.get_layers_by_ids(project_id, layer_ids)
-            if visible_only:
+            if visibility_mode == "and":
                 all_layers = [l for l in all_layers if l.get("visible", True)]
             image_hashes.extend(
                 [
@@ -244,18 +260,35 @@ def prepare_export_data(
                         if h not in image_hashes
                     ]
                 )
+            visible_filter = True if visibility_mode == "and" else None
             all_layers = db_manager.get_layers_by_image_and_statuses(
-                project_id, image_hashes, layer_statuses, visible_only
+                project_id, image_hashes, layer_statuses, visible_filter
             )
+
+        filtered_layers: List[Dict[str, Any]] = []
+        for layer in all_layers:
+            include = True
+            if visibility_mode == "and":
+                include = layer.get("visible", True)
+                if class_labels:
+                    include = include and layer.get("class_label") in class_labels
+            elif visibility_mode == "or":
+                include = layer.get("visible", True)
+                if class_labels and layer.get("class_label") in class_labels:
+                    include = True
+            else:
+                if class_labels:
+                    include = layer.get("class_label") in class_labels
+            if include:
+                filtered_layers.append(layer)
+
+        all_layers = filtered_layers
 
         if not image_hashes:
             return (
                 BytesIO(json.dumps(coco_output).encode("utf-8")),
                 f"{project_id}_coco.json",
             )
-
-        if class_labels:
-            all_layers = [l for l in all_layers if l.get("class_label") in class_labels]
 
         image_hashes = sorted({layer["image_hash_ref"] for layer in all_layers})
         if not image_hashes:

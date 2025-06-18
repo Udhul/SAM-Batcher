@@ -29,10 +29,7 @@ class ExportDialog {
     }
     if (this.imageScopeRadios) {
       Array.from(this.imageScopeRadios).forEach((r) =>
-        r.addEventListener("change", () => {
-          this._toggleStatusInput();
-          this.updateStats();
-        })
+        r.addEventListener("change", () => this.updateStats())
       );
     }
     if (this.exportBtn) {
@@ -64,7 +61,7 @@ class ExportDialog {
 
     if (this.maskInput) {
       this.maskTagify = new Tagify(this.maskInput, {
-        whitelist: ["All Layers", "Visible Layers"],
+        whitelist: ["Any Visible or Tagged", "Only Visible and Tagged"],
         maxTags: 10,
         dropdown: {
           maxItems: 20,
@@ -73,13 +70,11 @@ class ExportDialog {
           closeOnSelect: false,
         },
       });
-      this.maskTagify.addTags(["All Layers"]);
       this.maskTagify.on("add", () => this.updateStats());
       this.maskTagify.on("remove", () => this.updateStats());
     }
 
     this.updateStats();
-    this._toggleStatusInput();
   }
 
   _getImageScope() {
@@ -100,46 +95,38 @@ class ExportDialog {
     return [];
   }
 
-  _toggleStatusInput() {
-    const scope = this._getImageScope();
-    if (!this.statusInput) return;
-    const wrapper = this.statusInput.parentElement;
-    if (wrapper) {
-      wrapper.style.display = scope === "current" ? "none" : "block";
-    }
-  }
 
   gatherFilters() {
     const filters = { image_statuses: [], class_labels: [], image_hashes: [], layer_ids: [] };
-    let visibleOnly = null;
+    let visibilityMode = null;
     const scope = this._getImageScope();
     if (scope === "current") {
       const hash = this.stateManager.getActiveImageHash();
       if (hash) filters.image_hashes.push(hash);
-    } else {
-      filters.image_statuses = this.statusTagify
-        ? this.statusTagify.value.map((t) => t.value)
-        : [];
     }
+    filters.image_statuses = this.statusTagify
+      ? this.statusTagify.value.map((t) => t.value)
+      : [];
 
     const values = this._getMaskValues();
-    if (values.length === 0) {
-      // no layers selected -> indicate empty set
-      return { ...filters, empty: true };
+    const idxOr = values.indexOf("Any Visible or Tagged");
+    if (idxOr > -1) {
+      visibilityMode = "or";
+      values.splice(idxOr, 1);
     }
-    if (!values.includes("All Layers")) {
-      if (values.includes("Visible Layers")) {
-        if (scope === "current") {
-          filters.layer_ids = this._getVisibleLayerIds();
-        } else {
-          visibleOnly = true;
-        }
+    const idxAnd = values.indexOf("Only Visible and Tagged");
+    if (idxAnd > -1) {
+      visibilityMode = "and";
+      values.splice(idxAnd, 1);
+    }
+    if (visibilityMode) {
+      filters.visibility_mode = visibilityMode;
+      if (visibilityMode === "and" && scope === "current") {
+        filters.layer_ids = this._getVisibleLayerIds();
       }
-      const labels = values.filter((v) => v !== "All Layers" && v !== "Visible Layers");
-      if (labels.length > 0) filters.class_labels = labels;
     }
-    if (visibleOnly !== null) {
-      filters.visible_only = visibleOnly;
+    if (values.length > 0) {
+      filters.class_labels = values;
     }
     return filters;
   }
@@ -149,14 +136,9 @@ class ExportDialog {
     if (!projectId) return;
     try {
       const filters = this.gatherFilters();
-      if (filters.empty) {
-        this.statsBox.textContent = `Images: 0, Layers: 0`;
-        this._setButtonState(0, 0);
-      } else {
-        const stats = await this.apiClient.getExportStats(projectId, { filters });
-        this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
-        this._setButtonState(stats.num_images, stats.num_layers);
-      }
+      const stats = await this.apiClient.getExportStats(projectId, { filters });
+      this.statsBox.textContent = `Images: ${stats.num_images}, Layers: ${stats.num_layers}`;
+      this._setButtonState(stats.num_images, stats.num_layers);
 
       // Fetch label suggestions using only image scope filters
       const baseFilters = {
@@ -168,7 +150,11 @@ class ExportDialog {
       });
       if (labelStats.label_counts) {
         const labels = Object.keys(labelStats.label_counts).sort();
-        this.maskTagify.settings.whitelist = ["All Layers", "Visible Layers", ...labels];
+        this.maskTagify.settings.whitelist = [
+          "Any Visible or Tagged",
+          "Only Visible and Tagged",
+          ...labels,
+        ];
         if (this.maskTagify.dropdown) {
           this.maskTagify.dropdown.refilter();
         }
@@ -213,7 +199,6 @@ class ExportDialog {
 
   show() {
     if (this.overlay) this.overlay.style.display = "flex";
-    this._toggleStatusInput();
     this.updateStats();
   }
 
