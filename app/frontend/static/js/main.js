@@ -107,9 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ),
     statusEl: document.getElementById("auto-mask-status"),
   };
-  const saveOverlayBtn = document.getElementById("save-masks-btn");
+  const saveOverlayBtn = document.getElementById("save-canvas-png-btn");
   const commitMasksBtn = document.getElementById("commit-masks-btn");
-  const exportCocoBtn = document.getElementById("export-coco-btn");
+  const openExportBtn = document.getElementById("open-export-btn");
   const addEmptyLayerBtn = document.getElementById("add-empty-layer-btn");
   const readySwitch = document.getElementById("ready-switch");
   const skipSwitch = document.getElementById("skip-switch");
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const reviewApproveBtn = document.getElementById("review-approve-btn");
   const reviewRejectBtn = document.getElementById("review-reject-btn");
   const reviewPrevBtn = document.getElementById("review-prev-btn");
-  const toggleReviewModeBtn = document.getElementById("toggle-review-mode-btn");
+  const toggleReviewModeBtn = document.getElementById("review-mode-btn");
   const reviewModeControls = document.getElementById("review-mode-controls");
   const imageStatusControls = document.getElementById("image-status-controls");
 

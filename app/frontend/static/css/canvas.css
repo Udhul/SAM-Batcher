@@ -4,9 +4,9 @@
 /* Canvas Toolbar (specific to canvas interactions) */
 .canvas-toolbar {
   display: grid;
-  grid-template-columns: 10% 45% 40% 1% 1%; /* Make room for gap */
-  gap: 10px;
-  padding: 10px 15px;
+  grid-template-columns: 38% 20% 38%; /* 3 column layout */
+  gap: 8px;
+  padding: 6px 10px;
   background-color: #f8f9fa;
   border-radius: 6px;
   align-items: center;
@@ -15,21 +15,46 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.canvas-toolbar-button-column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch; /* Changed from center to stretch */
+    width: 100%; /* Ensure full width usage */
+    padding: 0px;
+}
+
+/* Make text buttons stretch to fill available width equally */
+.canvas-toolbar-button-column .text-btn {
+    flex: 1; /* Grow to fill available space */
+    min-width: 0; /* Allow shrinking if needed */
+    width: 100%; /* Take full width of container */
+}
+
+/* Keep icon buttons at their natural size */
+.canvas-toolbar-button-column .icon-btn {
+    flex: 0 0 auto; /* Don't grow or shrink, keep natural size */
+    align-self: center; /* Center icon buttons within the column */
+}
+
 .toolbar-col,
 .toolbar-col-1,
 .toolbar-col-2,
-.toolbar-col-3,
-.toolbar-col-4,
-.toolbar-col-5 {
+.toolbar-col-3 {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
 }
 
+.toolbar-col-2 {
+  gap: 1px; /* Smaller gap between button columns in the center toolbar column */
+}
+
 .left-controls {
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
 }
 
 .mask-toggle-container {
@@ -259,13 +284,16 @@
 @media (max-width: 768px) {
   .canvas-toolbar {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
   }
   .toolbar-col,
   .toolbar-col-1,
   .toolbar-col-2,
-  .toolbar-col-3,
-  .toolbar-col-4,
-  .toolbar-col-5 {
+  .toolbar-col-3 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .left-controls {
     flex-direction: column;
     align-items: stretch;
   }
