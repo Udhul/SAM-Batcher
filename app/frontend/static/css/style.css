@@ -16,6 +16,7 @@ body {
   align-items: center; /* Center .container horizontally */
   min-height: 100vh; /* Ensure body takes full viewport height */
   padding: 0px; /* Make .container control padding */
+  overflow-x: hidden; /* Prevent horizontal scrollbars */
 }
 
 .container {
@@ -100,7 +101,7 @@ header p {
   grid-template-columns: 75% 1fr;
   gap: 5px;
   align-items: stretch;
-  height: 75vh;
+  height: 74vh; /* Slightly smaller to prevent page overflow */
   min-height: 0; /* allow flex parents to control height */
 }
 .image-display-area {
@@ -854,6 +855,7 @@ input[type="file"]#image-upload {
   justify-content: center;
 }
 .help-icon {
+  position: relative; /* Anchor tooltip positioning */
   display: inline-block;
   width: 24px;
   height: 24px;
