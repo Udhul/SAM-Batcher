@@ -240,30 +240,42 @@
                 </div>
 
             <div class="image-section">
-                    <div class="image-display-area">
-                        <div class="canvas-container">
-                            <canvas id="image-canvas"></canvas>
-                            <canvas id="prediction-mask-canvas"></canvas>
-                            <canvas id="user-input-canvas"></canvas>
-                            <div id="canvas-lock" class="canvas-lock-overlay">
-                                <div class="canvas-lock-content">
-                                    <div class="spinner"></div>
-                                    <div class="canvas-lock-message">Processing...</div>
-                                </div>
+                <div class="image-display-area">
+                    <div class="canvas-container">
+                        <canvas id="image-canvas"></canvas>
+                        <canvas id="prediction-mask-canvas"></canvas>
+                        <canvas id="user-input-canvas"></canvas>
+                        <div id="canvas-lock" class="canvas-lock-overlay">
+                            <div class="canvas-lock-content">
+                                <div class="spinner"></div>
+                                <div class="canvas-lock-message">Processing...</div>
                             </div>
                         </div>
-                        <div class="canvas-toolbar">
-                            <div class="toolbar-col-1 toolbar-col left-controls">
-                                <button id="clear-inputs-btn" class="text-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear Inputs</button>
+                    </div>
+                    <div class="canvas-toolbar">
+                        <!-- Left Column (40%) - Mask Toggle Container -->
+                        <div class="toolbar-col-1 toolbar-col">
+                            <div id="mask-toggle-container" class="mask-toggle-container"></div>
+                        </div>
+                        
+                        <!-- Middle Column (20%) - Button Columns -->
+                        <div class="toolbar-col-2 toolbar-col left-controls">
+                            <div class="canvas-toolbar-button-column">
+                                <button id="commit-masks-btn" class="text-btn" title="Add the current predictions to the Layer View">Add</button>
+                                <button id="clear-inputs-btn" class="text-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear</button>
+                            </div>
+                            <div class="canvas-toolbar-button-column">
                                 <button id="open-auto-mask-overlay" class="icon-btn" title="Automatic mask generation">
                                     <span class="icon">🪄</span><span class="sr-only">AutoMask</span>
                                 </button>
-                                <button id="commit-masks-btn" class="text-btn" title="Add the current predictions to the Layer View">Add to Layers</button>
+                                <button id="save-canvas-png-btn" class="icon-btn" title="Download a PNG preview of the current canvas with overlays">
+                                    <span class="icon">💾</span><span class="sr-only">Save PNG</span>
+                                </button>
                             </div>
-                        <div class="toolbar-col-2 toolbar-col">
-                            <div id="mask-toggle-container" class="mask-toggle-container"></div>
                         </div>
-                        <div class="toolbar-col-3 toolbar-col help-section">
+                        
+                        <!-- Right Column (40%) - Opacity Controls -->
+                        <div class="toolbar-col-3 toolbar-col">
                             <div class="opacity-controls">
                                 <div class="opacity-control">
                                     <label for="image-opacity">Image</label>
@@ -297,9 +309,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="toolbar-col-4 toolbar-col future-tools"></div>
-                        <div class="toolbar-col-5 toolbar-col">
-                        </div>
                     </div>
                 </div>
                 <div id="layer-view-section" class="layer-view-section">
@@ -318,9 +327,6 @@
                             <span class="switch-slider"></span>
                             <span class="switch-label-text">Ready</span>
                         </label>
-                        <button id="save-canvas-png-btn" class="icon-btn" title="Download a PNG preview of the current canvas with overlays">
-                            <span class="icon">💾</span><span class="sr-only">Save PNG</span>
-                        </button>
                     </div>
                     <div id="review-mode-controls" class="review-mode-controls" style="display:none;">
                         <button id="review-prev-btn" title="Go to previous reviewed image">Prev</button>
@@ -328,7 +334,6 @@
                         <button id="review-approve-btn">Approve</button>
                         <button id="review-reject-btn">Reject</button>
                     </div>
-
                 </div>
             </div>
         </div>
