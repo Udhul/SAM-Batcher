@@ -12,7 +12,7 @@ class ExportDialog {
 
     this.overlay = document.getElementById("export-overlay");
     this.closeBtn = document.getElementById("close-export-overlay");
-    this.openBtn = document.getElementById("export-coco-btn");
+    this.openBtn = document.getElementById("open-export-btn");
     this.imageScopeRadios = document.getElementsByName("export-image-scope");
     this.statusSection = document.getElementById("export-status-section");
     this.statusInput = document.getElementById("export-status-input");
