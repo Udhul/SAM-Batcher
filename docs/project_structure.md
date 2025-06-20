@@ -30,6 +30,7 @@ project_root/
   │   │   │   │   ├── modelHandler.js     # Handles model selection, loading, status
   │   │   │   │   ├── imagePoolHandler.js # Handles image gallery, navigation, active image logic
   │   │   │   │   ├── stateManager.js     # Keeps track of current frontend state
+  │   │   │   │   ├── editModeController.js # Manages mask editing tools
   │   │   │   │   └── utils.js            # Frontend utility functions (DOM helpers, formatters)
   │   └── assets/                 # Static assets like icons, placeholder images
   │                               # Served from the `/assets` URL path

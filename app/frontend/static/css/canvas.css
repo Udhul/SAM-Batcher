@@ -206,6 +206,28 @@
   width: 100%; /* Take full width of its parent */
 }
 
+.edit-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+.edit-tools,
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.edit-toolbar button.active {
+  background-color: #007bff;
+  color: #fff;
+}
+
 /* Individual Canvases */
 .canvas-container canvas {
   position: absolute;

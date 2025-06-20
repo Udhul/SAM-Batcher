@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
     typeof LayerViewController === "function"
       ? new LayerViewController("#layer-view-container", stateManager)
       : null;
+  const editModeController =
+    typeof EditModeController === "function"
+      ? new EditModeController(canvasManager, stateManager, apiClient, utils)
+      : null;
   const exportDialog =
     typeof ExportDialog === "function"
       ? new ExportDialog(apiClient, stateManager, uiManager)
@@ -75,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.projectHandler = projectHandler;
   window.imagePoolHandler = imagePoolHandler;
   window.layerViewController = layerViewController;
+  window.editModeController = editModeController;
   window.exportDialog = exportDialog;
 
   console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
@@ -1093,6 +1098,14 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasManager.clearAllCanvasInputs(false);
     canvasManager.setMode("edit", ids);
     canvasManager.setLayers(activeImageState.layers);
+    if (editModeController) {
+      if (ids.length === 1) {
+        const layer = activeImageState.layers.find((l) => l.layerId === ids[0]);
+        editModeController.beginEdit(layer);
+      } else {
+        editModeController.endEdit();
+      }
+    }
   });
 
   document.addEventListener("layer-deleted", async (event) => {
@@ -1220,6 +1233,40 @@ document.addEventListener("DOMContentLoaded", () => {
         { layerId: layer.layerId },
         { skipAutoStatus: true },
       );
+      canvasManager.setLayers(activeImageState.layers);
+    }
+  });
+
+  document.addEventListener("edit-save", (event) => {
+    if (!activeImageState) return;
+    const layer = activeImageState.layers.find(
+      (l) => l.layerId === event.detail.layerId,
+    );
+    if (layer && event.detail.maskData) {
+      layer.maskData = event.detail.maskData;
+      layer.status = "edited";
+      const pid = stateManager.getActiveProjectId();
+      const ih = activeImageState.imageHash;
+      if (pid && ih) {
+        const rle = utils.binaryMaskToRLE(layer.maskData);
+        apiClient
+          .updateMaskLayer(pid, ih, layer.layerId, {
+            mask_data_rle: rle,
+            status: "edited",
+          })
+          .catch((err) => {
+            uiManager.showGlobalStatus(
+              `Save edit failed: ${utils.escapeHTML(err.message)}`,
+              "error",
+            );
+          });
+      }
+      onImageDataChange("layer-modified", { layerId: layer.layerId });
+    }
+  });
+
+  document.addEventListener("edit-cancel", () => {
+    if (activeImageState) {
       canvasManager.setLayers(activeImageState.layers);
     }
   });

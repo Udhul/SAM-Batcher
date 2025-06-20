@@ -310,6 +310,17 @@
                             </div>
                         </div>
                     </div>
+                    <div id="edit-toolbar" class="edit-toolbar" style="display:none;">
+                        <div class="edit-tools">
+                            <button id="edit-brush-btn" class="text-btn">Brush</button>
+                            <button id="edit-eraser-btn" class="text-btn">Eraser</button>
+                            <label>Size <input type="range" id="edit-brush-size" min="1" max="50" value="10"></label>
+                        </div>
+                        <div class="edit-actions">
+                            <button id="edit-save-btn" class="text-btn">Save</button>
+                            <button id="edit-cancel-btn" class="text-btn">Cancel</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="layer-view-section" class="layer-view-section">
                     <button id="add-empty-layer-btn" title="Create empty layer">+</button>
@@ -354,6 +365,7 @@
     <script src="{{ url_for('static', path='js/projectHandler.js') }}"></script> <!-- Project management UI -->
     <script src="{{ url_for('static', path='js/imagePoolHandler.js') }}"></script> <!-- Image gallery/navigation UI -->
     <script src="{{ url_for('static', path='js/layerViewController.js') }}"></script> <!-- Layer view management -->
+    <script src="{{ url_for('static', path='js/editModeController.js') }}"></script>
     <script src="{{ url_for('static', path='js/exportDialog.js') }}"></script>
     <script src="{{ url_for('static', path='js/main.js') }}"></script> <!-- Main application orchestrator -->
 </body>

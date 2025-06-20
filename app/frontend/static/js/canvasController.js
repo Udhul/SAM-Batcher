@@ -116,6 +116,10 @@ class CanvasManager {
         this.selectedLayerIds = [];
         this.mode = 'edit'; // 'creation', 'edit', 'review'
 
+        this.editingLayerId = null;
+        this.editingMask = null;
+        this.editingColor = '#ff0000';
+
         this.interactionState = {
             isDrawingBox: false,
             isMouseDown: false,
@@ -473,7 +477,7 @@ class CanvasManager {
 
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
-        const visibleLayers = (this.layers || []).filter(l => l.visible && l.maskData);
+        const visibleLayers = (this.layers || []).filter(l => l.visible);
         if (visibleLayers.length > 0) {
             visibleLayers.forEach(l => {
                 let op = 1.0;
@@ -482,7 +486,13 @@ class CanvasManager {
                 } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
-                this._drawBinaryMask(l.maskData, l.color, op);
+                const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
+                    ? this.editingMask
+                    : l.maskData;
+                const color = (this.editingLayerId && l.layerId === this.editingLayerId)
+                    ? this.editingColor
+                    : l.color;
+                if (mask) this._drawBinaryMask(mask, color, op);
             });
         }
 
@@ -971,6 +981,53 @@ class CanvasManager {
         if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
+    }
+
+    startMaskEdit(layerId, maskData, color) {
+        this.editingLayerId = layerId;
+        this.editingColor = color || '#ff0000';
+        this.editingMask = maskData ? maskData.map(r => [...r]) : this._createEmptyMask();
+        this.drawPredictionMaskLayer();
+    }
+
+    applyBrush(x, y, radius, add = true) {
+        if (!this.editingMask) return;
+        const h = this.editingMask.length;
+        const w = this.editingMask[0].length;
+        const cx = Math.round(x);
+        const cy = Math.round(y);
+        for (let j = -radius; j <= radius; j++) {
+            for (let i = -radius; i <= radius; i++) {
+                if (i*i + j*j <= radius*radius) {
+                    const nx = cx + i;
+                    const ny = cy + j;
+                    if (nx >=0 && ny >=0 && nx < w && ny < h) {
+                        this.editingMask[ny][nx] = add ? 1 : 0;
+                    }
+                }
+            }
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+    getEditedMask() {
+        return this.editingMask ? this.editingMask.map(r => [...r]) : null;
+    }
+
+    finishMaskEdit() {
+        this.editingLayerId = null;
+        this.editingMask = null;
+        this.drawPredictionMaskLayer();
+    }
+
+    _createEmptyMask() {
+        const h = this.originalImageHeight;
+        const w = this.originalImageWidth;
+        const mask = [];
+        for (let y = 0; y < h; y++) {
+            mask[y] = new Array(w).fill(0);
+        }
+        return mask;
     }
 }
 
