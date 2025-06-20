@@ -256,21 +256,32 @@
                         <!-- Left Column (40%) - Mask Toggle Container -->
                         <div class="toolbar-col-1 toolbar-col">
                             <div id="mask-toggle-container" class="mask-toggle-container"></div>
+                            <div id="edit-tools" class="edit-tools" style="display:none;">
+                                <button id="edit-brush-btn" class="text-btn">Brush</button>
+                                <button id="edit-eraser-btn" class="text-btn">Eraser</button>
+                                <label>Size <input type="range" id="edit-brush-size" min="1" max="50" value="10"></label>
+                            </div>
                         </div>
-                        
+
                         <!-- Middle Column (20%) - Button Columns -->
                         <div class="toolbar-col-2 toolbar-col left-controls">
-                            <div class="canvas-toolbar-button-column">
-                                <button id="commit-masks-btn" class="text-btn" title="Add the current predictions to the Layer View">Add</button>
-                                <button id="clear-inputs-btn" class="text-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear</button>
+                            <div id="creation-actions" class="creation-actions">
+                                <div class="canvas-toolbar-button-column">
+                                    <button id="commit-masks-btn" class="text-btn" title="Add the current predictions to the Layer View">Add</button>
+                                    <button id="clear-inputs-btn" class="text-btn" title="Clear points, boxes, and drawn masks from the canvas">Clear</button>
+                                </div>
+                                <div class="canvas-toolbar-button-column">
+                                    <button id="open-auto-mask-overlay" class="icon-btn" title="Automatic mask generation">
+                                        <span class="icon">🪄</span><span class="sr-only">AutoMask</span>
+                                    </button>
+                                    <button id="save-canvas-png-btn" class="icon-btn" title="Download a PNG preview of the current canvas with overlays">
+                                        <span class="icon">💾</span><span class="sr-only">Save PNG</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="canvas-toolbar-button-column">
-                                <button id="open-auto-mask-overlay" class="icon-btn" title="Automatic mask generation">
-                                    <span class="icon">🪄</span><span class="sr-only">AutoMask</span>
-                                </button>
-                                <button id="save-canvas-png-btn" class="icon-btn" title="Download a PNG preview of the current canvas with overlays">
-                                    <span class="icon">💾</span><span class="sr-only">Save PNG</span>
-                                </button>
+                            <div id="edit-actions" class="edit-actions" style="display:none;">
+                                <button id="edit-save-btn" class="text-btn">Save</button>
+                                <button id="edit-cancel-btn" class="text-btn">Cancel</button>
                             </div>
                         </div>
                         
@@ -308,17 +319,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div id="edit-toolbar" class="edit-toolbar" style="display:none;">
-                        <div class="edit-tools">
-                            <button id="edit-brush-btn" class="text-btn">Brush</button>
-                            <button id="edit-eraser-btn" class="text-btn">Eraser</button>
-                            <label>Size <input type="range" id="edit-brush-size" min="1" max="50" value="10"></label>
-                        </div>
-                        <div class="edit-actions">
-                            <button id="edit-save-btn" class="text-btn">Save</button>
-                            <button id="edit-cancel-btn" class="text-btn">Cancel</button>
                         </div>
                     </div>
                 </div>

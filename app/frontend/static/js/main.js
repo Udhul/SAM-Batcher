@@ -116,6 +116,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const commitMasksBtn = document.getElementById("commit-masks-btn");
   const openExportBtn = document.getElementById("open-export-btn");
   const addEmptyLayerBtn = document.getElementById("add-empty-layer-btn");
+  const creationActions = document.getElementById("creation-actions");
+  const editActions = document.getElementById("edit-actions");
+  const helpTooltipContent = document.querySelector("#help-icon .tooltip-content");
   const readySwitch = document.getElementById("ready-switch");
   const skipSwitch = document.getElementById("skip-switch");
   const reviewSkipBtn = document.getElementById("review-skip-btn");
@@ -125,6 +128,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleReviewModeBtn = document.getElementById("review-mode-btn");
   const reviewModeControls = document.getElementById("review-mode-controls");
   const imageStatusControls = document.getElementById("image-status-controls");
+
+  function updateHelpTooltipForMode(mode) {
+    if (!helpTooltipContent) return;
+    const texts = {
+      creation: `\n        <p><strong>Canvas Instructions:</strong></p>\n        <ul>\n          <li><strong>Positive Point:</strong> Left-click</li>\n          <li><strong>Negative Point:</strong> Right-click</li>\n          <li><strong>Bounding Box:</strong> Shift + Drag</li>\n          <li><strong>Lasso/Polygon:</strong> Ctrl/Cmd + Drag</li>\n          <li><strong>Remove Input:</strong> Click existing point, Shift-click box, Ctrl/Cmd-click lasso.</li>\n        </ul>`,
+      edit: `\n        <p><strong>Edit Mode:</strong></p>\n        <ul>\n          <li>Brush/Eraser with mouse drag</li>\n          <li>Adjust size with slider</li>\n          <li>Save to apply or Cancel to discard</li>\n        </ul>`,
+      review: `\n        <p><strong>Review Mode:</strong></p>\n        <p>Use Approve, Reject or Skip to update the image status.</p>`,
+    };
+    helpTooltipContent.innerHTML = texts[mode] || texts.creation;
+  }
 
   if (openAutoMaskOverlayBtn && autoMaskOverlay) {
     openAutoMaskOverlayBtn.addEventListener("click", () =>
@@ -172,11 +185,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateStatusToggleUI("unprocessed", false);
+  updateHelpTooltipForMode("creation");
 
   function enterReviewMode() {
     reviewMode = true;
     reviewHistory = [];
     reviewHistoryIndex = -1;
+    updateHelpTooltipForMode("review");
     utils.showElement(reviewModeControls, "flex");
     utils.hideElement(imageStatusControls);
     if (toggleReviewModeBtn) {
@@ -189,6 +204,8 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.hideElement(autoMaskBtn);
     utils.hideElement(recoverAutoMaskBtn);
     utils.hideElement(clearInputsBtn);
+    utils.hideElement(creationActions);
+    utils.hideElement(editActions);
     if (reviewPrevBtn) reviewPrevBtn.disabled = true;
     if (imagePoolHandler)
       imagePoolHandler.loadNextImageByStatuses(["ready_for_review"]);
@@ -208,6 +225,9 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.showElement(autoMaskBtn);
     utils.showElement(recoverAutoMaskBtn);
     utils.showElement(clearInputsBtn);
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    updateHelpTooltipForMode("creation");
     reviewHistory = [];
     reviewHistoryIndex = -1;
   }
@@ -1102,8 +1122,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (ids.length === 1) {
         const layer = activeImageState.layers.find((l) => l.layerId === ids[0]);
         editModeController.beginEdit(layer);
+        utils.hideElement(creationActions);
+        utils.showElement(editActions, "flex");
+        updateHelpTooltipForMode("edit");
       } else {
         editModeController.endEdit();
+        utils.showElement(creationActions, "flex");
+        utils.hideElement(editActions);
+        if (!reviewMode) updateHelpTooltipForMode("creation");
       }
     }
   });
@@ -1263,12 +1289,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }
+    if (layerViewController) layerViewController.setSelectedLayers([]);
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    if (!reviewMode) updateHelpTooltipForMode("creation");
   });
 
   document.addEventListener("edit-cancel", () => {
     if (activeImageState) {
       canvasManager.setLayers(activeImageState.layers);
     }
+    if (layerViewController) layerViewController.setSelectedLayers([]);
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    if (!reviewMode) updateHelpTooltipForMode("creation");
   });
 
   document.addEventListener("canvas-layer-selection-changed", (event) => {

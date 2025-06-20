@@ -564,7 +564,7 @@ class CanvasManager {
 
     // --- User Interaction Handlers ---
     _handleMouseDown(e) {
-        if (!this.currentImage || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.isMouseDown = true;
         this.interactionState.didMove = false;
         const origCoords = this._displayToOriginalCoords(e.clientX, e.clientY);
@@ -585,7 +585,7 @@ class CanvasManager {
     }
 
     _handleMouseMove(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.didMove = true;
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
 
@@ -604,7 +604,7 @@ class CanvasManager {
     }
 
     _handleMouseUp(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
         const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas
         const clickThresholdOrig = pointDisplayRadius / this.displayScale * 1.5; // Make click threshold slightly larger than visual radius
@@ -923,8 +923,9 @@ class CanvasManager {
             const changed = JSON.stringify(newList) !== JSON.stringify(this.selectedLayerIds);
             this.selectedLayerIds = newList;
             if (changed) this._dispatchEvent('layer-selection-changed', { layerIds: [...this.selectedLayerIds] });
+            this.clearAllCanvasInputs(false);
         }
-        if (this.mode === 'edit') {
+        if (this.mode === 'edit' || this.mode === 'review') {
             this.manualPredictions = [];
             this.automaskPredictions = [];
             this.currentPredictionMultiBox = false;
@@ -986,7 +987,11 @@ class CanvasManager {
     startMaskEdit(layerId, maskData, color) {
         this.editingLayerId = layerId;
         this.editingColor = color || '#ff0000';
-        this.editingMask = maskData ? maskData.map(r => [...r]) : this._createEmptyMask();
+        if (Array.isArray(maskData) && Array.isArray(maskData[0])) {
+            this.editingMask = maskData.map(r => Array.from(r));
+        } else {
+            this.editingMask = this._createEmptyMask();
+        }
         this.drawPredictionMaskLayer();
     }
 

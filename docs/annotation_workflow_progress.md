@@ -61,9 +61,10 @@ It will be updated as new sprints add functionality.
 
 ## Partially Implemented / In Progress
 
-- **Edit Mode Tools**: Basic brush and eraser implemented when a single layer is
-  selected. Lasso and advanced actions (grow, shrink, smooth, invert, undo/redo)
-  remain to be implemented.
+- **Edit Mode Tools**: Brush/Eraser with size control integrated into the main
+  canvas toolbar. Creation actions hide during editing and review. Lasso and
+  advanced actions (grow, shrink, smooth, invert, undo/redo) remain to be
+  implemented.
 
 ## Planned Tasks (Priority Order)
 

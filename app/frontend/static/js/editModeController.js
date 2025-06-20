@@ -20,7 +20,8 @@ class EditModeController {
     }
 
     initElements() {
-        this.toolbarEl = document.getElementById('edit-toolbar');
+        this.toolsContainer = document.getElementById('edit-tools');
+        this.actionsContainer = document.getElementById('edit-actions');
         this.brushBtn = document.getElementById('edit-brush-btn');
         this.eraserBtn = document.getElementById('edit-eraser-btn');
         this.brushSizeInput = document.getElementById('edit-brush-size');
@@ -55,18 +56,19 @@ class EditModeController {
         if (!layer) return;
         this.activeLayer = layer;
         this.canvasManager.startMaskEdit(layer.layerId, layer.maskData, layer.displayColor);
-        this.showToolbar(true);
+        this.showControls(true);
         this.setMode('brush');
     }
 
     endEdit() {
         this.activeLayer = null;
-        this.showToolbar(false);
+        this.showControls(false);
         this.canvasManager.finishMaskEdit();
     }
 
-    showToolbar(show) {
-        if (this.toolbarEl) this.toolbarEl.style.display = show ? 'flex' : 'none';
+    showControls(show) {
+        if (this.toolsContainer) this.toolsContainer.style.display = show ? 'flex' : 'none';
+        if (this.actionsContainer) this.actionsContainer.style.display = show ? 'flex' : 'none';
     }
 
     onMouseDown(e) {
