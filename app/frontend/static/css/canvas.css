@@ -234,8 +234,9 @@
 /* Individual Canvases */
 .canvas-container canvas {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   border-radius: 3px; /* Slight rounding on canvas edges */
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Softer shadow */
   /* Canvases will be sized by JS, these are fallbacks or if JS fails */
