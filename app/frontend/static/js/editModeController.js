@@ -1,7 +1,7 @@
 /**
  * project_root/app/frontend/static/js/editModeController.js
  *
- * Provides a minimal edit mode toolbar with brush and eraser tools.
+ * Provides a minimal edit mode toolbar with a brush tool.
  * Handles user input events on the canvas to modify the active mask
  * via CanvasManager. Saves or cancels edits using dispatched events.
  */
@@ -12,7 +12,6 @@ class EditModeController {
         this.apiClient = apiClient;
         this.utils = utils;
         this.activeLayer = null;
-        this.mode = 'brush';
         this.brushSize = 10;
         this.isDrawing = false;
         this.initElements();
@@ -23,17 +22,16 @@ class EditModeController {
         this.toolsContainer = document.getElementById('edit-tools');
         this.actionsContainer = document.getElementById('edit-actions');
         this.brushBtn = document.getElementById('edit-brush-btn');
-        this.eraserBtn = document.getElementById('edit-eraser-btn');
         this.brushSizeInput = document.getElementById('edit-brush-size');
         this.saveBtn = document.getElementById('edit-save-btn');
         this.cancelBtn = document.getElementById('edit-cancel-btn');
+        this.previewEl = document.getElementById('brush-preview');
     }
 
     attachListeners() {
-        if (this.brushBtn) this.brushBtn.addEventListener('click', () => this.setMode('brush'));
-        if (this.eraserBtn) this.eraserBtn.addEventListener('click', () => this.setMode('eraser'));
         if (this.brushSizeInput) this.brushSizeInput.addEventListener('input', () => {
             this.brushSize = parseInt(this.brushSizeInput.value, 10) || 1;
+            this.updatePreviewSize();
         });
         if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.save());
         if (this.cancelBtn) this.cancelBtn.addEventListener('click', () => this.cancel());
@@ -43,13 +41,15 @@ class EditModeController {
             canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
             canvas.addEventListener('mouseup', () => this.onMouseUp());
             canvas.addEventListener('mouseleave', () => this.onMouseUp());
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
     }
 
-    setMode(mode) {
-        this.mode = mode;
-        if (this.brushBtn) this.brushBtn.classList.toggle('active', mode === 'brush');
-        if (this.eraserBtn) this.eraserBtn.classList.toggle('active', mode === 'eraser');
+    updatePreviewSize() {
+        if (!this.previewEl) return;
+        const r = this.brushSize * this.canvasManager.displayScale * 2;
+        this.previewEl.style.width = `${r}px`;
+        this.previewEl.style.height = `${r}px`;
     }
 
     beginEdit(layer) {
@@ -57,18 +57,20 @@ class EditModeController {
         this.activeLayer = layer;
         this.canvasManager.startMaskEdit(layer.layerId, layer.maskData, layer.displayColor);
         this.showControls(true);
-        this.setMode('brush');
+        this.updatePreviewSize();
     }
 
     endEdit() {
         this.activeLayer = null;
         this.showControls(false);
         this.canvasManager.finishMaskEdit();
+        if (this.previewEl) this.previewEl.style.display = 'none';
     }
 
     showControls(show) {
         if (this.toolsContainer) this.toolsContainer.style.display = show ? 'flex' : 'none';
         if (this.actionsContainer) this.actionsContainer.style.display = show ? 'flex' : 'none';
+        if (this.previewEl) this.previewEl.style.display = show ? 'block' : 'none';
     }
 
     onMouseDown(e) {
@@ -79,6 +81,12 @@ class EditModeController {
     }
 
     onMouseMove(e) {
+        if (!this.activeLayer) return;
+        const rect = this.canvasManager.userInputCanvas.getBoundingClientRect();
+        if (this.previewEl) {
+            this.previewEl.style.left = `${e.clientX - rect.left}px`;
+            this.previewEl.style.top = `${e.clientY - rect.top}px`;
+        }
         if (!this.isDrawing) return;
         this.applyBrush(e);
         e.preventDefault();
@@ -90,7 +98,7 @@ class EditModeController {
 
     applyBrush(e) {
         const coords = this.canvasManager._displayToOriginalCoords(e.clientX, e.clientY);
-        const add = this.mode === 'brush';
+        const add = !(e.button === 2 || e.ctrlKey);
         this.canvasManager.applyBrush(coords.x, coords.y, this.brushSize, add);
     }
 

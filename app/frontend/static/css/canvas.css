@@ -217,6 +217,20 @@
   color: #fff;
 }
 
+.creation-actions {
+  display: flex;
+  gap: 1px;
+}
+
+.brush-preview {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid #007bff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
 /* Individual Canvases */
 .canvas-container canvas {
   position: absolute;
@@ -321,6 +335,10 @@
   }
   .canvas-container {
     min-height: 300px; /* Adjust min-height for smaller screens */
+  }
+  .creation-actions {
+    flex-direction: column;
+    width: 100%;
   }
 }
 

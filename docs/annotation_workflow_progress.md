@@ -57,14 +57,15 @@ It will be updated as new sprints add functionality.
 - **Layer Data Schema**: Mask records now use dedicated columns (`class_label`, `status`, `display_color`, `source_metadata`, `updated_at`).
 - **Active Image State**: `main.js` now maintains a full `ActiveImageState` object including `creation` and `edit` sections. New `/api/project/<id>/image/<hash>/state` endpoints keep this state in sync with the backend.
 - **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
-  brush and eraser tools and Save/Cancel buttons.
+  a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
+  circular preview shows the brush size.
 
 ## Partially Implemented / In Progress
 
-- **Edit Mode Tools**: Brush/Eraser with size control integrated into the main
-  canvas toolbar. Creation actions hide during editing and review. Lasso and
-  advanced actions (grow, shrink, smooth, invert, undo/redo) remain to be
-  implemented.
+- **Edit Mode Tools**: Brush tool with adjustable size integrated into the main
+  canvas toolbar. Hold Ctrl or right-click to erase. Creation actions hide during
+  editing and review. Lasso and advanced actions (grow, shrink, smooth, invert,
+  undo/redo) remain to be implemented.
 
 ## Planned Tasks (Priority Order)
 

@@ -206,6 +206,8 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.hideElement(clearInputsBtn);
     utils.hideElement(creationActions);
     utils.hideElement(editActions);
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("review");
     if (reviewPrevBtn) reviewPrevBtn.disabled = true;
     if (imagePoolHandler)
       imagePoolHandler.loadNextImageByStatuses(["ready_for_review"]);
@@ -227,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.showElement(clearInputsBtn);
     utils.showElement(creationActions, "flex");
     utils.hideElement(editActions);
+    canvasManager.setMode("creation");
     updateHelpTooltipForMode("creation");
     reviewHistory = [];
     reviewHistoryIndex = -1;
@@ -592,15 +595,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const hadState = !!canvasStateCache[imageHash];
       restoreCanvasState(imageHash);
       layerViewController && layerViewController.setSelectedLayers([]);
-      if (!hadState) {
-        if (activeImageState.layers && activeImageState.layers.length > 0) {
-          canvasManager.setMode("edit", []);
-        } else {
-          canvasManager.setMode("creation");
-        }
-      } else {
-        canvasManager.setMode("edit", []);
-      }
+      if (editModeController) editModeController.endEdit();
+      canvasManager.setMode("creation");
       uiManager.clearGlobalStatus();
       onImageDataChange("image-loaded", { imageHash });
     };
@@ -1116,7 +1112,11 @@ document.addEventListener("DOMContentLoaded", () => {
       ? event.detail.layerIds
       : [];
     canvasManager.clearAllCanvasInputs(false);
-    canvasManager.setMode("edit", ids);
+    if (ids.length === 0) {
+      canvasManager.setMode("creation");
+    } else {
+      canvasManager.setMode("edit", ids);
+    }
     canvasManager.setLayers(activeImageState.layers);
     if (editModeController) {
       if (ids.length === 1) {
@@ -1290,6 +1290,7 @@ document.addEventListener("DOMContentLoaded", () => {
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }
     if (layerViewController) layerViewController.setSelectedLayers([]);
+    canvasManager.setMode("creation");
     utils.showElement(creationActions, "flex");
     utils.hideElement(editActions);
     if (!reviewMode) updateHelpTooltipForMode("creation");
@@ -1300,6 +1301,7 @@ document.addEventListener("DOMContentLoaded", () => {
       canvasManager.setLayers(activeImageState.layers);
     }
     if (layerViewController) layerViewController.setSelectedLayers([]);
+    canvasManager.setMode("creation");
     utils.showElement(creationActions, "flex");
     utils.hideElement(editActions);
     if (!reviewMode) updateHelpTooltipForMode("creation");
@@ -1319,10 +1321,14 @@ document.addEventListener("DOMContentLoaded", () => {
       activeImageState.status = event.detail.status || "unprocessed";
     }
     onImageDataChange("image-loaded", { imageHash: event.detail.imageHash });
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("creation");
   });
 
   document.addEventListener("active-image-cleared", () => {
     activeImageState = null;
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("creation");
     updateStatusToggleUI("unprocessed", false);
   });
 
