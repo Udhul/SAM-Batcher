@@ -129,6 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const reviewExitBtn = document.getElementById("review-exit-btn");
   const toggleReviewModeBtn = document.getElementById("review-mode-btn");
   const reviewModeControls = document.getElementById("review-mode-controls");
+  const reviewModeActions = document.getElementById("review-mode-actions");
   const imageStatusControls = document.getElementById("image-status-controls");
 
   function updateHelpTooltipForMode(mode) {
@@ -195,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     reviewHistoryIndex = -1;
     updateHelpTooltipForMode("review");
     utils.showElement(reviewModeControls, "flex");
+    utils.showElement(reviewModeActions, "flex");
     utils.hideElement(imageStatusControls);
     if (toggleReviewModeBtn) {
       toggleReviewModeBtn.textContent = "Exit Review";
@@ -218,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function exitReviewMode() {
     reviewMode = false;
     utils.hideElement(reviewModeControls);
+    utils.hideElement(reviewModeActions);
     utils.showElement(imageStatusControls, "flex");
     if (toggleReviewModeBtn) {
       toggleReviewModeBtn.textContent = "Start Review";

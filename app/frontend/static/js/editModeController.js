@@ -28,6 +28,11 @@ class EditModeController {
         this.previewEl = document.getElementById('brush-preview');
     }
 
+    _getCanvasRelativeCoords(e) {
+        const rect = this.canvasManager.userInputCanvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
     attachListeners() {
         if (this.brushSizeInput) this.brushSizeInput.addEventListener('input', () => {
             this.brushSize = parseInt(this.brushSizeInput.value, 10) || 1;
@@ -77,8 +82,9 @@ class EditModeController {
         if (!this.activeLayer) return;
         this.isDrawing = true;
         if (this.previewEl) {
-            this.previewEl.style.left = `${e.offsetX}px`;
-            this.previewEl.style.top = `${e.offsetY}px`;
+            const pos = this._getCanvasRelativeCoords(e);
+            this.previewEl.style.left = `${pos.x}px`;
+            this.previewEl.style.top = `${pos.y}px`;
         }
         this.applyBrush(e);
         e.preventDefault();
@@ -87,8 +93,9 @@ class EditModeController {
     onMouseMove(e) {
         if (!this.activeLayer) return;
         if (this.previewEl) {
-            this.previewEl.style.left = `${e.offsetX}px`;
-            this.previewEl.style.top = `${e.offsetY}px`;
+            const pos = this._getCanvasRelativeCoords(e);
+            this.previewEl.style.left = `${pos.x}px`;
+            this.previewEl.style.top = `${pos.y}px`;
         }
         if (!this.isDrawing) return;
         this.applyBrush(e);
