@@ -854,6 +854,7 @@ input[type="file"]#image-upload {
   justify-content: center;
 }
 .help-icon {
+  position: relative;
   display: inline-block;
   width: 24px;
   height: 24px;
@@ -1046,7 +1047,7 @@ input[type="file"]#image-upload {
 .review-mode-controls {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 0;
 }
 .review-mode-controls button {
   padding: 6px 12px;

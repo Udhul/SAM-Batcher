@@ -76,16 +76,19 @@ class EditModeController {
     onMouseDown(e) {
         if (!this.activeLayer) return;
         this.isDrawing = true;
+        if (this.previewEl) {
+            this.previewEl.style.left = `${e.offsetX}px`;
+            this.previewEl.style.top = `${e.offsetY}px`;
+        }
         this.applyBrush(e);
         e.preventDefault();
     }
 
     onMouseMove(e) {
         if (!this.activeLayer) return;
-        const rect = this.canvasManager.userInputCanvas.getBoundingClientRect();
         if (this.previewEl) {
-            this.previewEl.style.left = `${e.clientX - rect.left}px`;
-            this.previewEl.style.top = `${e.clientY - rect.top}px`;
+            this.previewEl.style.left = `${e.offsetX}px`;
+            this.previewEl.style.top = `${e.offsetY}px`;
         }
         if (!this.isDrawing) return;
         this.applyBrush(e);
@@ -98,7 +101,8 @@ class EditModeController {
 
     applyBrush(e) {
         const coords = this.canvasManager._displayToOriginalCoords(e.clientX, e.clientY);
-        const add = !(e.button === 2 || e.ctrlKey);
+        const rightHeld = e.buttons === 2 || e.button === 2;
+        const add = !(rightHeld || e.ctrlKey);
         this.canvasManager.applyBrush(coords.x, coords.y, this.brushSize, add);
     }
 

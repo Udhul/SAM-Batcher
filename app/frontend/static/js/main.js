@@ -125,6 +125,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const reviewApproveBtn = document.getElementById("review-approve-btn");
   const reviewRejectBtn = document.getElementById("review-reject-btn");
   const reviewPrevBtn = document.getElementById("review-prev-btn");
+  const reviewExportBtn = document.getElementById("review-export-btn");
+  const reviewExitBtn = document.getElementById("review-exit-btn");
   const toggleReviewModeBtn = document.getElementById("review-mode-btn");
   const reviewModeControls = document.getElementById("review-mode-controls");
   const imageStatusControls = document.getElementById("image-status-controls");
@@ -1445,6 +1447,12 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         enterReviewMode();
       }
+    });
+  }
+
+  if (reviewExitBtn) {
+    reviewExitBtn.addEventListener("click", () => {
+      if (reviewMode) exitReviewMode();
     });
   }
 

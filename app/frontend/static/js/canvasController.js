@@ -987,8 +987,15 @@ class CanvasManager {
     startMaskEdit(layerId, maskData, color) {
         this.editingLayerId = layerId;
         this.editingColor = color || '#ff0000';
-        if (Array.isArray(maskData) && maskData.length > 0 && Array.isArray(maskData[0])) {
+        if (Array.isArray(maskData) && Array.isArray(maskData[0])) {
             this.editingMask = maskData.map(r => Array.from(r));
+        } else if (maskData && maskData.counts && maskData.size) {
+            const converted = this.Utils.rleToBinaryMask(
+                maskData,
+                this.originalImageHeight,
+                this.originalImageWidth
+            );
+            this.editingMask = converted || this._createEmptyMask();
         } else {
             this.editingMask = this._createEmptyMask();
         }

@@ -59,13 +59,15 @@ It will be updated as new sprints add functionality.
 - **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
   a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
   circular preview shows the brush size.
+- **Review Toolbar**: Review mode controls now appear in the canvas toolbar
+  alongside Export and Exit buttons.
 
 ## Partially Implemented / In Progress
 
 - **Edit Mode Tools**: Brush tool with adjustable size integrated into the main
-  canvas toolbar. Hold Ctrl or right-click to erase. Creation actions hide during
-  editing and review. Lasso and advanced actions (grow, shrink, smooth, invert,
-  undo/redo) remain to be implemented.
+  canvas toolbar. Cursor preview is centred correctly and right-dragging keeps
+  erasing. Creation actions hide during editing and review. Lasso and advanced
+  actions (grow, shrink, smooth, invert, undo/redo) remain to be implemented.
 
 ## Planned Tasks (Priority Order)
 
