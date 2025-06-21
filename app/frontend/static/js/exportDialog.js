@@ -13,6 +13,7 @@ class ExportDialog {
     this.overlay = document.getElementById("export-overlay");
     this.closeBtn = document.getElementById("close-export-overlay");
     this.openBtn = document.getElementById("open-export-btn");
+    this.reviewOpenBtn = document.getElementById("review-export-btn");
     this.imageScopeRadios = document.getElementsByName("export-image-scope");
     this.statusSection = document.getElementById("export-status-section");
     this.statusInput = document.getElementById("export-status-input");
@@ -24,6 +25,9 @@ class ExportDialog {
 
     if (this.openBtn) {
       this.openBtn.addEventListener("click", () => this.show());
+    }
+    if (this.reviewOpenBtn) {
+      this.reviewOpenBtn.addEventListener("click", () => this.show());
     }
     if (this.closeBtn) {
       this.closeBtn.addEventListener("click", () => this.hide());

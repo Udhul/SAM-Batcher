@@ -56,11 +56,19 @@ It will be updated as new sprints add functionality.
 - **Review Mode**: Added controls to cycle through images marked `ready_for_review` with Approve/Reject/Skip actions and a history-aware **Prev** button.
 - **Layer Data Schema**: Mask records now use dedicated columns (`class_label`, `status`, `display_color`, `source_metadata`, `updated_at`).
 - **Active Image State**: `main.js` now maintains a full `ActiveImageState` object including `creation` and `edit` sections. New `/api/project/<id>/image/<hash>/state` endpoints keep this state in sync with the backend.
+- **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
+  a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
+  circular preview shows the brush size.
+- **Review Toolbar**: Review mode controls now appear in the canvas toolbar
+  with Export and Exit buttons placed in the first column for better spacing.
 
 ## Partially Implemented / In Progress
 
-- **Edit Mode Tools**: Selecting a layer only displays its mask; brush/eraser,
-  lasso, and other edit tools have not been implemented.
+- **Edit Mode Tools**: Brush tool with adjustable size integrated into the main
+  canvas toolbar. The brush preview is centred on the cursor and appears above
+  the image while right-dragging keeps erasing. Creation actions hide during
+  editing and review. Lasso and advanced actions (grow, shrink, smooth,
+  invert, undo/redo) remain to be implemented.
 
 ## Planned Tasks (Priority Order)
 

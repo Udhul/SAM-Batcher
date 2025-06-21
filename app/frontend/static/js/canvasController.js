@@ -116,6 +116,10 @@ class CanvasManager {
         this.selectedLayerIds = [];
         this.mode = 'edit'; // 'creation', 'edit', 'review'
 
+        this.editingLayerId = null;
+        this.editingMask = null;
+        this.editingColor = '#ff0000';
+
         this.interactionState = {
             isDrawingBox: false,
             isMouseDown: false,
@@ -473,7 +477,7 @@ class CanvasManager {
 
         this.offscreenPredictionCtx.clearRect(0, 0, this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
 
-        const visibleLayers = (this.layers || []).filter(l => l.visible && l.maskData);
+        const visibleLayers = (this.layers || []).filter(l => l.visible);
         if (visibleLayers.length > 0) {
             visibleLayers.forEach(l => {
                 let op = 1.0;
@@ -482,7 +486,13 @@ class CanvasManager {
                 } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
-                this._drawBinaryMask(l.maskData, l.color, op);
+                const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
+                    ? this.editingMask
+                    : l.maskData;
+                const color = (this.editingLayerId && l.layerId === this.editingLayerId)
+                    ? this.editingColor
+                    : l.color;
+                if (mask) this._drawBinaryMask(mask, color, op);
             });
         }
 
@@ -554,7 +564,7 @@ class CanvasManager {
 
     // --- User Interaction Handlers ---
     _handleMouseDown(e) {
-        if (!this.currentImage || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.isMouseDown = true;
         this.interactionState.didMove = false;
         const origCoords = this._displayToOriginalCoords(e.clientX, e.clientY);
@@ -575,7 +585,7 @@ class CanvasManager {
     }
 
     _handleMouseMove(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.didMove = true;
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
 
@@ -594,7 +604,7 @@ class CanvasManager {
     }
 
     _handleMouseUp(e) {
-        if (!this.currentImage || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
         const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas
         const clickThresholdOrig = pointDisplayRadius / this.displayScale * 1.5; // Make click threshold slightly larger than visual radius
@@ -913,8 +923,9 @@ class CanvasManager {
             const changed = JSON.stringify(newList) !== JSON.stringify(this.selectedLayerIds);
             this.selectedLayerIds = newList;
             if (changed) this._dispatchEvent('layer-selection-changed', { layerIds: [...this.selectedLayerIds] });
+            this.clearAllCanvasInputs(false);
         }
-        if (this.mode === 'edit') {
+        if (this.mode === 'edit' || this.mode === 'review') {
             this.manualPredictions = [];
             this.automaskPredictions = [];
             this.currentPredictionMultiBox = false;
@@ -971,6 +982,64 @@ class CanvasManager {
         if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
+    }
+
+    startMaskEdit(layerId, maskData, color) {
+        this.editingLayerId = layerId;
+        this.editingColor = color || '#ff0000';
+        if (Array.isArray(maskData) && Array.isArray(maskData[0])) {
+            this.editingMask = maskData.map(r => Array.from(r));
+        } else if (maskData && maskData.counts && maskData.size) {
+            const converted = this.Utils.rleToBinaryMask(
+                maskData,
+                this.originalImageHeight,
+                this.originalImageWidth
+            );
+            this.editingMask = converted || this._createEmptyMask();
+        } else {
+            this.editingMask = this._createEmptyMask();
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+    applyBrush(x, y, radius, add = true) {
+        if (!this.editingMask) return;
+        const h = this.editingMask.length;
+        const w = this.editingMask[0].length;
+        const cx = Math.round(x);
+        const cy = Math.round(y);
+        for (let j = -radius; j <= radius; j++) {
+            for (let i = -radius; i <= radius; i++) {
+                if (i*i + j*j <= radius*radius) {
+                    const nx = cx + i;
+                    const ny = cy + j;
+                    if (nx >=0 && ny >=0 && nx < w && ny < h) {
+                        this.editingMask[ny][nx] = add ? 1 : 0;
+                    }
+                }
+            }
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+    getEditedMask() {
+        return this.editingMask ? this.editingMask.map(r => [...r]) : null;
+    }
+
+    finishMaskEdit() {
+        this.editingLayerId = null;
+        this.editingMask = null;
+        this.drawPredictionMaskLayer();
+    }
+
+    _createEmptyMask() {
+        const h = this.originalImageHeight;
+        const w = this.originalImageWidth;
+        const mask = [];
+        for (let y = 0; y < h; y++) {
+            mask[y] = new Array(w).fill(0);
+        }
+        return mask;
     }
 }
 

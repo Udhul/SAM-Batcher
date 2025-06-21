@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
     typeof LayerViewController === "function"
       ? new LayerViewController("#layer-view-container", stateManager)
       : null;
+  const editModeController =
+    typeof EditModeController === "function"
+      ? new EditModeController(canvasManager, stateManager, apiClient, utils)
+      : null;
   const exportDialog =
     typeof ExportDialog === "function"
       ? new ExportDialog(apiClient, stateManager, uiManager)
@@ -75,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.projectHandler = projectHandler;
   window.imagePoolHandler = imagePoolHandler;
   window.layerViewController = layerViewController;
+  window.editModeController = editModeController;
   window.exportDialog = exportDialog;
 
   console.log("Main.js: Core modules (api, state, ui, canvas) instantiated.");
@@ -111,15 +116,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const commitMasksBtn = document.getElementById("commit-masks-btn");
   const openExportBtn = document.getElementById("open-export-btn");
   const addEmptyLayerBtn = document.getElementById("add-empty-layer-btn");
+  const creationActions = document.getElementById("creation-actions");
+  const editActions = document.getElementById("edit-actions");
+  const helpTooltipContent = document.querySelector("#help-icon .tooltip-content");
   const readySwitch = document.getElementById("ready-switch");
   const skipSwitch = document.getElementById("skip-switch");
   const reviewSkipBtn = document.getElementById("review-skip-btn");
   const reviewApproveBtn = document.getElementById("review-approve-btn");
   const reviewRejectBtn = document.getElementById("review-reject-btn");
   const reviewPrevBtn = document.getElementById("review-prev-btn");
+  const reviewExportBtn = document.getElementById("review-export-btn");
+  const reviewExitBtn = document.getElementById("review-exit-btn");
   const toggleReviewModeBtn = document.getElementById("review-mode-btn");
   const reviewModeControls = document.getElementById("review-mode-controls");
+  const reviewModeActions = document.getElementById("review-mode-actions");
   const imageStatusControls = document.getElementById("image-status-controls");
+
+  function updateHelpTooltipForMode(mode) {
+    if (!helpTooltipContent) return;
+    const texts = {
+      creation: `\n        <p><strong>Canvas Instructions:</strong></p>\n        <ul>\n          <li><strong>Positive Point:</strong> Left-click</li>\n          <li><strong>Negative Point:</strong> Right-click</li>\n          <li><strong>Bounding Box:</strong> Shift + Drag</li>\n          <li><strong>Lasso/Polygon:</strong> Ctrl/Cmd + Drag</li>\n          <li><strong>Remove Input:</strong> Click existing point, Shift-click box, Ctrl/Cmd-click lasso.</li>\n        </ul>`,
+      edit: `\n        <p><strong>Edit Mode:</strong></p>\n        <ul>\n          <li>Brush/Eraser with mouse drag</li>\n          <li>Adjust size with slider</li>\n          <li>Save to apply or Cancel to discard</li>\n        </ul>`,
+      review: `\n        <p><strong>Review Mode:</strong></p>\n        <p>Use Approve, Reject or Skip to update the image status.</p>`,
+    };
+    helpTooltipContent.innerHTML = texts[mode] || texts.creation;
+  }
 
   if (openAutoMaskOverlayBtn && autoMaskOverlay) {
     openAutoMaskOverlayBtn.addEventListener("click", () =>
@@ -167,12 +188,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateStatusToggleUI("unprocessed", false);
+  updateHelpTooltipForMode("creation");
 
   function enterReviewMode() {
     reviewMode = true;
     reviewHistory = [];
     reviewHistoryIndex = -1;
+    updateHelpTooltipForMode("review");
     utils.showElement(reviewModeControls, "flex");
+    utils.showElement(reviewModeActions, "flex");
     utils.hideElement(imageStatusControls);
     if (toggleReviewModeBtn) {
       toggleReviewModeBtn.textContent = "Exit Review";
@@ -184,6 +208,10 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.hideElement(autoMaskBtn);
     utils.hideElement(recoverAutoMaskBtn);
     utils.hideElement(clearInputsBtn);
+    utils.hideElement(creationActions);
+    utils.hideElement(editActions);
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("review");
     if (reviewPrevBtn) reviewPrevBtn.disabled = true;
     if (imagePoolHandler)
       imagePoolHandler.loadNextImageByStatuses(["ready_for_review"]);
@@ -192,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function exitReviewMode() {
     reviewMode = false;
     utils.hideElement(reviewModeControls);
+    utils.hideElement(reviewModeActions);
     utils.showElement(imageStatusControls, "flex");
     if (toggleReviewModeBtn) {
       toggleReviewModeBtn.textContent = "Start Review";
@@ -203,6 +232,10 @@ document.addEventListener("DOMContentLoaded", () => {
     utils.showElement(autoMaskBtn);
     utils.showElement(recoverAutoMaskBtn);
     utils.showElement(clearInputsBtn);
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    canvasManager.setMode("creation");
+    updateHelpTooltipForMode("creation");
     reviewHistory = [];
     reviewHistoryIndex = -1;
   }
@@ -567,15 +600,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const hadState = !!canvasStateCache[imageHash];
       restoreCanvasState(imageHash);
       layerViewController && layerViewController.setSelectedLayers([]);
-      if (!hadState) {
-        if (activeImageState.layers && activeImageState.layers.length > 0) {
-          canvasManager.setMode("edit", []);
-        } else {
-          canvasManager.setMode("creation");
-        }
-      } else {
-        canvasManager.setMode("edit", []);
-      }
+      if (editModeController) editModeController.endEdit();
+      canvasManager.setMode("creation");
       uiManager.clearGlobalStatus();
       onImageDataChange("image-loaded", { imageHash });
     };
@@ -1091,8 +1117,26 @@ document.addEventListener("DOMContentLoaded", () => {
       ? event.detail.layerIds
       : [];
     canvasManager.clearAllCanvasInputs(false);
-    canvasManager.setMode("edit", ids);
+    if (ids.length === 0) {
+      canvasManager.setMode("creation");
+    } else {
+      canvasManager.setMode("edit", ids);
+    }
     canvasManager.setLayers(activeImageState.layers);
+    if (editModeController) {
+      if (ids.length === 1) {
+        const layer = activeImageState.layers.find((l) => l.layerId === ids[0]);
+        editModeController.beginEdit(layer);
+        utils.hideElement(creationActions);
+        utils.showElement(editActions, "flex");
+        updateHelpTooltipForMode("edit");
+      } else {
+        editModeController.endEdit();
+        utils.showElement(creationActions, "flex");
+        utils.hideElement(editActions);
+        if (!reviewMode) updateHelpTooltipForMode("creation");
+      }
+    }
   });
 
   document.addEventListener("layer-deleted", async (event) => {
@@ -1224,6 +1268,50 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  document.addEventListener("edit-save", (event) => {
+    if (!activeImageState) return;
+    const layer = activeImageState.layers.find(
+      (l) => l.layerId === event.detail.layerId,
+    );
+    if (layer && event.detail.maskData) {
+      layer.maskData = event.detail.maskData;
+      layer.status = "edited";
+      const pid = stateManager.getActiveProjectId();
+      const ih = activeImageState.imageHash;
+      if (pid && ih) {
+        const rle = utils.binaryMaskToRLE(layer.maskData);
+        apiClient
+          .updateMaskLayer(pid, ih, layer.layerId, {
+            mask_data_rle: rle,
+            status: "edited",
+          })
+          .catch((err) => {
+            uiManager.showGlobalStatus(
+              `Save edit failed: ${utils.escapeHTML(err.message)}`,
+              "error",
+            );
+          });
+      }
+      onImageDataChange("layer-modified", { layerId: layer.layerId });
+    }
+    if (layerViewController) layerViewController.setSelectedLayers([]);
+    canvasManager.setMode("creation");
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    if (!reviewMode) updateHelpTooltipForMode("creation");
+  });
+
+  document.addEventListener("edit-cancel", () => {
+    if (activeImageState) {
+      canvasManager.setLayers(activeImageState.layers);
+    }
+    if (layerViewController) layerViewController.setSelectedLayers([]);
+    canvasManager.setMode("creation");
+    utils.showElement(creationActions, "flex");
+    utils.hideElement(editActions);
+    if (!reviewMode) updateHelpTooltipForMode("creation");
+  });
+
   document.addEventListener("canvas-layer-selection-changed", (event) => {
     if (layerViewController) {
       layerViewController.setSelectedLayers(event.detail.layerIds || []);
@@ -1238,10 +1326,14 @@ document.addEventListener("DOMContentLoaded", () => {
       activeImageState.status = event.detail.status || "unprocessed";
     }
     onImageDataChange("image-loaded", { imageHash: event.detail.imageHash });
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("creation");
   });
 
   document.addEventListener("active-image-cleared", () => {
     activeImageState = null;
+    if (editModeController) editModeController.endEdit();
+    canvasManager.setMode("creation");
     updateStatusToggleUI("unprocessed", false);
   });
 
@@ -1358,6 +1450,12 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         enterReviewMode();
       }
+    });
+  }
+
+  if (reviewExitBtn) {
+    reviewExitBtn.addEventListener("click", () => {
+      if (reviewMode) exitReviewMode();
     });
   }
 

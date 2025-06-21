@@ -19,9 +19,10 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-items: stretch; /* Changed from center to stretch */
+    align-items: center;
+    justify-content: center;
     width: 100%; /* Ensure full width usage */
-    padding: 0px;
+    padding: 4px;
 }
 
 /* Make text buttons stretch to fill available width equally */
@@ -29,12 +30,18 @@
     flex: 1; /* Grow to fill available space */
     min-width: 0; /* Allow shrinking if needed */
     width: 100%; /* Take full width of container */
+    min-width: 35px;
+    min-height: 35px;
+    color: #dee2e6;
+    text-shadow: 1px 1px 1px #49505740;
 }
 
 /* Keep icon buttons at their natural size */
 .canvas-toolbar-button-column .icon-btn {
     flex: 0 0 auto; /* Don't grow or shrink, keep natural size */
     align-self: center; /* Center icon buttons within the column */
+    min-width: 35px;
+    min-height: 35px;
 }
 
 .toolbar-col,
@@ -206,6 +213,32 @@
   width: 100%; /* Take full width of its parent */
 }
 
+.edit-tools,
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.edit-tools button.active {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.creation-actions {
+  display: flex;
+  gap: 1px;
+}
+
+.brush-preview {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid #007bff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  display: none;
+}
+
 /* Individual Canvases */
 .canvas-container canvas {
   position: absolute;
@@ -310,6 +343,10 @@
   }
   .canvas-container {
     min-height: 300px; /* Adjust min-height for smaller screens */
+  }
+  .creation-actions {
+    flex-direction: column;
+    width: 100%;
   }
 }
 
