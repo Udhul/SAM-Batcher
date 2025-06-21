@@ -41,6 +41,7 @@ It will be updated as new sprints add functionality.
 - **Unified Change Handler**: A new `onImageDataChange()` function synchronizes the layer view, caches and status toggles whenever image or layer data changes.
 - **Inline Layer Editing**: Mask name and label fields accept Enter to save changes without deselecting the text field, and edits trigger the unified change handler.
 - **Layer Persistence**: Editing a mask's name or class now sends an update to the backend so changes are saved in the project database.
+- **Mask Edit Persistence**: Saving edits to a mask now updates its RLE data and status in the database so changes survive reloads.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.
 - **Auto Status Updates**: The unified handler automatically downgrades images from `Ready` to `In Progress` when layers change unless explicitly skipped.
 - **Recursion Fix**: Status update events no longer cause infinite loops when UI syncs dispatch further status events.

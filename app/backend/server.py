@@ -653,6 +653,8 @@ async def api_update_mask_layer(
     class_label = payload.get("class_label")
     display_color = payload.get("display_color")
     visible = payload.get("visible")
+    mask_data_rle = payload.get("mask_data_rle")
+    status = payload.get("status")
     result = await run_in_threadpool(
         project_logic.update_mask_layer_basic,
         project_id,
@@ -662,6 +664,8 @@ async def api_update_mask_layer(
         class_label,
         display_color,
         visible,
+        mask_data_rle,
+        status,
     )
     return result
 
