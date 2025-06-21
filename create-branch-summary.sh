@@ -8,6 +8,11 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 echo "Creating branch summary for branch $CURRENT_BRANCH compared against main branch."
 
+# Add initial prompt
+echo "Write a git merge message to merge this PR branch into main. Describe what has changed, and the important features implemented. Structure the output as markdown. be clear and concise, but include all major changes made in this branch." >> branch_summary.txt
+echo "Stat and Differences:" >> branch_summary.txt
+echo "" >> branch_summary.txt
+
 # Add the branch summary header to the file
 echo "=== BRANCH SUMMARY: $CURRENT_BRANCH ===" >> branch_summary.txt
 echo "" >> branch_summary.txt
