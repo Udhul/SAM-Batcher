@@ -802,6 +802,8 @@ def update_mask_layer_basic(
     class_label: Optional[str] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
+    mask_data_rle: Optional[Any] = None,
+    status: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Update editable attributes of a layer and return success."""
     db_manager.update_mask_layer_basic(
@@ -811,6 +813,8 @@ def update_mask_layer_basic(
         class_label=class_label,
         display_color=display_color,
         visible=visible,
+        mask_data_rle=mask_data_rle,
+        status=status,
     )
     return {"success": True, "message": "Layer updated."}
 

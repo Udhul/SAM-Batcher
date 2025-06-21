@@ -793,6 +793,8 @@ def update_mask_layer_basic(
     class_label: Optional[str] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
+    mask_data_rle: Optional[Any] = None,
+    status: Optional[str] = None,
 ) -> None:
     """Update simple editable fields for a mask layer."""
     conn = get_db_connection(project_id)
@@ -811,6 +813,18 @@ def update_mask_layer_basic(
     if visible is not None:
         updates.append("visible = ?")
         params.append(1 if visible else 0)
+    if mask_data_rle is not None:
+        updates.append("mask_data_rle = ?")
+        params.append(
+            json.dumps(mask_data_rle)
+            if isinstance(mask_data_rle, (dict, list))
+            else mask_data_rle
+        )
+    if status is not None:
+        updates.append("layer_type = ?")
+        params.append(status)
+        updates.append("status = ?")
+        params.append(status)
     if not updates:
         conn.close()
         return
