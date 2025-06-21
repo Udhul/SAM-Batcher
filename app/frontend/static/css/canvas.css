@@ -22,18 +22,26 @@
     align-items: center;
     justify-content: center;
     width: 100%; /* Ensure full width usage */
-    padding: 0px;
+    padding: 4px;
 }
 
 /* Make text buttons stretch to fill available width equally */
 .canvas-toolbar-button-column .text-btn {
-    width: 100%;
+    flex: 1; /* Grow to fill available space */
+    min-width: 0; /* Allow shrinking if needed */
+    width: 100%; /* Take full width of container */
+    min-width: 35px;
+    min-height: 35px;
+    color: #dee2e6;
+    text-shadow: 1px 1px 1px #49505740;
 }
 
 /* Keep icon buttons at their natural size */
 .canvas-toolbar-button-column .icon-btn {
     flex: 0 0 auto; /* Don't grow or shrink, keep natural size */
     align-self: center; /* Center icon buttons within the column */
+    min-width: 35px;
+    min-height: 35px;
 }
 
 .toolbar-col,
@@ -234,9 +242,9 @@
 /* Individual Canvases */
 .canvas-container canvas {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  /* top: 50%; /* Centering handled by flex on parent */
+  /* left: 50%; */
+  /* transform: translate(-50%, -50%); */
   border-radius: 3px; /* Slight rounding on canvas edges */
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Softer shadow */
   /* Canvases will be sized by JS, these are fallbacks or if JS fails */
