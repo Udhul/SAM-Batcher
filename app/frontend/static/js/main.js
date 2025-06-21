@@ -264,13 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
         status: activeImageState.status,
       });
     }
-    if (
-      !skipUpdates.skipAutoStatus &&
-      ["layer-added", "layer-modified", "layer-deleted"].includes(changeType) &&
-      activeImageState.status === "ready_for_review"
-    ) {
-      sendStatusUpdate("in_progress");
-    }
 
     debouncedSyncState();
   }

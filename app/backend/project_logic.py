@@ -446,8 +446,7 @@ def sync_image_status_with_layers(project_id: str, image_hash: str) -> str:
     """Update image status based on existing mask layers.
 
     - If the image has no mask layers, status becomes ``unprocessed`` (unless ``skip``).
-    - If there is at least one layer and the current status is ``unprocessed`` or
-      a finalized state (``ready_for_review``, ``approved``, ``rejected``), it
+    - If there is at least one layer and the current status is ``unprocessed``, it
       becomes ``in_progress``.
     The status ``skip`` is never changed automatically."""
 
@@ -465,7 +464,9 @@ def sync_image_status_with_layers(project_id: str, image_hash: str) -> str:
             db_manager.update_image_status(project_id, image_hash, "unprocessed")
             current = "unprocessed"
     else:
-        if current in ["unprocessed", "ready_for_review", "approved", "rejected"]:
+        # Automatically move from "unprocessed" to "in_progress" when layers exist.
+        # Other states are left untouched so manual status changes persist.
+        if current == "unprocessed":
             db_manager.update_image_status(project_id, image_hash, "in_progress")
             current = "in_progress"
 
