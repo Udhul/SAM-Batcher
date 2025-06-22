@@ -44,6 +44,8 @@ It will be updated as new sprints add functionality.
   directly on each layer. Clicking a tag removes it and the small "+" button adds
   a new editable tag. Suggestions come from all labels used across the project
   and update dynamically as tags change.
+- **Tagify Layout Fix**: Labels now appear in-line after the name field, fully
+  replacing the old text input without shifting the visibility toggle.
 - **Layer Persistence**: Editing a mask's name or class now sends an update to the backend so changes are saved in the project database.
 - **Mask Edit Persistence**: Saving edits to a mask now updates its RLE data and status in the database so changes survive reloads.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.

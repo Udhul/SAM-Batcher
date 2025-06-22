@@ -196,35 +196,11 @@ class LayerViewController {
             addTagBtn.className = 'layer-add-tag-btn';
             addTagBtn.textContent = '+';
 
-            li.appendChild(classInput);
-            li.appendChild(addTagBtn);
-
-            const tagify = new Tagify(classInput, {
+            const tagifyConfig = {
                 whitelist: Array.from(new Set([...this.globalLabelPool, ...this._gatherLabelPool()])),
                 dropdown: { maxItems: 20, enabled: 0, closeOnSelect: false },
                 editTags: { keepInvalid: false }
-            });
-            if (layer.classLabel) {
-                tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
-            }
-            addTagBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                tagify.addEmptyTag();
-            });
-            const updateFromTagify = () => {
-                layer.classLabel = tagify.value.map(t => t.value).join(',');
-                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
-                this._updateTagifyWhitelists();
             };
-            tagify.on('add', updateFromTagify);
-            tagify.on('remove', updateFromTagify);
-            tagify.on('edit:updated', updateFromTagify);
-            tagify.on('click', (e) => {
-                if (e.detail && e.detail.tag) {
-                    tagify.removeTag(e.detail.tag);
-                }
-            });
-            this.tagifyMap.set(layer.layerId, tagify);
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -254,6 +230,30 @@ class LayerViewController {
             li.appendChild(addTagBtn);
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
+
+            const tagify = new Tagify(classInput, tagifyConfig);
+            if (layer.classLabel) {
+                tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
+            }
+            addTagBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                tagify.addEmptyTag();
+            });
+            const updateFromTagify = () => {
+                layer.classLabel = tagify.value.map(t => t.value).join(',');
+                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+                this._updateTagifyWhitelists();
+            };
+            tagify.on('add', updateFromTagify);
+            tagify.on('remove', updateFromTagify);
+            tagify.on('edit:updated', updateFromTagify);
+            tagify.on('click', (e) => {
+                if (e.detail && e.detail.tag) {
+                    tagify.removeTag(e.detail.tag);
+                }
+            });
+            this.tagifyMap.set(layer.layerId, tagify);
+
             listEl.appendChild(li);
         });
 
