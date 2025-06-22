@@ -260,15 +260,15 @@
                             <div id="edit-tools" class="edit-tools" style="display:none;">
                                 <div class="canvas-toolbar-button-column">
                                     <div class="canvas-toolbar-button-row">
-                                        <button id="edit-brush-btn" class="text-btn">Brush</button>
-                                        <label>Size <input type="range" id="edit-brush-size" min="1" max="50" value="10"></label>
-                                        <button id="edit-lasso-btn" class="text-btn">Lasso</button>
+                                        <button id="edit-brush-btn" class="text-btn edit-btn edit-btn-tool">Brush</button>
+                                        <input type="range" id="edit-brush-size" min="1" max="50" value="10">
+                                        <button id="edit-lasso-btn" class="text-btn edit-btn edit-btn-tool">Lasso</button>
                                     </div>
                                     <div class="canvas-toolbar-button-row">
-                                        <button id="edit-grow-btn" class="text-btn">Grow</button>
-                                        <button id="edit-shrink-btn" class="text-btn">Shrink</button>
-                                        <button id="edit-smooth-btn" class="text-btn">Smooth</button>
-                                        <button id="edit-invert-btn" class="text-btn">Invert</button>
+                                        <button id="edit-grow-btn" class="text-btn edit-btn edit-btn-action">Grow</button>
+                                        <button id="edit-shrink-btn" class="text-btn edit-btn edit-btn-action">Shrink</button>
+                                        <button id="edit-smooth-btn" class="text-btn edit-btn edit-btn-action">Smooth</button>
+                                        <button id="edit-invert-btn" class="text-btn edit-btn edit-btn-action">Invert</button>
                                     </div>
                                 </div>
                             </div>
@@ -297,8 +297,8 @@
                             <div id="edit-actions" class="edit-actions" style="display:none;">
                                 <div class="canvas-toolbar-button-column">
                                     <div class="canvas-toolbar-button-row">
-                                        <button id="edit-save-btn" class="text-btn commit-masks-btn" title="Save edits">Save</button>
-                                        <button id="edit-cancel-btn" class="text-btn clear-inputs-btn" title="Cancel edits">Cancel</button>
+                                        <button id="edit-save-btn" class="text-btn" title="Save edits">Save</button>
+                                        <button id="edit-cancel-btn" class="text-btn" title="Cancel edits">Cancel</button>
                                     </div>
                                     <div class="canvas-toolbar-button-row">
                                         <button id="edit-undo-btn" class="icon-btn" title="Undo"><span class="icon">⟲</span><span class="sr-only">Undo</span></button>
