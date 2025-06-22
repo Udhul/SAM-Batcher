@@ -84,21 +84,18 @@ It will be updated as new sprints add functionality.
    - ~~Implement the full `ActiveImageState` object with `creation` and `edit`
      subobjects and automatic saving/loading through the new API endpoints.~~
    - ~~Update `layerViewController` and `canvasController` to operate on this state.~~
-3. **Edit Mode Implementation**
-   - Add an `editModeController` with brush/eraser, lasso, and action buttons
-     (grow, shrink, smooth, invert, undo/redo, save, cancel).
-   - Ensure selecting a layer activates edit mode and saving edits updates the
-     layer status to `edited`.
+3. ~~**Edit Mode Implementation**~~
+   - ~~Add an `editModeController` with brush/eraser, lasso, and action buttons
+     (grow, shrink, smooth, invert, undo/redo, save, cancel).~~
+   - ~~Ensure selecting a layer activates edit mode and saving edits updates the
+     layer status to `edited`.~~
 4. **Review Workflow**
    - Provide UI to mark images `ready_for_review` and a streamlined review view
      for approving or rejecting images.
-   - Update export and filtering logic to handle the full status lifecycle.
+   - ~~Update export and filtering logic to handle the full status lifecycle.~~
 5. **Incremental Enhancements**
-   - Persist `display_color` and label information when adding layers.
+   - ~~Persist `display_color` and label information when adding layers.~~
    - ~~Add update-status dropdown in the annotation view.~~ Implemented as Ready/Skip toggle switches.
    - Improve error handling and autosave of `ActiveImageState` to prevent data
      loss.
 
-The above order follows the staged rollout suggested in the specification:
-getting the schema and state management in place will make subsequent editing and
-review features easier to build while keeping the application functional.
