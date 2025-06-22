@@ -43,11 +43,12 @@ class EditModeController {
             canvas.addEventListener('mouseleave', () => this.onMouseUp());
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
+        this.canvasManager.addEventListener('zoom-pan-changed', () => this.updatePreviewSize());
     }
 
     updatePreviewSize() {
         if (!this.previewEl) return;
-        const r = this.brushSize * this.canvasManager.displayScale * 2;
+        const r = this.brushSize * this.canvasManager.getZoomedDisplayScale() * 2;
         this.previewEl.style.width = `${r}px`;
         this.previewEl.style.height = `${r}px`;
     }

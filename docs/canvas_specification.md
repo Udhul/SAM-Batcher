@@ -272,6 +272,7 @@ Response: {
 * **Modifier Key Support:** Shift, Ctrl/Cmd for different interaction modes
 * **Context Menu Prevention:** Disable right-click menu for negative points
 * **Interaction State Tracking:** Maintain drawing state across events
+* **Zoom & Pan:** Mouse wheel zooms (cursor-centered) up to 4×, middle button drag pans. Reset when a new image loads.
 
 **Touch Support (Future):**
 * **Touch Events:** Support touch-based interaction for mobile devices
