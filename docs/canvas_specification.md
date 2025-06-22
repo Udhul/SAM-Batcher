@@ -142,7 +142,8 @@ The canvas system employs a three-layer architecture with independent rendering 
 **Mask Data Processing:**
 * **Input Format:** 2D binary arrays matching original image dimensions
 * **Color Assignment:** Dynamic HSL-based color generation for optimal contrast
-* **Rendering:** Convert binary data to colored ImageData for canvas display
+* **Rendering:** Convert binary data to ImageData and apply a diagonal hatch
+  pattern following the mask color with a thin outline for clarity
 * **Optimization:** Use offscreen canvases for complex compositions
 
 **Toggle System:**
@@ -213,8 +214,9 @@ Response: {
 
 **Mask Composition Process:**
 1. **Preparation:** Create offscreen canvas matching display dimensions
-2. **Pixel Processing:** Convert binary mask to colored ImageData
-3. **Region Rendering:** Apply colors to mask pixels (value === 1)
+2. **Pixel Processing:** Convert binary mask to ImageData
+3. **Region Rendering:** Fill mask regions with a diagonal hatch using the mask
+   color and draw a thin outline for better visibility
 4. **Layer Composition:** Composite individual masks onto prediction layer
 5. **Final Display:** Apply opacity and render to visible canvas
 

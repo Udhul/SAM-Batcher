@@ -510,9 +510,7 @@ class CanvasManager {
         if (visibleLayers.length > 0) {
             visibleLayers.forEach(l => {
                 let op = 1.0;
-                if (this.mode === 'creation') {
-                    op = FADED_MASK_OPACITY;
-                } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
+                if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
                 const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
@@ -909,10 +907,25 @@ class CanvasManager {
         const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
         const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
 
+        const spacing = 6; // pixel spacing between hatch lines
+        const lineWidth = 2; // hatch line thickness
+
+        const isBorder = (mx, my) => {
+            return (
+                mx === 0 || my === 0 || mx === maskWidth - 1 || my === maskHeight - 1 ||
+                !maskData[my][mx - 1] || !maskData[my][mx + 1] ||
+                !(maskData[my - 1] && maskData[my - 1][mx]) ||
+                !(maskData[my + 1] && maskData[my + 1][mx])
+            );
+        };
+
         for (let y = 0; y < maskHeight; y++) {
             for (let x = 0; x < maskWidth; x++) {
-                if (maskData[y][x]) {
-                    const idx = (y * maskWidth + x) * 4;
+                if (!maskData[y][x]) continue;
+                const idx = (y * maskWidth + x) * 4;
+                const border = isBorder(x, y);
+                const drawPixel = border || ((x + y) % spacing < lineWidth);
+                if (drawPixel) {
                     pixelData[idx] = r;
                     pixelData[idx + 1] = g;
                     pixelData[idx + 2] = b;
