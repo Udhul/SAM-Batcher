@@ -1116,6 +1116,34 @@ input[type="file"]#image-upload {
   padding: 2px 4px;
   font-size: 11px;
 }
+.layer-class-input.tagify {
+  --tag-pad: 0.2em 0.6em;
+  --tag-bg: #0052bf;
+  --tag-text-color: #fff;
+  --tags-border-color: silver;
+  --tag-remove-bg: #ce0078;
+  --tag-remove-btn-color: white;
+  min-width: 0;
+  border: none;
+}
+.layer-class-input.tagify .tagify__tag {
+  margin-top: 0;
+}
+.layer-add-tag-btn {
+  color: #0052bf;
+  font: bold 1em/1.4 Arial;
+  border: 0;
+  background: none;
+  box-shadow: 0 0 0 2px inset currentColor;
+  border-radius: 50%;
+  width: 1.4em;
+  height: 1.4em;
+  cursor: pointer;
+  transition: 0.1s ease-out;
+}
+.layer-add-tag-btn:hover {
+  box-shadow: 0 0 0 4px inset currentColor;
+}
 .layer-status-tag {
   font-size: 11px;
   padding: 2px 4px;

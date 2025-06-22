@@ -10,7 +10,29 @@ class LayerViewController {
         this.stateManager = stateManager;
         this.layers = [];
         this.selectedLayerIds = [];
+        this.tagifyMap = new Map();
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+    }
+
+    _gatherLabelPool() {
+        const set = new Set();
+        this.layers.forEach(l => {
+            if (l.classLabel) {
+                l.classLabel.split(',').forEach(t => {
+                    t = t.trim();
+                    if (t) set.add(t);
+                });
+            }
+        });
+        return Array.from(set);
+    }
+
+    _updateTagifyWhitelists() {
+        const pool = this._gatherLabelPool();
+        this.tagifyMap.forEach(t => {
+            t.settings.whitelist = pool;
+            if (t.dropdown) t.dropdown.refilter();
+        });
     }
 
     setLayers(layers) {
@@ -78,6 +100,8 @@ class LayerViewController {
 
     render() {
         if (!this.containerEl) return;
+        this.tagifyMap.forEach(t => t.destroy());
+        this.tagifyMap.clear();
         this.containerEl.innerHTML = '';
         const listEl = document.createElement('ul');
         listEl.className = 'layer-list';
@@ -142,22 +166,39 @@ class LayerViewController {
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
             classInput.placeholder = 'label';
-            classInput.value = layer.classLabel || '';
             classInput.title = 'Class label';
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
-            classInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    classInput.blur();
-                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+
+            const addTagBtn = document.createElement('button');
+            addTagBtn.type = 'button';
+            addTagBtn.className = 'layer-add-tag-btn';
+            addTagBtn.textContent = '+';
+
+            li.appendChild(classInput);
+            li.appendChild(addTagBtn);
+
+            const tagify = new Tagify(classInput, {
+                whitelist: this._gatherLabelPool(),
+                dropdown: { maxItems: 20, enabled: 0, closeOnSelect: false },
+                editTags: { keepInvalid: false }
             });
-            classInput.addEventListener('change', (e) => {
+            if (layer.classLabel) {
+                tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
+            }
+            addTagBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                layer.classLabel = classInput.value.trim();
-                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+                tagify.addEmptyTag();
             });
+            const updateFromTagify = () => {
+                layer.classLabel = tagify.value.map(t => t.value).join(',');
+                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+                this._updateTagifyWhitelists();
+            };
+            tagify.on('add', updateFromTagify);
+            tagify.on('remove', updateFromTagify);
+            tagify.on('edit:updated', updateFromTagify);
+            this.tagifyMap.set(layer.layerId, tagify);
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -184,12 +225,14 @@ class LayerViewController {
             li.appendChild(colorInput);
             li.appendChild(nameInput);
             li.appendChild(classInput);
+            li.appendChild(addTagBtn);
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
             listEl.appendChild(li);
         });
 
         this.containerEl.appendChild(listEl);
+        this._updateTagifyWhitelists();
     }
 }
 
