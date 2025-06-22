@@ -40,6 +40,19 @@ It will be updated as new sprints add functionality.
 - **Status Toggles**: The annotation view now has "Ready" and "Skip" switches to update image status, dispatching refresh events. Switches are automatically updated when a new image loads and disabled when no image is active.
 - **Unified Change Handler**: A new `onImageDataChange()` function synchronizes the layer view, caches and status toggles whenever image or layer data changes.
 - **Inline Layer Editing**: Mask name and label fields accept Enter to save changes without deselecting the text field, and edits trigger the unified change handler.
+- **Tagify Labels**: Class labels in the layer view appear as Tagify tags
+  directly on each layer. Each tag shows a small "×" remove button and the
+  "+" button adds new tags. Suggestions come from all labels used across the
+  project and update dynamically as tags change.
+- **Tagify Layout Fix**: Labels now appear in-line after the name field, fully
+  replacing the old text input without shifting the visibility toggle.
+- **Tag Removal Fix**: The "×" remove button stops event propagation without
+  cancelling the default Tagify behaviour so tags delete correctly and layer
+  selection is unaffected.
+- **Label Pool Parsing**: Suggestions split comma-separated labels returned by
+  the backend so autocompletion lists each label individually.
+- **Layer Click Handling Fix**: Clicking the remove icon no longer selects the
+  layer, ensuring tag deletions persist on reload.
 - **Layer Persistence**: Editing a mask's name or class now sends an update to the backend so changes are saved in the project database.
 - **Mask Edit Persistence**: Saving edits to a mask now updates its RLE data and status in the database so changes survive reloads.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.
