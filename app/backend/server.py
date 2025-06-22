@@ -755,7 +755,16 @@ def run_server(
         os.makedirs(config.PROJECTS_DATA_DIR)
     import uvicorn
 
-    uvicorn.run(app, host=host, port=port, reload=debug)
+    if debug:
+        # Use import string for reload functionality
+        try:
+            uvicorn.run("app.backend.server:app", host=host, port=port, reload=True)
+        except ImportError:
+            print("uvicorn.reload not available, falling back to uvicorn.run")
+            uvicorn.run(app, host=host, port=port, reload=False)
+    else:
+        # Use app object directly when not reloading
+        uvicorn.run(app, host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":
