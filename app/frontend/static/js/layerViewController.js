@@ -246,10 +246,16 @@ class LayerViewController {
             };
             tagify.on('add', updateFromTagify);
             tagify.on('remove', updateFromTagify);
-            tagify.on('edit:updated', updateFromTagify);
-            tagify.on('click', (e) => {
-                if (e.detail && e.detail.tag) {
+            tagify.on('edit:updated', (e) => {
+                if (e.detail && e.detail.data && !e.detail.data.value.trim()) {
                     tagify.removeTag(e.detail.tag);
+                }
+                updateFromTagify();
+            });
+            tagify.on('dblclick', (e) => {
+                if (e.detail && e.detail.tag) {
+                    e.stopPropagation();
+                    tagify.editTag(e.detail.tag);
                 }
             });
             this.tagifyMap.set(layer.layerId, tagify);
