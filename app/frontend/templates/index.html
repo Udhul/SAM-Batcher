@@ -258,8 +258,19 @@
                         <div class="toolbar-col-1 toolbar-col">
                             <div id="mask-toggle-container" class="mask-toggle-container"></div>
                             <div id="edit-tools" class="edit-tools" style="display:none;">
-                                <button id="edit-brush-btn" class="text-btn">Brush</button>
-                                <label>Size <input type="range" id="edit-brush-size" min="1" max="50" value="10"></label>
+                                <div class="canvas-toolbar-button-column">
+                                    <div class="canvas-toolbar-button-row">
+                                        <button id="edit-brush-btn" class="text-btn edit-btn edit-btn-tool">Brush</button>
+                                        <input type="range" id="edit-brush-size" min="1" max="50" value="10">
+                                        <button id="edit-lasso-btn" class="text-btn edit-btn edit-btn-tool">Lasso</button>
+                                    </div>
+                                    <div class="canvas-toolbar-button-row">
+                                        <button id="edit-grow-btn" class="text-btn edit-btn edit-btn-action">Grow</button>
+                                        <button id="edit-shrink-btn" class="text-btn edit-btn edit-btn-action">Shrink</button>
+                                        <button id="edit-smooth-btn" class="text-btn edit-btn edit-btn-action">Smooth</button>
+                                        <button id="edit-invert-btn" class="text-btn edit-btn edit-btn-action">Invert</button>
+                                    </div>
+                                </div>
                             </div>
                             <div id="review-mode-actions" class="review-mode-actions" style="display:none;">
                                 <button id="review-export-btn">Export</button>
@@ -284,8 +295,16 @@
                                 </div>
                             </div>
                             <div id="edit-actions" class="edit-actions" style="display:none;">
-                                <button id="edit-save-btn" class="text-btn">Save</button>
-                                <button id="edit-cancel-btn" class="text-btn">Cancel</button>
+                                <div class="canvas-toolbar-button-column">
+                                    <div class="canvas-toolbar-button-row">
+                                        <button id="edit-save-btn" class="text-btn" title="Save edits">Save</button>
+                                        <button id="edit-cancel-btn" class="text-btn" title="Cancel edits">Cancel</button>
+                                    </div>
+                                    <div class="canvas-toolbar-button-row">
+                                        <button id="edit-undo-btn" class="icon-btn" title="Undo"><span class="icon">⟲</span><span class="sr-only">Undo</span></button>
+                                        <button id="edit-redo-btn" class="icon-btn" title="Redo"><span class="icon">⟳</span><span class="sr-only">Redo</span></button>
+                                    </div>
+                                </div>
                             </div>
                             <div id="review-mode-controls" class="review-mode-controls" style="display:none;">
                                 <button id="review-prev-btn" title="Go to previous reviewed image">Prev</button>

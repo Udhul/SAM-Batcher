@@ -119,6 +119,8 @@ class CanvasManager {
         this.editingLayerId = null;
         this.editingMask = null;
         this.editingColor = '#ff0000';
+        this.editHistory = [];
+        this.editHistoryIndex = -1;
 
         this.interactionState = {
             isDrawingBox: false,
@@ -1113,6 +1115,8 @@ class CanvasManager {
         } else {
             this.editingMask = this._createEmptyMask();
         }
+        this.editHistory = [this.getEditedMask()];
+        this.editHistoryIndex = 0;
         this.drawPredictionMaskLayer();
     }
 
@@ -1134,6 +1138,169 @@ class CanvasManager {
             }
         }
         this.drawPredictionMaskLayer();
+    }
+
+    applyLasso(points, add = true) {
+        if (!this.editingMask || !points || points.length < 3) return;
+        const h = this.editingMask.length;
+        const w = this.editingMask[0].length;
+        let minX = w, minY = h, maxX = 0, maxY = 0;
+        points.forEach(p => {
+            if (p.x < minX) minX = Math.floor(p.x);
+            if (p.x > maxX) maxX = Math.ceil(p.x);
+            if (p.y < minY) minY = Math.floor(p.y);
+            if (p.y > maxY) maxY = Math.ceil(p.y);
+        });
+        minX = Math.max(0, minX); minY = Math.max(0, minY);
+        maxX = Math.min(w - 1, maxX); maxY = Math.min(h - 1, maxY);
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                if (this._isPointInPolygon({x, y}, points)) {
+                    this.editingMask[y][x] = add ? 1 : 0;
+                }
+            }
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+    drawLassoPreview(points) {
+        if (!this.userCtx || !this.offscreenUserCtx) return;
+        this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
+        if (points && points.length > 0) {
+            this.offscreenUserCtx.beginPath();
+            const first = this._originalToDisplayCoords(points[0].x, points[0].y);
+            this.offscreenUserCtx.moveTo(first.x, first.y);
+            for (let i = 1; i < points.length; i++) {
+                const p = this._originalToDisplayCoords(points[i].x, points[i].y);
+                this.offscreenUserCtx.lineTo(p.x, p.y);
+            }
+            this.offscreenUserCtx.strokeStyle = 'rgba(255,223,0,0.95)';
+            this.offscreenUserCtx.lineWidth = Math.max(1, 2 * this.displayScale);
+            this.offscreenUserCtx.stroke();
+        }
+        this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
+        this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
+    }
+
+    clearLassoPreview() {
+        if (!this.userCtx) return;
+        this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
+    }
+
+    commitHistoryStep() {
+        if (!this.editingMask) return;
+        if (this.editHistoryIndex < this.editHistory.length - 1) {
+            this.editHistory = this.editHistory.slice(0, this.editHistoryIndex + 1);
+        }
+        this.editHistory.push(this.getEditedMask());
+        this.editHistoryIndex = this.editHistory.length - 1;
+    }
+
+    undoEdit() {
+        if (this.editHistoryIndex > 0) {
+            this.editHistoryIndex -= 1;
+            const mask = this.editHistory[this.editHistoryIndex];
+            this.editingMask = mask.map(r => [...r]);
+            this.drawPredictionMaskLayer();
+        }
+    }
+
+    redoEdit() {
+        if (this.editHistoryIndex < this.editHistory.length - 1) {
+            this.editHistoryIndex += 1;
+            const mask = this.editHistory[this.editHistoryIndex];
+            this.editingMask = mask.map(r => [...r]);
+            this.drawPredictionMaskLayer();
+        }
+    }
+
+    growEditingMask() {
+        if (!this.editingMask) return;
+        this.editingMask = this._dilateMask(this.editingMask);
+        this.drawPredictionMaskLayer();
+    }
+
+    shrinkEditingMask() {
+        if (!this.editingMask) return;
+        this.editingMask = this._erodeMask(this.editingMask);
+        this.drawPredictionMaskLayer();
+    }
+
+    smoothEditingMask() {
+        if (!this.editingMask) return;
+        let mask = this._dilateMask(this._erodeMask(this.editingMask));
+        mask = this._erodeMask(this._dilateMask(mask));
+        mask = this._smoothMask(mask);
+        this.editingMask = mask;
+        this.drawPredictionMaskLayer();
+    }
+
+    invertEditingMask() {
+        if (!this.editingMask) return;
+        const h = this.editingMask.length; const w = this.editingMask[0].length;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                this.editingMask[y][x] = this.editingMask[y][x] ? 0 : 1;
+            }
+        }
+        this.drawPredictionMaskLayer();
+    }
+
+    _dilateMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (mask[y][x]) {
+                    for (let j = -1; j <= 1; j++) {
+                        for (let i = -1; i <= 1; i++) {
+                            const nx = x + i; const ny = y + j;
+                            if (nx >= 0 && ny >= 0 && nx < w && ny < h) out[ny][nx] = 1;
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    _erodeMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let all = true;
+                for (let j = -1; j <= 1; j++) {
+                    for (let i = -1; i <= 1; i++) {
+                        const nx = x + i; const ny = y + j;
+                        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !mask[ny][nx]) {
+                            all = false; break;
+                        }
+                    }
+                    if (!all) break;
+                }
+                out[y][x] = all ? 1 : 0;
+            }
+        }
+        return out;
+    }
+
+    _smoothMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let sum = 0;
+                for (let j = -1; j <= 1; j++) {
+                    for (let i = -1; i <= 1; i++) {
+                        const nx = x + i; const ny = y + j;
+                        if (nx >= 0 && ny >= 0 && nx < w && ny < h) sum += mask[ny][nx];
+                    }
+                }
+                out[y][x] = sum >= 5 ? 1 : 0;
+            }
+        }
+        return out;
     }
 
     getEditedMask() {

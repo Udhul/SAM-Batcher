@@ -59,17 +59,15 @@ It will be updated as new sprints add functionality.
 - **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
   a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
   circular preview shows the brush size.
+- **Advanced Edit Tools**: Lasso add/remove, grow, shrink, smooth, invert and
+  undo/redo actions complete the edit toolbar.
+- **Edit Toolbar Layout**: Edit tools now sit in a button-column with brush,
+  size and lasso on the first row and Grow/Shrink/Smooth/Invert on the next.
+  In the second toolbar column, Save and Cancel share the top row styled like
+  the creation buttons with Undo/Redo icon buttons centered below.
 - **Review Toolbar**: Review mode controls now appear in the canvas toolbar
   with Export and Exit buttons placed in the first column for better spacing.
 - **Canvas Zoom & Pan**: Mouse wheel zooms up to 4× the image resolution and middle-drag pans for precise placement. Zoom remains centered on the cursor, pan ends on middle-button release and zoom-pan updates trigger an event for tool UI. Zoom resets when a new image loads.
-
-## Partially Implemented / In Progress
-
-- **Edit Mode Tools**: Brush tool with adjustable size integrated into the main
-  canvas toolbar. The brush preview is centred on the cursor and appears above
-  the image while right-dragging keeps erasing. Creation actions hide during
-  editing and review. Lasso and advanced actions (grow, shrink, smooth,
-  invert, undo/redo) remain to be implemented.
 
 ## Planned Tasks (Priority Order)
 

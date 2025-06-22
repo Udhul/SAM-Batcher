@@ -32,8 +32,6 @@
     width: 100%; /* Take full width of container */
     min-width: 35px;
     min-height: 35px;
-    color: #dee2e6;
-    text-shadow: 1px 1px 1px #49505740;
 }
 
 /* Keep icon buttons at their natural size */
@@ -213,15 +211,104 @@
   width: 100%; /* Take full width of its parent */
 }
 
+.canvas-toolbar-button-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+}
 .edit-tools,
 .edit-actions {
   display: flex;
-  gap: 8px;
+  justify-content: center;
   align-items: center;
+  width: 100%;
 }
-.edit-tools button.active {
-  background-color: #007bff;
+
+/* Mask Edit Button */
+.edit-btn {
+  background-color: #72b6ff;
   color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.edit-btn-tool {
+  background-color: #677dae;
+} 
+.edit-btn-tool:hover:not(:disabled) {
+  background-color: #536386;
+}
+
+.edit-btn-action {
+  background-color: #bb8bbe;
+} 
+.edit-btn-action:hover:not(:disabled) {
+  background-color: #a788a7;
+}
+
+/* Individual button colors */
+#open-auto-mask-overlay {
+  background-color: #0b3d69;
+}
+#open-auto-mask-overlay:hover:not(:disabled), #edit-undo-btn:hover:not(:disabled), #edit-redo-btn:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+#save-canvas-png-btn {
+  background-color: #007bff;
+} /* Blue for preview */
+#save-canvas-png-btn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+#commit-masks-btn, #edit-save-btn{
+  background-color: #28a745;
+  padding: 8px 16px;
+  font-size: 15px;
+} /* Green for commit */
+#commit-masks-btn:hover:not(:disabled), #edit-save-btn:hover:not(:disabled) {
+  background-color: #218838;
+}
+#edit-undo-btn, #edit-redo-btn {
+  background-color: #a5a48b;
+}
+#edit-undo-btn:hover:not(:disabled), #edit-redo-btn:hover:not(:disabled) {
+  background-color: #8a8976;
+}
+
+/* Clear Inputs Button */
+#clear-inputs-btn, #edit-cancel-btn {
+  background: linear-gradient(135deg, #ff7300, #ffa500);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
+}
+#clear-inputs-btn:hover:not(:disabled), #edit-cancel-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e67e00, #cb7600);
+  box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
+  transform: translateY(-1px);
+}
+#clear-inputs-btn:disabled, #edit-cancel-btn:disabled {
+  background: #ccc;
+  color: #888;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+#clear-inputs-btn #edit-cancel-btn{
+  width: 100%;
+  margin-top: 10px;
 }
 
 .creation-actions {
