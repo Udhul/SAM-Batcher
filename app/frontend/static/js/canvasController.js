@@ -510,9 +510,7 @@ class CanvasManager {
         if (visibleLayers.length > 0) {
             visibleLayers.forEach(l => {
                 let op = 1.0;
-                if (this.mode === 'creation') {
-                    op = FADED_MASK_OPACITY;
-                } else if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
+                if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
                 const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
