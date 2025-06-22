@@ -274,6 +274,7 @@ Response: {
 * **Interaction State Tracking:** Maintain drawing state across events
 * **Zoom & Pan:** Mouse wheel zooms (keeps cursor centered) up to 4×, middle button drag pans. Reset when a new image loads.
 * **Zoom-Pan Events:** A `zoom-pan-changed` event is emitted after each transform update with the current scale and pan values.
+* **Procedural Overlays:** User inputs and masks are redrawn at the zoomed resolution so they remain crisp without pixelation.
 
 **Touch Support (Future):**
 * **Touch Events:** Support touch-based interaction for mobile devices

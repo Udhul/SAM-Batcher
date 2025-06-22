@@ -61,6 +61,7 @@ It will be updated as new sprints add functionality.
 - **Review Toolbar**: Review mode controls now appear in the canvas toolbar
   with Export and Exit buttons placed in the first column for better spacing.
 - **Canvas Zoom & Pan**: Mouse wheel zooms up to 4× the image resolution and middle-drag pans for precise placement. Zoom remains centered on the cursor, pan ends on middle-button release and zoom-pan updates trigger an event for tool UI. Zoom resets when a new image loads.
+- **Crisp Overlays**: Inputs and masks redraw at the zoomed scale so overlays remain sharp during zoom.
 
 ## Partially Implemented / In Progress
 

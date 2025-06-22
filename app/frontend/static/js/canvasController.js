@@ -97,6 +97,8 @@ class CanvasManager {
         this.originalImageWidth = 0;
         this.originalImageHeight = 0;
         this.displayScale = 1.0; // Scale of original image to displayed image
+        this.displayWidth = 0; // Base canvas width at current image scale
+        this.displayHeight = 0; // Base canvas height at current image scale
 
         this.userPoints = []; // [{x, y, label}, ...] in original image coordinates
         this.userBoxes = [];  // Array of {x1, y1, x2, y2} boxes
@@ -188,12 +190,20 @@ class CanvasManager {
         }
     }
 
-    resizeCanvases(width, height) {
-        const canvases = [
-            this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas,
-            this.offscreenPredictionCanvas, this.offscreenUserCanvas
+    resizeCanvases(width, height, styleWidth = width, styleHeight = height) {
+        const visible = [
+            this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas
         ];
-        canvases.forEach(canvas => {
+        visible.forEach(canvas => {
+            if (canvas) {
+                canvas.width = width;
+                canvas.height = height;
+                canvas.style.width = `${styleWidth}px`;
+                canvas.style.height = `${styleHeight}px`;
+            }
+        });
+        const offscreen = [this.offscreenPredictionCanvas, this.offscreenUserCanvas];
+        offscreen.forEach(canvas => {
             if (canvas) {
                 canvas.width = width;
                 canvas.height = height;
@@ -211,7 +221,11 @@ class CanvasManager {
                 c.style.transform = t;
             }
         });
-        this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
+        this._dispatchEvent('zoom-pan-changed', {
+            scale: this.transform.scale,
+            panX: this.transform.panX,
+            panY: this.transform.panY
+        });
     }
 
     // --- Coordinate Transformation ---
@@ -226,8 +240,8 @@ class CanvasManager {
 
         // Scale canvas coordinates to original image coordinates
         return {
-            x: canvasX / this.displayScale,
-            y: canvasY / this.displayScale
+            x: canvasX / (this.displayScale * this.transform.scale),
+            y: canvasY / (this.displayScale * this.transform.scale)
         };
     }
 
@@ -235,8 +249,8 @@ class CanvasManager {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
         return {
-            x: originalX * this.displayScale,
-            y: originalY * this.displayScale
+            x: originalX * this.displayScale * this.transform.scale,
+            y: originalY * this.displayScale * this.transform.scale
         };
     }
 
@@ -376,7 +390,7 @@ class CanvasManager {
         };
     }
 
-    drawImageLayer() {
+    drawImageLayer(recomputeScale = true) {
         if (!this.currentImage || !this.imageCtx || !this.imageCanvas.parentElement) return;
 
         const displayArea = this.imageCanvas.parentElement;
@@ -397,20 +411,27 @@ class CanvasManager {
         if (areaHeight === 0) areaHeight = areaWidth * (this.originalImageHeight / this.originalImageWidth);
 
         // Calculate scale to fit image within parent while maintaining aspect ratio
-        const hRatio = areaWidth / this.originalImageWidth;
-        const vRatio = areaHeight / this.originalImageHeight;
-        this.displayScale = Math.min(hRatio, vRatio, 1.0); // Don't scale up beyond 100% unless image is smaller than area
+        if (recomputeScale) {
+            const hRatio = areaWidth / this.originalImageWidth;
+            const vRatio = areaHeight / this.originalImageHeight;
+            this.displayScale = Math.min(hRatio, vRatio, 1.0); // Don't scale up beyond 100% unless image is smaller than area
+        }
 
         const displayWidth = Math.round(this.originalImageWidth * this.displayScale);
         const displayHeight = Math.round(this.originalImageHeight * this.displayScale);
+        this.displayWidth = displayWidth;
+        this.displayHeight = displayHeight;
 
-        if (this.imageCanvas.width !== displayWidth || this.imageCanvas.height !== displayHeight) {
-            this.resizeCanvases(displayWidth, displayHeight);
+        const scaledWidth = Math.round(displayWidth * this.transform.scale);
+        const scaledHeight = Math.round(displayHeight * this.transform.scale);
+
+        if (this.imageCanvas.width !== scaledWidth || this.imageCanvas.height !== scaledHeight) {
+            this.resizeCanvases(scaledWidth, scaledHeight, displayWidth, displayHeight);
         }
 
-        this.imageCtx.clearRect(0, 0, displayWidth, displayHeight);
+        this.imageCtx.clearRect(0, 0, scaledWidth, scaledHeight);
         this.imageCtx.globalAlpha = this.imageOpacitySlider ? parseFloat(this.imageOpacitySlider.value) : 1.0;
-        this.imageCtx.drawImage(this.currentImage, 0, 0, displayWidth, displayHeight);
+        this.imageCtx.drawImage(this.currentImage, 0, 0, scaledWidth, scaledHeight);
         this.imageCtx.globalAlpha = 1.0;
 
         // Redraw other layers as their display depends on image size/scale
@@ -429,8 +450,9 @@ class CanvasManager {
 
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
 
-        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Scale point radius slightly
-        const lineDisplayWidth = Math.max(1, 2 * this.displayScale); // Scale line width
+        const scaled = this.displayScale * this.transform.scale;
+        const pointDisplayRadius = Math.max(2, 5 * scaled);
+        const lineDisplayWidth = Math.max(1, 2 * scaled);
 
         // Draw drawn polygons (lassos)
         this.userDrawnMasks.forEach(mask => {
@@ -649,8 +671,9 @@ class CanvasManager {
         }
         if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
-        const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas
-        const clickThresholdOrig = pointDisplayRadius / this.displayScale * 1.5; // Make click threshold slightly larger than visual radius
+        const scaled = this.displayScale * this.transform.scale;
+        const pointDisplayRadius = Math.max(3, 6 * scaled);
+        const clickThresholdOrig = pointDisplayRadius / scaled * 1.5;
 
         const isShift = e.shiftKey;
         const isCtrl = e.ctrlKey || e.metaKey;
@@ -759,12 +782,12 @@ class CanvasManager {
     }
 
     _clampPan() {
-        const scaledW = this.imageCanvas.width * this.transform.scale;
-        const scaledH = this.imageCanvas.height * this.transform.scale;
+        const scaledW = this.imageCanvas.width;
+        const scaledH = this.imageCanvas.height;
         const maxPanX = 0;
         const maxPanY = 0;
-        const minPanX = Math.min(0, this.imageCanvas.width - scaledW);
-        const minPanY = Math.min(0, this.imageCanvas.height - scaledH);
+        const minPanX = Math.min(0, this.displayWidth - scaledW);
+        const minPanY = Math.min(0, this.displayHeight - scaledH);
         this.transform.panX = Math.min(maxPanX, Math.max(minPanX, this.transform.panX));
         this.transform.panY = Math.min(maxPanY, Math.max(minPanY, this.transform.panY));
     }
