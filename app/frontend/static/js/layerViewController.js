@@ -243,7 +243,6 @@ class LayerViewController {
             const stopLayerSelect = (ev) => {
                 if (ev.target.closest('.tagify__tag__removeBtn')) {
                     ev.stopPropagation();
-                    ev.preventDefault();
                 }
             };
             tagify.DOM.scope.addEventListener('pointerdown', stopLayerSelect);
