@@ -61,8 +61,10 @@ It will be updated as new sprints add functionality.
   circular preview shows the brush size.
 - **Advanced Edit Tools**: Lasso add/remove, grow, shrink, smooth, invert and
   undo/redo actions complete the edit toolbar.
-- **Edit Toolbar Layout**: Edit tools and mask actions now occupy the first
-  toolbar column with undo/redo alongside save and cancel in the second column.
+- **Edit Toolbar Layout**: Edit tools now sit in a button-column with brush,
+  size and lasso on the first row and Grow/Shrink/Smooth/Invert on the next.
+  In the second toolbar column, Save and Cancel share the top row styled like
+  the creation buttons with Undo/Redo icon buttons centered below.
 - **Review Toolbar**: Review mode controls now appear in the canvas toolbar
   with Export and Exit buttons placed in the first column for better spacing.
 - **Canvas Zoom & Pan**: Mouse wheel zooms up to 4× the image resolution and middle-drag pans for precise placement. Zoom remains centered on the cursor, pan ends on middle-button release and zoom-pan updates trigger an event for tool UI. Zoom resets when a new image loads.

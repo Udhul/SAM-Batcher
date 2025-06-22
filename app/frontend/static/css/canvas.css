@@ -213,14 +213,18 @@
   width: 100%; /* Take full width of its parent */
 }
 
+.canvas-toolbar-button-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+}
 .edit-tools,
 .edit-actions {
   display: flex;
-  gap: 8px;
+  justify-content: center;
   align-items: center;
-  flex-wrap: wrap; 
-}
-.edit-tools button.active {
+  width: 100%;
   background-color: #007bff;
   color: #fff;
 }

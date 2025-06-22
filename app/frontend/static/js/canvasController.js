@@ -1228,10 +1228,10 @@ class CanvasManager {
 
     smoothEditingMask() {
         if (!this.editingMask) return;
-        // smooth by a morphological open followed by close using a 3x3 kernel
-        const opened = this._dilateMask(this._erodeMask(this.editingMask));
-        const closed = this._erodeMask(this._dilateMask(opened));
-        this.editingMask = closed;
+        let mask = this._dilateMask(this._erodeMask(this.editingMask));
+        mask = this._erodeMask(this._dilateMask(mask));
+        mask = this._smoothMask(mask);
+        this.editingMask = mask;
         this.drawPredictionMaskLayer();
     }
 
@@ -1280,6 +1280,24 @@ class CanvasManager {
                     if (!all) break;
                 }
                 out[y][x] = all ? 1 : 0;
+            }
+        }
+        return out;
+    }
+
+    _smoothMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let sum = 0;
+                for (let j = -1; j <= 1; j++) {
+                    for (let i = -1; i <= 1; i++) {
+                        const nx = x + i; const ny = y + j;
+                        if (nx >= 0 && ny >= 0 && nx < w && ny < h) sum += mask[ny][nx];
+                    }
+                }
+                out[y][x] = sum >= 5 ? 1 : 0;
             }
         }
         return out;
