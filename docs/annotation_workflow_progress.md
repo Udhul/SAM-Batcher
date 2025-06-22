@@ -46,6 +46,7 @@ It will be updated as new sprints add functionality.
 - **Auto Status Updates**: The unified handler automatically downgrades images from `Ready` to `In Progress` when layers change unless explicitly skipped.
 - **Recursion Fix**: Status update events no longer cause infinite loops when UI syncs dispatch further status events.
 - **Canvas Modes**: Implemented Creation and Edit display modes. Creation mode fades existing layers and Edit mode highlights selected layers while fading others. Layer masks use their stored colors.
+- **Hatched Masks**: Creation and layer masks now render with a diagonal hatch pattern in their assigned color and include a thin outline.
 - **Layer Selection Improvements**: Shift-click now supports multi-selection, normal-click deselects the single selected layer, and selections maintain order.
 - **Faded Opacity Constant**: Introduced a constant to control faded layer opacity (33%).
 - **Layer Ordering**: New layers are inserted at the top of the list.
