@@ -738,22 +738,22 @@ class CanvasManager {
     _handleWheel(e) {
         if (!this.currentImage) return;
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 1.1 : 0.9;
-        const prevScale = this.transform.scale;
-        const maxScale = 4 / this.displayScale;
-        let newScale = prevScale * delta;
-        if (newScale < 1) newScale = 1;
-        if (newScale > maxScale) newScale = maxScale;
+
         const rect = this.userInputCanvas.getBoundingClientRect();
         const offsetX = e.clientX - rect.left;
         const offsetY = e.clientY - rect.top;
-        const prevTotal = this.displayScale * prevScale;
-        const contentX = offsetX / prevTotal;
-        const contentY = offsetY / prevTotal;
-        const newTotal = this.displayScale * newScale;
-        this.transform.panX = offsetX - contentX * newTotal;
-        this.transform.panY = offsetY - contentY * newTotal;
+
+        const prevScale = this.transform.scale;
+        const maxScale = 4 / this.displayScale;
+        let newScale = prevScale * (e.deltaY < 0 ? 1.1 : 0.9);
+        if (newScale < 1) newScale = 1;
+        if (newScale > maxScale) newScale = maxScale;
+
+        const scaleRatio = newScale / prevScale;
+        this.transform.panX += offsetX * (1 - scaleRatio);
+        this.transform.panY += offsetY * (1 - scaleRatio);
         this.transform.scale = newScale;
+
         this._clampPan();
         this.applyCanvasTransform();
     }
