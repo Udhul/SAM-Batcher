@@ -127,6 +127,13 @@ class CanvasManager {
             startY_orig: 0, // Mouse down start Y in original image coordinates
             didMove: false  // To distinguish click from drag
         };
+
+        this.transform = {
+            scale: 1,
+            panX: 0,
+            panY: 0
+        };
+        this.isPanning = false;
     }
 
     initializeCanvases() {
@@ -164,6 +171,7 @@ class CanvasManager {
             this.userInputCanvas.addEventListener('mouseup', (e) => this._handleMouseUp(e));
             this.userInputCanvas.addEventListener('mouseleave', (e) => this._handleMouseLeave(e));
             this.userInputCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            this.userInputCanvas.addEventListener('wheel', (e) => this._handleWheel(e), { passive: false });
         }
 
         
@@ -195,6 +203,17 @@ class CanvasManager {
         // It will be resized in drawPredictionMaskLayer if needed.
     }
 
+    applyCanvasTransform() {
+        const t = `translate(${this.transform.panX}px, ${this.transform.panY}px) scale(${this.transform.scale})`;
+        [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas].forEach(c => {
+            if (c) {
+                c.style.transformOrigin = 'top left';
+                c.style.transform = t;
+            }
+        });
+        this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
+    }
+
     // --- Coordinate Transformation ---
     _displayToOriginalCoords(clientX, clientY) {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
@@ -221,6 +240,10 @@ class CanvasManager {
         };
     }
 
+    getZoomedDisplayScale() {
+        return this.displayScale * this.transform.scale;
+    }
+
 
     // --- Public Methods for External Control ---
     loadImageOntoCanvas(imageElement, originalWidth, originalHeight, filename) {
@@ -234,6 +257,8 @@ class CanvasManager {
         this.currentImageFilename = filename;
 
         this.clearAllCanvasInputs(false); // Clear previous inputs/masks, but not the image itself
+        this.transform = { scale: 1, panX: 0, panY: 0 };
+        this.applyCanvasTransform();
         this.drawImageLayer(); // This will resize canvases and draw the new image
         this._dispatchEvent('imageLoaded', { filename: this.currentImageFilename, width: this.originalImageWidth, height: this.originalImageHeight });
     }
@@ -325,6 +350,8 @@ class CanvasManager {
             this.originalImageWidth = 0;
             this.originalImageHeight = 0;
             this.displayScale = 1.0;
+            this.transform = { scale: 1, panX: 0, panY: 0 };
+            this.applyCanvasTransform();
             // Reset canvases to placeholder size and clear them
             this.resizeCanvases(300, 150); // Placeholder size
              [this.imageCtx, this.predictionCtx, this.userCtx,
@@ -389,6 +416,8 @@ class CanvasManager {
         // Redraw other layers as their display depends on image size/scale
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
+        this._clampPan();
+        this.applyCanvasTransform();
     }
 
     drawUserInputLayer() {
@@ -564,7 +593,13 @@ class CanvasManager {
 
     // --- User Interaction Handlers ---
     _handleMouseDown(e) {
-        if (!this.currentImage || this.mode !== 'creation' || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (!this.currentImage || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
+        if (e.button === 1) {
+            this._startPan(e);
+            e.preventDefault();
+            return;
+        }
+        if (this.mode !== 'creation') return;
         this.interactionState.isMouseDown = true;
         this.interactionState.didMove = false;
         const origCoords = this._displayToOriginalCoords(e.clientX, e.clientY);
@@ -585,6 +620,10 @@ class CanvasManager {
     }
 
     _handleMouseMove(e) {
+        if (this.isPanning) {
+            this._movePan(e);
+            return;
+        }
         if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.didMove = true;
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
@@ -604,6 +643,10 @@ class CanvasManager {
     }
 
     _handleMouseUp(e) {
+        if (e.button === 1 && this.isPanning) {
+            this._endPan();
+            return;
+        }
         if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
         const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas
@@ -685,9 +728,67 @@ class CanvasManager {
     }
 
     _handleMouseLeave(e) {
-        if (this.interactionState.isMouseDown && (this.canvasLockEl && this.canvasLockEl.style.display === 'none')) {
+        if (this.isPanning) {
+            this._endPan();
+        } else if (this.interactionState.isMouseDown && (this.canvasLockEl && this.canvasLockEl.style.display === 'none')) {
             this._handleMouseUp(e);
         }
+    }
+
+    _handleWheel(e) {
+        if (!this.currentImage) return;
+        e.preventDefault();
+
+        const rect = this.userInputCanvas.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        const prevScale = this.transform.scale;
+        const maxScale = 4 / this.displayScale;
+        let newScale = prevScale * (e.deltaY < 0 ? 1.1 : 0.9);
+        if (newScale < 1) newScale = 1;
+        if (newScale > maxScale) newScale = maxScale;
+
+        const scaleRatio = newScale / prevScale;
+        this.transform.panX += offsetX * (1 - scaleRatio);
+        this.transform.panY += offsetY * (1 - scaleRatio);
+        this.transform.scale = newScale;
+
+        this._clampPan();
+        this.applyCanvasTransform();
+    }
+
+    _clampPan() {
+        const scaledW = this.imageCanvas.width * this.transform.scale;
+        const scaledH = this.imageCanvas.height * this.transform.scale;
+        const maxPanX = 0;
+        const maxPanY = 0;
+        const minPanX = Math.min(0, this.imageCanvas.width - scaledW);
+        const minPanY = Math.min(0, this.imageCanvas.height - scaledH);
+        this.transform.panX = Math.min(maxPanX, Math.max(minPanX, this.transform.panX));
+        this.transform.panY = Math.min(maxPanY, Math.max(minPanY, this.transform.panY));
+    }
+
+    _startPan(e) {
+        this.isPanning = true;
+        this.panStartX = e.clientX;
+        this.panStartY = e.clientY;
+        this.startPanX = this.transform.panX;
+        this.startPanY = this.transform.panY;
+    }
+
+    _movePan(e) {
+        if (!this.isPanning) return;
+        const dx = e.clientX - this.panStartX;
+        const dy = e.clientY - this.panStartY;
+        this.transform.panX = this.startPanX + dx;
+        this.transform.panY = this.startPanY + dy;
+        this._clampPan();
+        this.applyCanvasTransform();
+    }
+
+    _endPan() {
+        this.isPanning = false;
     }
 
 
