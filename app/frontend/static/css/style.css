@@ -1129,6 +1129,12 @@ input[type="file"]#image-upload {
 .layer-class-input.tagify .tagify__tag {
   margin-top: 0;
 }
+.layer-class-input.tagify .tagify__input {
+  display: none;
+}
+.layer-class-input.tagify .tagify__tag__removeBtn {
+  display: none;
+}
 .layer-add-tag-btn {
   color: #0052bf;
   font: bold 1em/1.4 Arial;
@@ -1136,8 +1142,8 @@ input[type="file"]#image-upload {
   background: none;
   box-shadow: 0 0 0 2px inset currentColor;
   border-radius: 50%;
-  width: 1.4em;
-  height: 1.4em;
+  width: 1.2em;
+  height: 1.2em;
   cursor: pointer;
   transition: 0.1s ease-out;
 }

@@ -11,7 +11,26 @@ class LayerViewController {
         this.layers = [];
         this.selectedLayerIds = [];
         this.tagifyMap = new Map();
+        this.globalLabelPool = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+    }
+
+    async _refreshGlobalLabels() {
+        const projectId = this.stateManager && this.stateManager.getActiveProjectId && this.stateManager.getActiveProjectId();
+        if (!projectId || !window.apiClient) {
+            this.globalLabelPool = [];
+            return;
+        }
+        try {
+            const res = await window.apiClient.getProjectLabels(projectId);
+            if (res && Array.isArray(res.labels)) {
+                this.globalLabelPool = res.labels;
+            } else {
+                this.globalLabelPool = [];
+            }
+        } catch (e) {
+            this.globalLabelPool = [];
+        }
     }
 
     _gatherLabelPool() {
@@ -28,9 +47,10 @@ class LayerViewController {
     }
 
     _updateTagifyWhitelists() {
-        const pool = this._gatherLabelPool();
+        const pool = new Set([...this.globalLabelPool, ...this._gatherLabelPool()]);
+        const arr = Array.from(pool);
         this.tagifyMap.forEach(t => {
-            t.settings.whitelist = pool;
+            t.settings.whitelist = arr;
             if (t.dropdown) t.dropdown.refilter();
         });
     }
@@ -98,8 +118,9 @@ class LayerViewController {
         }
     }
 
-    render() {
+    async render() {
         if (!this.containerEl) return;
+        await this._refreshGlobalLabels();
         this.tagifyMap.forEach(t => t.destroy());
         this.tagifyMap.clear();
         this.containerEl.innerHTML = '';
@@ -179,7 +200,7 @@ class LayerViewController {
             li.appendChild(addTagBtn);
 
             const tagify = new Tagify(classInput, {
-                whitelist: this._gatherLabelPool(),
+                whitelist: Array.from(new Set([...this.globalLabelPool, ...this._gatherLabelPool()])),
                 dropdown: { maxItems: 20, enabled: 0, closeOnSelect: false },
                 editTags: { keepInvalid: false }
             });
@@ -198,6 +219,11 @@ class LayerViewController {
             tagify.on('add', updateFromTagify);
             tagify.on('remove', updateFromTagify);
             tagify.on('edit:updated', updateFromTagify);
+            tagify.on('click', (e) => {
+                if (e.detail && e.detail.tag) {
+                    tagify.removeTag(e.detail.tag);
+                }
+            });
             this.tagifyMap.set(layer.layerId, tagify);
 
             const statusTag = document.createElement('span');
