@@ -1216,64 +1216,22 @@ class CanvasManager {
 
     growEditingMask() {
         if (!this.editingMask) return;
-        const h = this.editingMask.length; const w = this.editingMask[0].length;
-        const newMask = this._createEmptyMask();
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                if (this.editingMask[y][x]) {
-                    for (let j = -1; j <= 1; j++) {
-                        for (let i = -1; i <= 1; i++) {
-                            const nx = x + i; const ny = y + j;
-                            if (nx >=0 && ny >=0 && nx < w && ny < h) newMask[ny][nx] = 1;
-                        }
-                    }
-                }
-            }
-        }
-        this.editingMask = newMask;
+        this.editingMask = this._dilateMask(this.editingMask);
         this.drawPredictionMaskLayer();
     }
 
     shrinkEditingMask() {
         if (!this.editingMask) return;
-        const h = this.editingMask.length; const w = this.editingMask[0].length;
-        const newMask = this._createEmptyMask();
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                let all = true;
-                for (let j = -1; j <= 1; j++) {
-                    for (let i = -1; i <= 1; i++) {
-                        const nx = x + i; const ny = y + j;
-                        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !this.editingMask[ny][nx]) {
-                            all = false; break;
-                        }
-                    }
-                    if (!all) break;
-                }
-                newMask[y][x] = all ? 1 : 0;
-            }
-        }
-        this.editingMask = newMask;
+        this.editingMask = this._erodeMask(this.editingMask);
         this.drawPredictionMaskLayer();
     }
 
     smoothEditingMask() {
         if (!this.editingMask) return;
-        const h = this.editingMask.length; const w = this.editingMask[0].length;
-        const newMask = this._createEmptyMask();
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                let count = 0;
-                for (let j = -1; j <= 1; j++) {
-                    for (let i = -1; i <= 1; i++) {
-                        const nx = x + i; const ny = y + j;
-                        if (nx >= 0 && ny >= 0 && nx < w && ny < h && this.editingMask[ny][nx]) count++;
-                    }
-                }
-                newMask[y][x] = count >= 5 ? 1 : 0;
-            }
-        }
-        this.editingMask = newMask;
+        // smooth by a morphological open followed by close using a 3x3 kernel
+        const opened = this._dilateMask(this._erodeMask(this.editingMask));
+        const closed = this._erodeMask(this._dilateMask(opened));
+        this.editingMask = closed;
         this.drawPredictionMaskLayer();
     }
 
@@ -1286,6 +1244,45 @@ class CanvasManager {
             }
         }
         this.drawPredictionMaskLayer();
+    }
+
+    _dilateMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (mask[y][x]) {
+                    for (let j = -1; j <= 1; j++) {
+                        for (let i = -1; i <= 1; i++) {
+                            const nx = x + i; const ny = y + j;
+                            if (nx >= 0 && ny >= 0 && nx < w && ny < h) out[ny][nx] = 1;
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    _erodeMask(mask) {
+        const h = mask.length; const w = mask[0].length;
+        const out = this._createEmptyMask();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let all = true;
+                for (let j = -1; j <= 1; j++) {
+                    for (let i = -1; i <= 1; i++) {
+                        const nx = x + i; const ny = y + j;
+                        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !mask[ny][nx]) {
+                            all = false; break;
+                        }
+                    }
+                    if (!all) break;
+                }
+                out[y][x] = all ? 1 : 0;
+            }
+        }
+        return out;
     }
 
     getEditedMask() {
