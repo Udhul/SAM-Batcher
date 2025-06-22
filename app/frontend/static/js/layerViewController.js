@@ -252,12 +252,6 @@ class LayerViewController {
                 }
                 updateFromTagify();
             });
-            tagify.on('dblclick', (e) => {
-                if (e.detail && e.detail.tag) {
-                    e.stopPropagation();
-                    tagify.editTag(e.detail.tag);
-                }
-            });
             this.tagifyMap.set(layer.layerId, tagify);
 
             listEl.appendChild(li);
