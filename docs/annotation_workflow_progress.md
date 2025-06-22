@@ -46,8 +46,8 @@ It will be updated as new sprints add functionality.
   project and update dynamically as tags change.
 - **Tagify Layout Fix**: Labels now appear in-line after the name field, fully
   replacing the old text input without shifting the visibility toggle.
-- **Tag Removal Fix**: Clicking the "×" remove icon no longer deselects or
-  selects the layer, allowing tags to be deleted directly.
+- **Tag Removal Fix**: Clicking a tag's "×" icon no longer toggles layer
+  selection and properly deletes the tag.
 - **Layer Persistence**: Editing a mask's name or class now sends an update to the backend so changes are saved in the project database.
 - **Mask Edit Persistence**: Saving edits to a mask now updates its RLE data and status in the database so changes survive reloads.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.

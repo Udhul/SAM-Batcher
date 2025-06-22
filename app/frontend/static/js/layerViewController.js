@@ -243,9 +243,10 @@ class LayerViewController {
             const stopLayerSelect = (ev) => {
                 if (ev.target.closest('.tagify__tag__removeBtn')) {
                     ev.stopPropagation();
+                    ev.preventDefault();
                 }
             };
-            tagify.DOM.scope.addEventListener('mousedown', stopLayerSelect);
+            tagify.DOM.scope.addEventListener('pointerdown', stopLayerSelect);
             tagify.DOM.scope.addEventListener('click', stopLayerSelect);
             const updateFromTagify = () => {
                 layer.classLabel = tagify.value.map(t => t.value).join(',');
