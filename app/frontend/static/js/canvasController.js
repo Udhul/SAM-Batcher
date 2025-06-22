@@ -624,10 +624,6 @@ class CanvasManager {
             this._movePan(e);
             return;
         }
-        if (this.isPanning) {
-            this._endPan();
-            return;
-        }
         if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         this.interactionState.didMove = true;
         const currentCoords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
@@ -647,6 +643,10 @@ class CanvasManager {
     }
 
     _handleMouseUp(e) {
+        if (e.button === 1 && this.isPanning) {
+            this._endPan();
+            return;
+        }
         if (!this.currentImage || this.mode !== 'creation' || !this.interactionState.isMouseDown || (this.canvasLockEl && this.canvasLockEl.style.display !== 'none')) return;
         const coords_orig = this._displayToOriginalCoords(e.clientX, e.clientY);
         const pointDisplayRadius = Math.max(3, 6 * this.displayScale); // Visual radius on canvas

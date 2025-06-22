@@ -60,7 +60,7 @@ It will be updated as new sprints add functionality.
   circular preview shows the brush size.
 - **Review Toolbar**: Review mode controls now appear in the canvas toolbar
   with Export and Exit buttons placed in the first column for better spacing.
-- **Canvas Zoom & Pan**: Mouse wheel zooms up to 4× the image resolution and middle-drag pans for precise placement. Zoom resets when a new image loads.
+- **Canvas Zoom & Pan**: Mouse wheel zooms up to 4× the image resolution and middle-drag pans for precise placement. Pan ends on middle-button release and zoom-pan updates trigger an event for tool UI. Zoom resets when a new image loads.
 
 ## Partially Implemented / In Progress
 
