@@ -239,6 +239,14 @@ class LayerViewController {
                 e.stopPropagation();
                 tagify.addEmptyTag();
             });
+            // Prevent layer selection when clicking the remove button
+            const stopLayerSelect = (ev) => {
+                if (ev.target.closest('.tagify__tag__removeBtn')) {
+                    ev.stopPropagation();
+                }
+            };
+            tagify.DOM.scope.addEventListener('mousedown', stopLayerSelect);
+            tagify.DOM.scope.addEventListener('click', stopLayerSelect);
             const updateFromTagify = () => {
                 layer.classLabel = tagify.value.map(t => t.value).join(',');
                 this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
