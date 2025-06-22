@@ -218,9 +218,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-}
-.edit-tools {
-  flex-wrap: wrap;
+  flex-wrap: wrap; 
 }
 .edit-tools button.active {
   background-color: #007bff;
