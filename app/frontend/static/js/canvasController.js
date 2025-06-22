@@ -748,8 +748,8 @@ class CanvasManager {
         const offsetX = e.clientX - rect.left;
         const offsetY = e.clientY - rect.top;
         const prevTotal = this.displayScale * prevScale;
-        const contentX = (offsetX - this.transform.panX) / prevTotal;
-        const contentY = (offsetY - this.transform.panY) / prevTotal;
+        const contentX = offsetX / prevTotal;
+        const contentY = offsetY / prevTotal;
         const newTotal = this.displayScale * newScale;
         this.transform.panX = offsetX - contentX * newTotal;
         this.transform.panY = offsetY - contentY * newTotal;

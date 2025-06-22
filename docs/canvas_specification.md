@@ -272,7 +272,7 @@ Response: {
 * **Modifier Key Support:** Shift, Ctrl/Cmd for different interaction modes
 * **Context Menu Prevention:** Disable right-click menu for negative points
 * **Interaction State Tracking:** Maintain drawing state across events
-* **Zoom & Pan:** Mouse wheel zooms (cursor-centered) up to 4×, middle button drag pans. Reset when a new image loads.
+* **Zoom & Pan:** Mouse wheel zooms (keeps cursor centered) up to 4×, middle button drag pans. Reset when a new image loads.
 * **Zoom-Pan Events:** A `zoom-pan-changed` event is emitted after each transform update with the current scale and pan values.
 
 **Touch Support (Future):**
