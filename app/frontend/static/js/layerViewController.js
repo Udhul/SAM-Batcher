@@ -24,7 +24,9 @@ class LayerViewController {
         try {
             const res = await window.apiClient.getProjectLabels(projectId);
             if (res && Array.isArray(res.labels)) {
-                this.globalLabelPool = res.labels;
+                this.globalLabelPool = res.labels
+                    .flatMap(l => l.split(',').map(t => t.trim()))
+                    .filter(Boolean);
             } else {
                 this.globalLabelPool = [];
             }
@@ -218,6 +220,9 @@ class LayerViewController {
             });
 
             li.addEventListener('click', (e) => {
+                if (e.target.closest('.tagify__tag__removeBtn')) {
+                    return; // allow Tagify to handle deletion
+                }
                 const additive = e.shiftKey;
                 this.selectLayer(layer.layerId, additive);
             });
@@ -239,14 +244,6 @@ class LayerViewController {
                 e.stopPropagation();
                 tagify.addEmptyTag();
             });
-            // Prevent layer selection when clicking the remove button
-            const stopLayerSelect = (ev) => {
-                if (ev.target.closest('.tagify__tag__removeBtn')) {
-                    ev.stopPropagation();
-                }
-            };
-            tagify.DOM.scope.addEventListener('pointerdown', stopLayerSelect);
-            tagify.DOM.scope.addEventListener('click', stopLayerSelect);
             const updateFromTagify = () => {
                 layer.classLabel = tagify.value.map(t => t.value).join(',');
                 this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });

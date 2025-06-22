@@ -49,6 +49,10 @@ It will be updated as new sprints add functionality.
 - **Tag Removal Fix**: The "×" remove button stops event propagation without
   cancelling the default Tagify behaviour so tags delete correctly and layer
   selection is unaffected.
+- **Label Pool Parsing**: Suggestions split comma-separated labels returned by
+  the backend so autocompletion lists each label individually.
+- **Layer Click Handling Fix**: Clicking the remove icon no longer selects the
+  layer, ensuring tag deletions persist on reload.
 - **Layer Persistence**: Editing a mask's name or class now sends an update to the backend so changes are saved in the project database.
 - **Mask Edit Persistence**: Saving edits to a mask now updates its RLE data and status in the database so changes survive reloads.
 - **Color Persistence**: Layer colors are stored in the database, including the randomly assigned color when a layer is first created, and can be updated through the layer view.
