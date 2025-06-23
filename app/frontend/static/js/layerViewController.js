@@ -190,6 +190,11 @@ class LayerViewController {
             }
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
+            if (tagify && tagify.DOM && tagify.DOM.scope) {
+                ['mousedown', 'click', 'touchstart'].forEach(evt => {
+                    tagify.DOM.scope.addEventListener(evt, e => e.stopPropagation());
+                });
+            }
             const updateClassLabel = () => {
                 layer.classLabel = tagify.value.map(v => v.value).join(',');
                 this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
