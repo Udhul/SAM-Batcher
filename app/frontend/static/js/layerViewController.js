@@ -11,6 +11,26 @@ class LayerViewController {
         this.layers = [];
         this.selectedLayerIds = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+        this.labelWhitelist = [];
+        this._setupLabelListeners();
+    }
+
+    _setupLabelListeners() {
+        document.addEventListener('project-loaded', () => this._fetchLabelWhitelist());
+        document.addEventListener('state-changed-activeProjectId', () => this._fetchLabelWhitelist());
+        this._fetchLabelWhitelist();
+    }
+
+    async _fetchLabelWhitelist() {
+        const pid = this.stateManager && this.stateManager.getActiveProjectId ? this.stateManager.getActiveProjectId() : null;
+        if (!pid || !window.apiClient || typeof window.apiClient.getProjectLabels !== 'function') return;
+        try {
+            const res = await window.apiClient.getProjectLabels(pid);
+            this.labelWhitelist = Array.isArray(res.labels) ? res.labels : [];
+        } catch (err) {
+            console.error('Failed to fetch project labels', err);
+            this.labelWhitelist = [];
+        }
     }
 
     setLayers(layers) {
@@ -142,22 +162,31 @@ class LayerViewController {
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
             classInput.placeholder = 'label';
-            classInput.value = layer.classLabel || '';
             classInput.title = 'Class label';
+            const tagify = new Tagify(classInput, {
+                whitelist: this.labelWhitelist,
+                dropdown: {
+                    maxItems: 20,
+                    classname: 'tags-look layer-tag-dropdown',
+                    enabled: 0,
+                    closeOnSelect: false,
+                    fuzzySearch: true,
+                },
+                pattern: /[^,]+/, // disallow comma in tags
+                originalInputValueFormat: (valuesArr) => valuesArr.map(v => v.value).join(',')
+            });
+            if (layer.classLabel) {
+                tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
+            }
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
-            classInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    classInput.blur();
-                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            });
-            classInput.addEventListener('change', (e) => {
-                e.stopPropagation();
-                layer.classLabel = classInput.value.trim();
+            const updateClassLabel = () => {
+                layer.classLabel = tagify.value.map(v => v.value).join(',');
                 this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
-            });
+            };
+            tagify.on('add', updateClassLabel);
+            tagify.on('remove', updateClassLabel);
+            tagify.on('blur', updateClassLabel);
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;

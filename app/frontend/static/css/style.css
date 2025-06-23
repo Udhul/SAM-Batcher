@@ -1110,10 +1110,14 @@ input[type="file"]#image-upload {
   padding: 2px 4px;
   font-size: 13px;
 }
+.layer-class-input.tagify,
 .layer-class-input {
   flex: 2 1 25px;
   min-width: 30px;
   padding: 2px 4px;
+  font-size: 11px;
+}
+.layer-tag-dropdown .tagify__dropdown__item {
   font-size: 11px;
 }
 .layer-status-tag {
