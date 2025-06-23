@@ -31,6 +31,8 @@ class LayerViewController {
             console.error('Failed to fetch project labels', err);
             this.labelWhitelist = [];
         }
+        // re-render to apply updated whitelist to Tagify inputs
+        this.render();
     }
 
     setLayers(layers) {
@@ -163,7 +165,8 @@ class LayerViewController {
             classInput.type = 'text';
             classInput.placeholder = 'label';
             classInput.title = 'Class label';
-            const tagify = new Tagify(classInput, {
+
+            const tagifyOptions = {
                 whitelist: this.labelWhitelist,
                 dropdown: {
                     maxItems: 20,
@@ -174,7 +177,14 @@ class LayerViewController {
                 },
                 pattern: /[^,]+/, // disallow comma in tags
                 originalInputValueFormat: (valuesArr) => valuesArr.map(v => v.value).join(',')
-            });
+            };
+
+            li.appendChild(visBtn);
+            li.appendChild(colorSwatch);
+            li.appendChild(colorInput);
+            li.appendChild(nameInput);
+            li.appendChild(classInput);
+            const tagify = new Tagify(classInput, tagifyOptions);
             if (layer.classLabel) {
                 tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
             }
@@ -208,11 +218,6 @@ class LayerViewController {
                 this.selectLayer(layer.layerId, additive);
             });
 
-            li.appendChild(visBtn);
-            li.appendChild(colorSwatch);
-            li.appendChild(colorInput);
-            li.appendChild(nameInput);
-            li.appendChild(classInput);
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
             listEl.appendChild(li);
