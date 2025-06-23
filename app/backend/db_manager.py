@@ -134,7 +134,7 @@ def init_project_db(project_id: str, project_name: str) -> None:
         metadata TEXT,
         is_selected_for_final BOOLEAN DEFAULT FALSE,
         name TEXT,
-        class_label TEXT, -- JSON encoded list of tags
+        class_labels TEXT, -- JSON encoded list of tags
         status TEXT,
         display_color TEXT,
         visible BOOLEAN DEFAULT 1,
@@ -609,11 +609,11 @@ def get_layers_by_image_and_statuses(
             pass
         if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
-        if layer.get("class_label"):
+        if layer.get("class_labels"):
             try:
-                layer["class_label"] = json.loads(layer["class_label"])
+                layer["class_labels"] = json.loads(layer["class_labels"])
             except json.JSONDecodeError:
-                layer["class_label"] = [layer["class_label"]]
+                layer["class_labels"] = [layer["class_labels"]]
         layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
@@ -647,11 +647,11 @@ def get_layers_by_ids(project_id: str, layer_ids: List[str]) -> List[Dict[str, A
             pass
         if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
-        if layer.get("class_label"):
+        if layer.get("class_labels"):
             try:
-                layer["class_label"] = json.loads(layer["class_label"])
+                layer["class_labels"] = json.loads(layer["class_labels"])
             except json.JSONDecodeError:
-                layer["class_label"] = [layer["class_label"]]
+                layer["class_labels"] = [layer["class_labels"]]
         layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
@@ -681,7 +681,7 @@ def save_mask_layer(
         status,
         mask_data_rle,
         name,
-        json.dumps(class_labels) if class_labels is not None else None,
+        class_labels,
         display_color,
         visible,
         source_metadata,
@@ -753,15 +753,15 @@ def get_mask_layers_for_image(
             pass
         if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
-            if "class_label" in layer["metadata"] and not layer.get("class_label"):
-                layer["class_label"] = layer["metadata"].get("class_label")
+            if "class_labels" in layer["metadata"] and not layer.get("class_labels"):
+                layer["class_labels"] = layer["metadata"].get("class_labels")
             if "display_color" in layer["metadata"] and not layer.get("display_color"):
                 layer["display_color"] = layer["metadata"].get("display_color")
-        if layer.get("class_label"):
+        if layer.get("class_labels"):
             try:
-                layer["class_label"] = json.loads(layer["class_label"])
+                layer["class_labels"] = json.loads(layer["class_labels"])
             except json.JSONDecodeError:
-                layer["class_label"] = [layer["class_label"]]
+                layer["class_labels"] = [layer["class_labels"]]
         layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
@@ -784,12 +784,14 @@ def get_all_class_labels(project_id: str) -> List[str]:
     """Return a list of distinct class labels used in the project."""
     conn = get_db_connection(project_id)
     cursor = conn.cursor()
-    cursor.execute("SELECT class_label FROM Mask_Layers WHERE class_label IS NOT NULL")
+    cursor.execute(
+        "SELECT class_labels FROM Mask_Layers WHERE class_labels IS NOT NULL"
+    )
     rows = cursor.fetchall()
     conn.close()
     labels: Set[str] = set()
     for row in rows:
-        val = row["class_label"]
+        val = row["class_labels"]
         if not val:
             continue
         try:
@@ -831,7 +833,7 @@ def update_mask_layer_basic(
         updates.append("name = ?")
         params.append(name)
     if class_labels is not None:
-        updates.append("class_label = ?")
+        updates.append("class_labels = ?")
         params.append(json.dumps(class_labels))
     if display_color is not None:
         updates.append("display_color = ?")

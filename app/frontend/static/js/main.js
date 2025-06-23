@@ -573,8 +573,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return {
           layerId: m.layer_id || `layer_${idx}`,
           name: m.name || `Mask ${idx + 1}`,
-          classLabels: Array.isArray(m.class_label) ? m.class_label :
-            (m.class_label ? [m.class_label] : []),
+          classLabels: Array.isArray(m.class_labels) ? m.class_labels :
+            (m.class_labels ? [m.class_labels] : []),
           status: m.status || "prediction",
           visible: m.visible !== false,
           displayColor: m.display_color || utils.getRandomHexColor(),

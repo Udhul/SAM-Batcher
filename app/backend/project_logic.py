@@ -848,7 +848,7 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
                 mask_rle = json.loads(mask_rle)
             except json.JSONDecodeError:
                 pass
-        cls_val = m.get("class_label") or meta.get("class_label")
+        cls_val = m.get("class_labels") or meta.get("class_labels")
         if isinstance(cls_val, str):
             try:
                 cls_val = json.loads(cls_val)

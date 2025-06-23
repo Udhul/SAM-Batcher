@@ -177,7 +177,7 @@ def calculate_export_stats(
         if visibility_mode == "and":
             include = layer.get("visible", True)
             if class_labels:
-                layer_tags = layer.get("class_label") or []
+                layer_tags = layer.get("class_labels") or []
                 if isinstance(layer_tags, str):
                     try:
                         layer_tags = json.loads(layer_tags)
@@ -187,7 +187,7 @@ def calculate_export_stats(
         elif visibility_mode == "or":
             include = layer.get("visible", True)
             if class_labels:
-                layer_tags = layer.get("class_label") or []
+                layer_tags = layer.get("class_labels") or []
                 if isinstance(layer_tags, str):
                     try:
                         layer_tags = json.loads(layer_tags)
@@ -197,7 +197,7 @@ def calculate_export_stats(
                     include = True
         else:  # none
             if class_labels:
-                layer_tags = layer.get("class_label") or []
+                layer_tags = layer.get("class_labels") or []
                 if isinstance(layer_tags, str):
                     try:
                         layer_tags = json.loads(layer_tags)
@@ -211,7 +211,7 @@ def calculate_export_stats(
 
     label_counts: Dict[str, int] = {}
     for layer in all_layers:
-        labels = layer.get("class_label") or []
+        labels = layer.get("class_labels") or []
         if isinstance(labels, str):
             try:
                 labels = json.loads(labels)
@@ -291,7 +291,7 @@ def prepare_export_data(
         filtered_layers: List[Dict[str, Any]] = []
         for layer in all_layers:
             include = True
-            layer_tags = layer.get("class_label") or []
+            layer_tags = layer.get("class_labels") or []
             if isinstance(layer_tags, str):
                 try:
                     layer_tags = json.loads(layer_tags)
@@ -328,7 +328,7 @@ def prepare_export_data(
 
         tag_set: Set[str] = set()
         for layer in all_layers:
-            tags = layer.get("class_label") or []
+            tags = layer.get("class_labels") or []
             if isinstance(tags, str):
                 try:
                     tags = json.loads(tags)
@@ -376,7 +376,7 @@ def prepare_export_data(
             img_id = image_id_map.get(layer["image_hash_ref"])
             if not img_id:
                 continue
-            layer_tags = layer.get("class_label") or []
+            layer_tags = layer.get("class_labels") or []
             if isinstance(layer_tags, str):
                 try:
                     layer_tags = json.loads(layer_tags)
