@@ -285,5 +285,9 @@ const Utils = {
 // Make Utils globally available if not using modules.
 if (typeof window !== 'undefined') {
     window.Utils = Utils;
+    // maintain legacy reference if some modules expect `window.utils`
+    if (!window.utils) {
+        window.utils = Utils;
+    }
 }
 // export default Utils; // For ES module system
