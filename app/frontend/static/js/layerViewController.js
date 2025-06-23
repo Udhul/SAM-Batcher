@@ -10,7 +10,12 @@ class LayerViewController {
         this.stateManager = stateManager;
         this.layers = [];
         this.selectedLayerIds = [];
+        this.allProjectTags = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+    }
+
+    setProjectTags(tags) {
+        this.allProjectTags = Array.isArray(tags) ? [...tags] : [];
     }
 
     setLayers(layers) {
@@ -141,25 +146,23 @@ class LayerViewController {
             const classInput = document.createElement('input');
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
-            classInput.placeholder = 'tags';
-            classInput.value = Array.isArray(layer.classLabels) ? layer.classLabels.join(', ') : '';
-            classInput.title = 'Layer tags, comma separated';
-            classInput.addEventListener('mousedown', (e) => e.stopPropagation());
-            classInput.addEventListener('click', (e) => e.stopPropagation());
-            classInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    classInput.blur();
-                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+            classInput.placeholder = 'Add tags...';
+            classInput.title = 'Layer tags';
+            const initialTags = Array.isArray(layer.classLabels) ? layer.classLabels : [];
+            const available = this.allProjectTags.filter(t => !initialTags.includes(t));
+            const tagify = new Tagify(classInput, {
+                whitelist: available,
+                delimiters: '\n',
             });
-            classInput.addEventListener('change', (e) => {
-                e.stopPropagation();
-                layer.classLabels = classInput.value
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter((t) => t);
-                this.Utils.dispatchCustomEvent('layer-tags-changed', { layerId: layer.layerId, classLabels: layer.classLabels });
+            tagify.addTags(initialTags);
+            tagify.DOM.scope.addEventListener('mousedown', e => e.stopPropagation());
+            tagify.DOM.scope.addEventListener('click', e => e.stopPropagation());
+            tagify.on('change', () => {
+                const tags = tagify.value.map(it => it.value);
+                layer.classLabels = tags;
+                tagify.settings.whitelist = this.allProjectTags.filter(t => !tags.includes(t));
+                tagify.dropdown.refilter();
+                this.Utils.dispatchCustomEvent('layer-tags-changed', { layerId: layer.layerId, classLabels: tags });
             });
 
             const statusTag = document.createElement('span');

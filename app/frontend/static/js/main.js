@@ -41,6 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const canvasStateCache = {};
   let imageLayerCache = {};
+  let projectTagList = [];
+  let layerTagDebouncers = {};
 
   // modelHandler.js is a script that self-initializes its DOM listeners.
   // We don't instantiate it as a class here, but we will need its functions if we were to call them.
@@ -343,8 +345,24 @@ document.addEventListener("DOMContentLoaded", () => {
           status: data.active_image.status,
         });
       }
+      await loadProjectLabels();
     } catch (err) {
       console.error("Error restoring session state:", err);
+    }
+  }
+
+  async function loadProjectLabels() {
+    const pid = stateManager.getActiveProjectId();
+    if (!pid) return;
+    try {
+      const data = await apiClient.getProjectLabels(pid);
+      if (Array.isArray(data.labels)) {
+        projectTagList = data.labels;
+        stateManager.setProjectLabels(projectTagList);
+        if (layerViewController) layerViewController.setProjectTags(projectTagList);
+      }
+    } catch (err) {
+      console.error('Failed to fetch project labels', err);
     }
   }
 
@@ -391,6 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
       applyPostprocessing:
         projectData?.settings?.current_sam_apply_postprocessing === "true",
     });
+    loadProjectLabels();
     updateStatusToggleUI("unprocessed", false);
   });
 
@@ -415,6 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (imagePoolHandler) imagePoolHandler.loadAndDisplayImagePool();
     await restoreSessionFromServer();
+    await loadProjectLabels();
     updateStatusToggleUI("unprocessed", false);
   });
 
@@ -1216,16 +1236,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const pid = stateManager.getActiveProjectId();
       const ih = activeImageState.imageHash;
       if (pid && ih) {
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, {
-            class_labels: layer.classLabels,
-          })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Layer update failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
+        if (!layerTagDebouncers[layer.layerId]) {
+          layerTagDebouncers[layer.layerId] = utils.debounce(
+            (p, h, lid, payload) => {
+              apiClient
+                .updateMaskLayer(p, h, lid, payload)
+                .catch((err) => {
+                  uiManager.showGlobalStatus(
+                    `Layer update failed: ${utils.escapeHTML(err.message)}`,
+                    "error",
+                  );
+                });
+            },
+            400,
+          );
+        }
+        layerTagDebouncers[layer.layerId](pid, ih, layer.layerId, {
+          class_labels: layer.classLabels,
+        });
       }
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }

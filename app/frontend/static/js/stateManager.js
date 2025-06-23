@@ -33,6 +33,7 @@ class StateManager {
             uiPreferences: {
                 theme: 'light', // Example preference
             },
+            projectLabels: [],
             // Add other global states as needed
         };
         console.log("StateManager initialized with initial state:", this.state);
@@ -101,6 +102,12 @@ class StateManager {
         this.setState('currentLoadedModelInfo', modelInfo);
     }
     getCurrentLoadedModel() { return this.getState('currentLoadedModelInfo'); }
+
+    setProjectLabels(labels) {
+        if (!Array.isArray(labels)) labels = [];
+        this.setState('projectLabels', labels);
+    }
+    getProjectLabels() { return this.getState('projectLabels'); }
 
     // Example for UI preferences
     setTheme(theme) {
