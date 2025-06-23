@@ -785,6 +785,44 @@ def commit_final_masks(
     }
 
 
+def create_empty_layer(
+    project_id: str,
+    image_hash: str,
+    name: Optional[str] = None,
+    class_labels: Optional[List[str]] = None,
+    display_color: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new empty mask layer so the user can draw manually."""
+    img_info = db_manager.get_image_by_hash(project_id, image_hash)
+    if not img_info:
+        return {"success": False, "error": "Image not found"}
+
+    width = img_info.get("width") or 0
+    height = img_info.get("height") or 0
+    empty_mask = [[0] * width for _ in range(height)]
+    rle_for_db = mask_utils.binary_mask_to_rle(empty_mask)
+
+    layer_id = f"empty_{uuid.uuid4().hex}"
+    db_manager.save_mask_layer(
+        project_id,
+        layer_id,
+        image_hash,
+        "edited",
+        rle_for_db,
+        name=name,
+        class_labels=class_labels,
+        display_color=display_color,
+        source_metadata={"type": "manual_empty_layer"},
+    )
+
+    new_status = sync_image_status_with_layers(project_id, image_hash)
+    return {
+        "success": True,
+        "layer_id": layer_id,
+        "image_status": new_status,
+    }
+
+
 def delete_mask_layer_and_update_status(
     project_id: str, image_hash: str, layer_id: str
 ) -> Dict[str, Any]:
@@ -799,7 +837,7 @@ def update_mask_layer_basic(
     image_hash: str,
     layer_id: str,
     name: Optional[str] = None,
-    class_label: Optional[str] = None,
+    class_labels: Optional[List[str]] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
     mask_data_rle: Optional[Any] = None,
@@ -810,7 +848,7 @@ def update_mask_layer_basic(
         project_id,
         layer_id,
         name=name,
-        class_label=class_label,
+        class_labels=class_labels,
         display_color=display_color,
         visible=visible,
         mask_data_rle=mask_data_rle,
@@ -848,11 +886,17 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
                 mask_rle = json.loads(mask_rle)
             except json.JSONDecodeError:
                 pass
+        cls_val = m.get("class_labels") or meta.get("class_labels")
+        if isinstance(cls_val, str):
+            try:
+                cls_val = json.loads(cls_val)
+            except json.JSONDecodeError:
+                cls_val = [cls_val]
         layers.append(
             {
                 "layerId": m["layer_id"],
                 "name": m.get("name"),
-                "classLabel": m.get("class_label") or meta.get("class_label"),
+                "classLabels": cls_val or [],
                 "status": m.get("status") or m.get("layer_type"),
                 "visible": bool(m.get("visible", True)),
                 "displayColor": m.get("display_color") or meta.get("display_color"),
@@ -887,15 +931,15 @@ def update_image_state(
         if not lid:
             continue
         name = layer.get("name")
-        class_label = layer.get("classLabel")
+        class_labels = layer.get("classLabels")
         display_color = layer.get("displayColor")
         visible = layer.get("visible")
-        if any(v is not None for v in (name, class_label, display_color, visible)):
+        if any(v is not None for v in (name, class_labels, display_color, visible)):
             db_manager.update_mask_layer_basic(
                 project_id,
                 lid,
                 name=name,
-                class_label=class_label,
+                class_labels=class_labels,
                 display_color=display_color,
                 visible=visible,
             )

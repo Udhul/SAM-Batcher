@@ -626,6 +626,26 @@ async def api_get_image_masks(
     return {"success": True, "masks": mask_layers}
 
 
+@app.post("/api/project/{project_id}/images/{image_hash}/layers")
+async def api_create_empty_layer(project_id: str, image_hash: str, payload: dict):
+    if project_id != get_active_project_id():
+        raise HTTPException(
+            status_code=403, detail="Operation only allowed on the active project"
+        )
+    name = payload.get("name")
+    class_labels = payload.get("class_labels")
+    display_color = payload.get("display_color")
+    result = await run_in_threadpool(
+        project_logic.create_empty_layer,
+        project_id,
+        image_hash,
+        name,
+        class_labels,
+        display_color,
+    )
+    return result
+
+
 @app.delete("/api/project/{project_id}/images/{image_hash}/layers/{layer_id}")
 async def api_delete_mask_layer(project_id: str, image_hash: str, layer_id: str):
     if project_id != get_active_project_id():
@@ -650,7 +670,7 @@ async def api_update_mask_layer(
             status_code=403, detail="Operation only allowed on the active project"
         )
     name = payload.get("name")
-    class_label = payload.get("class_label")
+    class_labels = payload.get("class_labels")
     display_color = payload.get("display_color")
     visible = payload.get("visible")
     mask_data_rle = payload.get("mask_data_rle")
@@ -661,7 +681,7 @@ async def api_update_mask_layer(
         image_hash,
         layer_id,
         name,
-        class_label,
+        class_labels,
         display_color,
         visible,
         mask_data_rle,

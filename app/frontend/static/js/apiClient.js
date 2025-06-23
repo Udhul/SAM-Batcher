@@ -334,6 +334,14 @@ class APIClient {
     );
   }
 
+  async createEmptyLayer(projectId, imageHash, payload) {
+    return this._request(
+      `/project/${projectId}/images/${imageHash}/layers`,
+      "POST",
+      payload,
+    );
+  }
+
   // --- Export Endpoints ---
   async requestExport(projectId, payload) {
     // payload: { format, export_schema, filters: { image_statuses, layer_statuses } }
