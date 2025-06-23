@@ -141,9 +141,9 @@ class LayerViewController {
             const classInput = document.createElement('input');
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
-            classInput.placeholder = 'label';
-            classInput.value = layer.classLabel || '';
-            classInput.title = 'Class label';
+            classInput.placeholder = 'tags';
+            classInput.value = Array.isArray(layer.classLabels) ? layer.classLabels.join(', ') : '';
+            classInput.title = 'Layer tags, comma separated';
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
             classInput.addEventListener('keydown', (e) => {
@@ -155,8 +155,11 @@ class LayerViewController {
             });
             classInput.addEventListener('change', (e) => {
                 e.stopPropagation();
-                layer.classLabel = classInput.value.trim();
-                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+                layer.classLabels = classInput.value
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter((t) => t);
+                this.Utils.dispatchCustomEvent('layer-tags-changed', { layerId: layer.layerId, classLabels: layer.classLabels });
             });
 
             const statusTag = document.createElement('span');

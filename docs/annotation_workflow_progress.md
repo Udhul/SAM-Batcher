@@ -54,7 +54,7 @@ It will be updated as new sprints add functionality.
 - **Default Mode on Load**: Loading an image now enters Edit mode if layers exist and skips legacy prediction data, preventing stray red masks from appearing.
 - **Legacy Prediction Removal**: Old code paths for restoring saved prediction masks have been deleted. Existing masks always load as layers.
 - **Review Mode**: Added controls to cycle through images marked `ready_for_review` with Approve/Reject/Skip actions and a history-aware **Prev** button.
-- **Layer Data Schema**: Mask records now use dedicated columns (`class_label`, `status`, `display_color`, `source_metadata`, `updated_at`).
+- **Layer Data Schema**: Mask records now use dedicated columns (`class_labels`, `status`, `display_color`, `source_metadata`, `updated_at`).
 - **Active Image State**: `main.js` now maintains a full `ActiveImageState` object including `creation` and `edit` sections. New `/api/project/<id>/image/<hash>/state` endpoints keep this state in sync with the backend.
 - **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
   a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
@@ -73,8 +73,8 @@ It will be updated as new sprints add functionality.
 
 1. ~~**Database and API Refactor**~~
    - ~~Migrate the `Images` and `Mask_Layers` tables to the new schema with image
-     statuses (`unprocessed`, `in_progress`, `ready_for_review`, `approved`,
-     `rejected`, `skip`) and per-layer fields (`class_label`, `status`,
+    statuses (`unprocessed`, `in_progress`, `ready_for_review`, `approved`,
+     `rejected`, `skip`) and per-layer fields (`class_labels`, `status`,
      `display_color`, `source_metadata`, `updated_at`).~~
    - ~~Adjust CRUD helpers and update existing endpoints to read/write the new
      schema.~~

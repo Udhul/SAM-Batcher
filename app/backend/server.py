@@ -650,7 +650,7 @@ async def api_update_mask_layer(
             status_code=403, detail="Operation only allowed on the active project"
         )
     name = payload.get("name")
-    class_label = payload.get("class_label")
+    class_labels = payload.get("class_labels")
     display_color = payload.get("display_color")
     visible = payload.get("visible")
     mask_data_rle = payload.get("mask_data_rle")
@@ -661,7 +661,7 @@ async def api_update_mask_layer(
         image_hash,
         layer_id,
         name,
-        class_label,
+        class_labels,
         display_color,
         visible,
         mask_data_rle,

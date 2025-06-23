@@ -277,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
       layers: activeImageState.layers.map((l) => ({
         layerId: l.layerId,
         name: l.name,
-        classLabel: l.classLabel,
+        classLabels: Array.isArray(l.classLabels) ? l.classLabels : [],
         status: l.status,
         displayColor: l.displayColor,
         visible: l.visible,
@@ -534,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return {
           layerId: m.layerId,
           name: m.name || `Mask ${idx + 1}`,
-          classLabel: m.classLabel || "",
+          classLabels: Array.isArray(m.classLabels) ? m.classLabels : [],
           status: m.status || "prediction",
           visible: m.visible !== false,
           displayColor: m.displayColor || utils.getRandomHexColor(),
@@ -573,7 +573,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return {
           layerId: m.layer_id || `layer_${idx}`,
           name: m.name || `Mask ${idx + 1}`,
-          classLabel: m.class_label || "",
+          classLabels: Array.isArray(m.class_label) ? m.class_label :
+            (m.class_label ? [m.class_label] : []),
           status: m.status || "prediction",
           visible: m.visible !== false,
           displayColor: m.display_color || utils.getRandomHexColor(),
@@ -704,7 +705,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const newLayer = {
         layerId: crypto.randomUUID(),
         name: `Mask ${activeImageState.layers.length + 1}`,
-        classLabel: "",
+        classLabels: [],
         status: "edited",
         visible: true,
         displayColor: utils.getRandomHexColor(),
@@ -1066,7 +1067,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const newLayers = selected.map((mask, idx) => ({
         layerId: ids[idx] || crypto.randomUUID(),
         name: masksToCommit[idx].name,
-        classLabel: "",
+        classLabels: [],
         status: "edited",
         visible: true,
         displayColor: masksToCommit[idx].display_color,
@@ -1188,19 +1189,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("layer-class-changed", (event) => {
+  document.addEventListener("layer-tags-changed", (event) => {
     if (!activeImageState) return;
     const layer = activeImageState.layers.find(
       (l) => l.layerId === event.detail.layerId,
     );
     if (layer) {
-      layer.classLabel = event.detail.classLabel || "";
+      layer.classLabels = Array.isArray(event.detail.classLabels)
+        ? event.detail.classLabels
+        : [];
       const pid = stateManager.getActiveProjectId();
       const ih = activeImageState.imageHash;
       if (pid && ih) {
         apiClient
           .updateMaskLayer(pid, ih, layer.layerId, {
-            class_label: layer.classLabel,
+            class_labels: layer.classLabels,
           })
           .catch((err) => {
             uiManager.showGlobalStatus(

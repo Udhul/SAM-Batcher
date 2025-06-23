@@ -177,14 +177,33 @@ def calculate_export_stats(
         if visibility_mode == "and":
             include = layer.get("visible", True)
             if class_labels:
-                include = include and layer.get("class_label") in class_labels
+                layer_tags = layer.get("class_label") or []
+                if isinstance(layer_tags, str):
+                    try:
+                        layer_tags = json.loads(layer_tags)
+                    except json.JSONDecodeError:
+                        layer_tags = [layer_tags]
+                include = include and any(t in class_labels for t in layer_tags)
         elif visibility_mode == "or":
             include = layer.get("visible", True)
-            if class_labels and layer.get("class_label") in class_labels:
-                include = True
+            if class_labels:
+                layer_tags = layer.get("class_label") or []
+                if isinstance(layer_tags, str):
+                    try:
+                        layer_tags = json.loads(layer_tags)
+                    except json.JSONDecodeError:
+                        layer_tags = [layer_tags]
+                if any(t in class_labels for t in layer_tags):
+                    include = True
         else:  # none
             if class_labels:
-                include = layer.get("class_label") in class_labels
+                layer_tags = layer.get("class_label") or []
+                if isinstance(layer_tags, str):
+                    try:
+                        layer_tags = json.loads(layer_tags)
+                    except json.JSONDecodeError:
+                        layer_tags = [layer_tags]
+                include = any(t in class_labels for t in layer_tags)
         if include:
             filtered_layers.append(layer)
 
@@ -192,10 +211,14 @@ def calculate_export_stats(
 
     label_counts: Dict[str, int] = {}
     for layer in all_layers:
-        label = layer.get("class_label")
-        if not label:
-            continue
-        label_counts[label] = label_counts.get(label, 0) + 1
+        labels = layer.get("class_label") or []
+        if isinstance(labels, str):
+            try:
+                labels = json.loads(labels)
+            except json.JSONDecodeError:
+                labels = [labels]
+        for label in labels:
+            label_counts[label] = label_counts.get(label, 0) + 1
 
     filtered_hashes = {layer["image_hash_ref"] for layer in all_layers}
     return {
@@ -268,17 +291,23 @@ def prepare_export_data(
         filtered_layers: List[Dict[str, Any]] = []
         for layer in all_layers:
             include = True
+            layer_tags = layer.get("class_label") or []
+            if isinstance(layer_tags, str):
+                try:
+                    layer_tags = json.loads(layer_tags)
+                except json.JSONDecodeError:
+                    layer_tags = [layer_tags]
             if visibility_mode == "and":
                 include = layer.get("visible", True)
                 if class_labels:
-                    include = include and layer.get("class_label") in class_labels
+                    include = include and any(t in class_labels for t in layer_tags)
             elif visibility_mode == "or":
                 include = layer.get("visible", True)
-                if class_labels and layer.get("class_label") in class_labels:
+                if class_labels and any(t in class_labels for t in layer_tags):
                     include = True
             else:
                 if class_labels:
-                    include = layer.get("class_label") in class_labels
+                    include = any(t in class_labels for t in layer_tags)
             if include:
                 filtered_layers.append(layer)
 
@@ -297,13 +326,16 @@ def prepare_export_data(
                 f"{project_id}_coco.json",
             )
 
-        unique_labels = sorted(
-            {
-                layer.get("class_label")
-                for layer in all_layers
-                if layer.get("class_label")
-            }
-        )
+        tag_set: Set[str] = set()
+        for layer in all_layers:
+            tags = layer.get("class_label") or []
+            if isinstance(tags, str):
+                try:
+                    tags = json.loads(tags)
+                except json.JSONDecodeError:
+                    tags = [tags]
+            tag_set.update(tags)
+        unique_labels = sorted(tag_set)
         category_map: Dict[Optional[str], int] = {}
         categories: List[Dict[str, Any]] = []
         if unique_labels:
@@ -342,23 +374,32 @@ def prepare_export_data(
         default_cat = category_map.get(None)
         for layer in all_layers:
             img_id = image_id_map.get(layer["image_hash_ref"])
-            category_id = category_map.get(layer.get("class_label"), default_cat)
-            if not img_id or category_id is None:
+            if not img_id:
                 continue
+            layer_tags = layer.get("class_label") or []
+            if isinstance(layer_tags, str):
+                try:
+                    layer_tags = json.loads(layer_tags)
+                except json.JSONDecodeError:
+                    layer_tags = [layer_tags]
             rle_obj = layer["mask_data_rle"]
             bbox, area = _convert_rle_to_bbox_and_area(rle_obj)
-            coco_output["annotations"].append(
-                {
-                    "id": annotation_id,
-                    "image_id": img_id,
-                    "category_id": category_id,
-                    "segmentation": rle_obj,
-                    "area": area,
-                    "bbox": bbox,
-                    "iscrowd": 0,
-                }
-            )
-            annotation_id += 1
+            for tag in layer_tags or [None]:
+                category_id = category_map.get(tag, default_cat)
+                if category_id is None:
+                    continue
+                coco_output["annotations"].append(
+                    {
+                        "id": annotation_id,
+                        "image_id": img_id,
+                        "category_id": category_id,
+                        "segmentation": rle_obj,
+                        "area": area,
+                        "bbox": bbox,
+                        "iscrowd": 0,
+                    }
+                )
+                annotation_id += 1
 
         return (
             BytesIO(json.dumps(coco_output, indent=2).encode("utf-8")),

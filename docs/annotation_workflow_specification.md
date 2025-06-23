@@ -235,7 +235,7 @@ The `Mask_Layers` table represents a single, unique mask layer per row.
 | `layer_id` | TEXT | PRIMARY KEY (UUID). |
 | `image_hash_ref` | TEXT | FK to `Images`. |
 | `name` | TEXT | The user-editable name for the layer (e.g., "Left Connector"). |
-| **`class_label`** | TEXT | **New.** The classification label for the mask (e.g., "cable", "port"). |
+| **`class_labels`** | TEXT | **New.** JSON array of classification tags for the mask (e.g., `["cable", "port"]`). |
 | **`status`** | TEXT | **New.** Replaces the ambiguous `layer_type`. Tracks the layer's state: `'prediction'`, `'edited'`, `'approved'`, `'rejected'`. |
 | `mask_data_rle` | TEXT | **Updated Usage.** Stores the COCO RLE data (as a JSON string) for a **single mask**. |
 | **`source_metadata`** | TEXT | **New/Consolidated.** JSON object storing how the mask was generated. Combines old `model_details` and `prompt_details` for better traceability. Ex: `{"type": "automask", "params": {...}}` or `{"type": "interactive", "prompt": {...}}`. |
@@ -281,7 +281,7 @@ This section explains the export specification to align with the new layer-based
 
 The export functionality will be guided by three core principles:
 
-1.  **Dynamic Category Generation:** The COCO `categories` list will not be hardcoded. It will be dynamically generated based on the unique `class_label` values assigned to the layers being exported. This is essential for training multi-class models.
+1.  **Dynamic Category Generation:** The COCO `categories` list will not be hardcoded. It will be dynamically generated based on the unique tag values found in each layer's `class_labels` array. This is essential for training multi-class models.
 2.  **Flexible Filtering:** Users must be able to filter what they export based on the annotation workflow status. The primary filters will be the `status` of an **image** (e.g., `approved`) and the `status` of its **layers** (e.g., `edited`, `approved`).
 3.  **Correct COCO Schema Mapping:** Each exported `Mask_Layer` row from the database will map directly to a single entry in the COCO `annotations` array, ensuring a clean 1-to-1 correspondence.
 
@@ -331,7 +331,7 @@ The `prepare_export_data` function in `export_logic.py` must accomodate the use 
 
 This is a critical new step. Before creating the annotation entries, the logic must build the category map.
 
-1.  From the list of all layers retrieved in Step 2, extract all unique `class_label` values.
+1.  From the list of all layers retrieved in Step 2, extract all unique tags contained in each layer's `class_labels` array.
 2.  Create the `categories` list for the COCO JSON file. Each entry will have a unique `id` and `name`.
 3.  Create an in-memory dictionary `category_map = {"label_name": category_id, ...}` for fast lookups when building the annotations.
 
@@ -343,7 +343,10 @@ def prepare_export_data(...):
     all_layers = db_manager.get_layers_by_image_and_statuses(...)
     
     # --- Step 3: Dynamic Category Mapping ---
-    unique_labels = sorted(list(set(layer['class_label'] for layer in all_layers if layer['class_label'])))
+    tag_set = set()
+    for layer in all_layers:
+        tag_set.update(layer.get('class_labels', []))
+    unique_labels = sorted(tag_set)
     category_map = {label: i + 1 for i, label in enumerate(unique_labels)}
     
     coco_output = _prepare_coco_structure(...) # Initial structure
@@ -360,7 +363,7 @@ With the category map in place, the logic can now populate the rest of the COCO 
 
 1.  Iterate through the selected images to create the `images` array in the COCO JSON. Store a mapping of `image_hash` to the new COCO `image_id`.
 2.  Iterate through the selected `all_layers` list. For each layer:
-    a. **Get `category_id`:** Use the `category_map` to find the `category_id` from the layer's `class_label`. If the label doesn't exist in the map (e.g., it was null), skip this layer or assign a default.
+    a. **Get `category_id`:** Use the `category_map` to find the `category_id` for each tag in the layer's `class_labels`. If a tag doesn't exist in the map, skip that annotation or assign a default.
     b. **Parse RLE:** The `mask_data_rle` column now contains a JSON string of a single COCO RLE object. Parse it with `json.loads()`.
     c. **Calculate Bbox & Area:** Use a reliable library (see 3.3.3) to calculate the `bbox` (`[x, y, width, height]`) and `area` from the parsed RLE object.
     d. **Assemble Annotation:** Create the final annotation dictionary and append it to `coco_output['annotations']`.
@@ -371,30 +374,28 @@ With the category map in place, the logic can now populate the rest of the COCO 
 annotation_id_counter = 1
 for layer in all_layers:
     image_id = image_hash_to_coco_id_map[layer['image_hash_ref']]
-    category_id = category_map.get(layer['class_label'])
-
-    if not category_id:
-        continue # Skip layers with no valid category
-
     rle_obj = json.loads(layer['mask_data_rle'])
-    bbox, area = _convert_rle_to_bbox_and_area(rle_obj) # Use a proper library here
-
-    annotation = {
-        "id": annotation_id_counter,
-        "image_id": image_id,
-        "category_id": category_id,
-        "segmentation": rle_obj, # The direct RLE object
-        "area": area,
-        "bbox": bbox,
-        "iscrowd": 0,
-        "attributes": { # Custom attributes can be added here
-            "layer_name": layer['name'],
-            "layer_status": layer['status'],
-            "source_metadata": json.loads(layer['source_metadata']) if layer.get('source_metadata') else None
+    bbox, area = _convert_rle_to_bbox_and_area(rle_obj)
+    for tag in layer.get('class_labels', [None]):
+        category_id = category_map.get(tag)
+        if not category_id:
+            continue
+        annotation = {
+            "id": annotation_id_counter,
+            "image_id": image_id,
+            "category_id": category_id,
+            "segmentation": rle_obj,
+            "area": area,
+            "bbox": bbox,
+            "iscrowd": 0,
+            "attributes": {
+                "layer_name": layer['name'],
+                "layer_status": layer['status'],
+                "source_metadata": json.loads(layer['source_metadata']) if layer.get('source_metadata') else None
+            }
         }
-    }
-    coco_output['annotations'].append(annotation)
-    annotation_id_counter += 1
+        coco_output['annotations'].append(annotation)
+        annotation_id_counter += 1
 ```
 
 #### 3.3.3. Recommended Library for RLE Handling

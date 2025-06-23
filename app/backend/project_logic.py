@@ -799,7 +799,7 @@ def update_mask_layer_basic(
     image_hash: str,
     layer_id: str,
     name: Optional[str] = None,
-    class_label: Optional[str] = None,
+    class_labels: Optional[List[str]] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
     mask_data_rle: Optional[Any] = None,
@@ -810,7 +810,7 @@ def update_mask_layer_basic(
         project_id,
         layer_id,
         name=name,
-        class_label=class_label,
+        class_labels=class_labels,
         display_color=display_color,
         visible=visible,
         mask_data_rle=mask_data_rle,
@@ -848,11 +848,17 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
                 mask_rle = json.loads(mask_rle)
             except json.JSONDecodeError:
                 pass
+        cls_val = m.get("class_label") or meta.get("class_label")
+        if isinstance(cls_val, str):
+            try:
+                cls_val = json.loads(cls_val)
+            except json.JSONDecodeError:
+                cls_val = [cls_val]
         layers.append(
             {
                 "layerId": m["layer_id"],
                 "name": m.get("name"),
-                "classLabel": m.get("class_label") or meta.get("class_label"),
+                "classLabels": cls_val or [],
                 "status": m.get("status") or m.get("layer_type"),
                 "visible": bool(m.get("visible", True)),
                 "displayColor": m.get("display_color") or meta.get("display_color"),
@@ -887,15 +893,15 @@ def update_image_state(
         if not lid:
             continue
         name = layer.get("name")
-        class_label = layer.get("classLabel")
+        class_labels = layer.get("classLabels")
         display_color = layer.get("displayColor")
         visible = layer.get("visible")
-        if any(v is not None for v in (name, class_label, display_color, visible)):
+        if any(v is not None for v in (name, class_labels, display_color, visible)):
             db_manager.update_mask_layer_basic(
                 project_id,
                 lid,
                 name=name,
-                class_label=class_label,
+                class_labels=class_labels,
                 display_color=display_color,
                 visible=visible,
             )
