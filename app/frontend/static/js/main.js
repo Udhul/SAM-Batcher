@@ -42,6 +42,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const canvasStateCache = {};
   let imageLayerCache = {};
 
+  const layerUpdateTimers = {};
+  const layerUpdatePayloads = {};
+
+  function scheduleLayerUpdate(layerId, payload) {
+    const pid = stateManager.getActiveProjectId();
+    const ih = activeImageState && activeImageState.imageHash;
+    if (!pid || !ih) return;
+    if (!layerUpdatePayloads[layerId]) layerUpdatePayloads[layerId] = {};
+    Object.assign(layerUpdatePayloads[layerId], payload);
+    clearTimeout(layerUpdateTimers[layerId]);
+    layerUpdateTimers[layerId] = setTimeout(() => {
+      const p = layerUpdatePayloads[layerId];
+      delete layerUpdatePayloads[layerId];
+      delete layerUpdateTimers[layerId];
+      apiClient.updateMaskLayer(pid, ih, layerId, p).catch((err) => {
+        uiManager.showGlobalStatus(
+          `Layer update failed: ${utils.escapeHTML(err.message)}`,
+          "error",
+        );
+      });
+    }, 400);
+  }
+
   // modelHandler.js is a script that self-initializes its DOM listeners.
   // We don't instantiate it as a class here, but we will need its functions if we were to call them.
   // For now, it primarily dispatches events that main.js listens to.
@@ -462,6 +485,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // == ImagePoolHandler Events ==
   document.addEventListener("active-image-set", async (event) => {
+    Object.keys(layerUpdateTimers).forEach((k) => clearTimeout(layerUpdateTimers[k]));
+    for (const k in layerUpdateTimers) delete layerUpdateTimers[k];
+    for (const k in layerUpdatePayloads) delete layerUpdatePayloads[k];
     const {
       imageHash,
       filename,
@@ -534,7 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return {
           layerId: m.layerId,
           name: m.name || `Mask ${idx + 1}`,
-          classLabel: m.classLabel || "",
+          classLabel: utils.parseLabels(m.classLabel),
           status: m.status || "prediction",
           visible: m.visible !== false,
           displayColor: m.displayColor || utils.getRandomHexColor(),
@@ -573,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return {
           layerId: m.layer_id || `layer_${idx}`,
           name: m.name || `Mask ${idx + 1}`,
-          classLabel: m.class_label || "",
+          classLabel: utils.parseLabels(m.class_label),
           status: m.status || "prediction",
           visible: m.visible !== false,
           displayColor: m.display_color || utils.getRandomHexColor(),
@@ -704,7 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const newLayer = {
         layerId: crypto.randomUUID(),
         name: `Mask ${activeImageState.layers.length + 1}`,
-        classLabel: "",
+        classLabel: [],
         status: "edited",
         visible: true,
         displayColor: utils.getRandomHexColor(),
@@ -1066,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const newLayers = selected.map((mask, idx) => ({
         layerId: ids[idx] || crypto.randomUUID(),
         name: masksToCommit[idx].name,
-        classLabel: "",
+        classLabel: [],
         status: "edited",
         visible: true,
         displayColor: masksToCommit[idx].display_color,
@@ -1168,18 +1194,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     if (layer) {
       layer.name = event.detail.name || "";
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, { name: layer.name })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Layer update failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
-      }
+      scheduleLayerUpdate(layer.layerId, { name: layer.name });
       onImageDataChange(
         "layer-modified",
         { layerId: layer.layerId },
@@ -1194,21 +1209,10 @@ document.addEventListener("DOMContentLoaded", () => {
       (l) => l.layerId === event.detail.layerId,
     );
     if (layer) {
-      layer.classLabel = event.detail.classLabel || "";
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, {
-            class_label: layer.classLabel,
-          })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Layer update failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
-      }
+      layer.classLabel = Array.isArray(event.detail.classLabel)
+        ? event.detail.classLabel
+        : utils.parseLabels(event.detail.classLabel);
+      scheduleLayerUpdate(layer.layerId, { class_label: layer.classLabel });
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }
   });
@@ -1221,13 +1225,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (layer) {
       layer.visible = event.detail.visible;
       canvasManager.setLayers(activeImageState.layers);
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, { visible: layer.visible })
-          .catch(() => {});
-      }
+      scheduleLayerUpdate(layer.layerId, { visible: layer.visible });
     }
   });
 
@@ -1238,20 +1236,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     if (layer) {
       layer.displayColor = event.detail.displayColor || "#888888";
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, {
-            display_color: layer.displayColor,
-          })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Layer update failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
-      }
+      scheduleLayerUpdate(layer.layerId, {
+        display_color: layer.displayColor,
+      });
       onImageDataChange(
         "layer-modified",
         { layerId: layer.layerId },
@@ -1269,22 +1256,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (layer && event.detail.maskData) {
       layer.maskData = event.detail.maskData;
       layer.status = "edited";
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        const rle = utils.binaryMaskToRLE(layer.maskData);
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, {
-            mask_data_rle: rle,
-            status: "edited",
-          })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Save edit failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
-      }
+      const rle = utils.binaryMaskToRLE(layer.maskData);
+      scheduleLayerUpdate(layer.layerId, {
+        mask_data_rle: rle,
+        status: "edited",
+      });
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }
     if (layerViewController) layerViewController.setSelectedLayers([]);
@@ -1324,6 +1300,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("active-image-cleared", () => {
+    Object.keys(layerUpdateTimers).forEach((k) => clearTimeout(layerUpdateTimers[k]));
+    for (const k in layerUpdateTimers) delete layerUpdateTimers[k];
+    for (const k in layerUpdatePayloads) delete layerUpdatePayloads[k];
     activeImageState = null;
     if (editModeController) editModeController.endEdit();
     canvasManager.setMode("creation");

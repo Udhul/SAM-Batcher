@@ -16,6 +16,33 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple, Set
 
+
+def _parse_label_field(value: Any) -> List[str]:
+    """Parse stored class_label field into a list of strings."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        v = value.strip()
+        if not v:
+            return []
+        try:
+            if v.startswith("["):
+                arr = json.loads(v)
+                if isinstance(arr, list):
+                    return [str(x).strip() for x in arr if str(x).strip()]
+        except json.JSONDecodeError:
+            pass
+        return [s.strip() for s in v.split(",") if s.strip()]
+    return []
+
+
+def _serialize_label_field(labels: Optional[List[str]]) -> Optional[str]:
+    if labels is None:
+        return None
+    return json.dumps([str(v).strip() for v in labels if str(v).strip()])
+
 # Assuming config.py is in the project_root, one level above app/backend/
 # Adjust path if your structure is different or use absolute imports if app is a package
 try:
@@ -656,7 +683,7 @@ def save_mask_layer(
     status: str,
     mask_data_rle: Any,
     name: Optional[str] = None,
-    class_label: Optional[str] = None,
+    class_label: Optional[List[str]] = None,
     display_color: Optional[str] = None,
     visible: bool = True,
     source_metadata: Optional[Dict] = None,
@@ -694,7 +721,7 @@ def save_mask_layer(
                 else mask_data_rle
             ),
             name,
-            class_label,
+            _serialize_label_field(class_label),
             display_color,
             1 if visible else 0,
             json.dumps(source_metadata) if source_metadata else None,
@@ -743,10 +770,9 @@ def get_mask_layers_for_image(
             pass
         if layer.get("metadata"):
             layer["metadata"] = json.loads(layer["metadata"])
-            if "class_label" in layer["metadata"] and not layer.get("class_label"):
-                layer["class_label"] = layer["metadata"].get("class_label")
             if "display_color" in layer["metadata"] and not layer.get("display_color"):
                 layer["display_color"] = layer["metadata"].get("display_color")
+        layer["class_label"] = _parse_label_field(layer.get("class_label"))
         layer["visible"] = bool(layer.get("visible", 1))
         layers.append(layer)
     conn.close()
@@ -777,13 +803,7 @@ def get_all_class_labels(project_id: str) -> List[str]:
 
     labels: Set[str] = set()
     for row in rows:
-        raw = row["class_label"]
-        if not raw:
-            continue
-        for label in str(raw).split(","):
-            label = label.strip()
-            if label:
-                labels.add(label)
+        labels.update(_parse_label_field(row["class_label"]))
 
     return sorted(labels)
 
@@ -801,7 +821,7 @@ def update_mask_layer_basic(
     project_id: str,
     layer_id: str,
     name: Optional[str] = None,
-    class_label: Optional[str] = None,
+    class_label: Optional[List[str]] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
     mask_data_rle: Optional[Any] = None,
@@ -817,7 +837,7 @@ def update_mask_layer_basic(
         params.append(name)
     if class_label is not None:
         updates.append("class_label = ?")
-        params.append(class_label)
+        params.append(_serialize_label_field(class_label))
     if display_color is not None:
         updates.append("display_color = ?")
         params.append(display_color)

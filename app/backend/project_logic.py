@@ -30,6 +30,7 @@ import numpy as np
 try:
     from .... import config  # For running from within app/backend
     from . import db_manager
+    from .db_manager import _parse_label_field
     from .sam_backend import SAMInference  # Assuming SAMInference is accessible
     from . import mask_utils
 except ImportError:
@@ -799,13 +800,15 @@ def update_mask_layer_basic(
     image_hash: str,
     layer_id: str,
     name: Optional[str] = None,
-    class_label: Optional[str] = None,
+    class_label: Optional[List[str]] = None,
     display_color: Optional[str] = None,
     visible: Optional[bool] = None,
     mask_data_rle: Optional[Any] = None,
     status: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Update editable attributes of a layer and return success."""
+    if class_label is not None and not isinstance(class_label, list):
+        class_label = _parse_label_field(class_label)
     db_manager.update_mask_layer_basic(
         project_id,
         layer_id,
@@ -852,7 +855,7 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
             {
                 "layerId": m["layer_id"],
                 "name": m.get("name"),
-                "classLabel": m.get("class_label") or meta.get("class_label"),
+                "classLabel": _parse_label_field(m.get("class_label") or meta.get("class_label")),
                 "status": m.get("status") or m.get("layer_type"),
                 "visible": bool(m.get("visible", True)),
                 "displayColor": m.get("display_color") or meta.get("display_color"),
@@ -888,6 +891,8 @@ def update_image_state(
             continue
         name = layer.get("name")
         class_label = layer.get("classLabel")
+        if class_label is not None and not isinstance(class_label, list):
+            class_label = _parse_label_field(class_label)
         display_color = layer.get("displayColor")
         visible = layer.get("visible")
         if any(v is not None for v in (name, class_label, display_color, visible)):

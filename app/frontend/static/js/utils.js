@@ -142,6 +142,35 @@ const Utils = {
     },
 
     /**
+     * Parses various label formats into an array of strings.
+     * Accepts JSON arrays, comma separated strings, or arrays.
+     * @param {string|string[]|null} val - Raw label data.
+     * @returns {string[]} Array of cleaned label strings.
+     */
+    parseLabels: (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) {
+            return val.map((v) => String(v).trim()).filter(Boolean);
+        }
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (!trimmed) return [];
+            try {
+                if (trimmed.startsWith('[')) {
+                    const arr = JSON.parse(trimmed);
+                    if (Array.isArray(arr)) {
+                        return arr.map((v) => String(v).trim()).filter(Boolean);
+                    }
+                }
+            } catch (e) {
+                // fall back to comma separated
+            }
+            return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+        return [];
+    },
+
+    /**
      * Dispatches a custom event.
      * @param {string} eventName - The name of the event.
      * @param {object} detail - The event detail/payload.

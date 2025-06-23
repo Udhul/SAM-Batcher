@@ -176,7 +176,7 @@ class LayerViewController {
                     fuzzySearch: true,
                 },
                 pattern: /[^,]+/, // disallow comma in tags
-                originalInputValueFormat: (valuesArr) => valuesArr.map(v => v.value).join(',')
+                originalInputValueFormat: (valuesArr) => JSON.stringify(valuesArr.map(v => v.value))
             };
 
             li.appendChild(visBtn);
@@ -185,8 +185,8 @@ class LayerViewController {
             li.appendChild(nameInput);
             li.appendChild(classInput);
             const tagify = new Tagify(classInput, tagifyOptions);
-            if (layer.classLabel) {
-                tagify.addTags(layer.classLabel.split(',').map(t => t.trim()).filter(Boolean));
+            if (Array.isArray(layer.classLabel)) {
+                tagify.addTags(layer.classLabel);
             }
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
@@ -196,7 +196,7 @@ class LayerViewController {
                 });
             }
             const updateClassLabel = () => {
-                layer.classLabel = tagify.value.map(v => v.value).join(',');
+                layer.classLabel = tagify.value.map(v => v.value);
                 this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
             };
             tagify.on('add', updateClassLabel);
