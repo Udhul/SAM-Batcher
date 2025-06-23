@@ -14,7 +14,7 @@ import sqlite3
 import os
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 
 # Assuming config.py is in the project_root, one level above app/backend/
 # Adjust path if your structure is different or use absolute imports if app is a package
