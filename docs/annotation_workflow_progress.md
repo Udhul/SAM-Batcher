@@ -56,6 +56,7 @@ It will be updated as new sprints add functionality.
 - **Review Mode**: Added controls to cycle through images marked `ready_for_review` with Approve/Reject/Skip actions and a history-aware **Prev** button.
 - **Layer Data Schema**: Mask records now use dedicated columns (`class_labels`, `status`, `display_color`, `source_metadata`, `updated_at`).
 - **Active Image State**: `main.js` now maintains a full `ActiveImageState` object including `creation` and `edit` sections. New `/api/project/<id>/image/<hash>/state` endpoints keep this state in sync with the backend.
+- **Empty Layer Persistence**: Creating an empty layer now immediately saves it to the database so manual edits are not lost on refresh.
 - **Initial Edit Tools**: Selecting a single layer now activates a toolbar with
   a brush tool (hold Ctrl or right-click to erase) and Save/Cancel buttons. A
   circular preview shows the brush size.

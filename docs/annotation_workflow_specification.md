@@ -398,6 +398,11 @@ for layer in all_layers:
         annotation_id_counter += 1
 ```
 
+Since the COCO specification allows only a single category per annotation,
+the loop above adds a separate annotation entry for each tag in a layer's
+`class_labels` list. These entries share the same segmentation data but have
+different `category_id` values.
+
 #### 3.3.3. Recommended Library for RLE Handling
 
 The placeholder `_convert_rle_to_bbox_and_area` function is insufficient and error-prone. To ensure compatibility with the COCO standard and accurate calculations, it is **highly recommended** to integrate `pycocotools` into the export logic (already part of installed project dependencies.)

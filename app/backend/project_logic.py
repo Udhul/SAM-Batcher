@@ -785,6 +785,44 @@ def commit_final_masks(
     }
 
 
+def create_empty_layer(
+    project_id: str,
+    image_hash: str,
+    name: Optional[str] = None,
+    class_labels: Optional[List[str]] = None,
+    display_color: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new empty mask layer so the user can draw manually."""
+    img_info = db_manager.get_image_by_hash(project_id, image_hash)
+    if not img_info:
+        return {"success": False, "error": "Image not found"}
+
+    width = img_info.get("width") or 0
+    height = img_info.get("height") or 0
+    empty_mask = [[0] * width for _ in range(height)]
+    rle_for_db = mask_utils.binary_mask_to_rle(empty_mask)
+
+    layer_id = f"empty_{uuid.uuid4().hex}"
+    db_manager.save_mask_layer(
+        project_id,
+        layer_id,
+        image_hash,
+        "edited",
+        rle_for_db,
+        name=name,
+        class_labels=class_labels,
+        display_color=display_color,
+        source_metadata={"type": "manual_empty_layer"},
+    )
+
+    new_status = sync_image_status_with_layers(project_id, image_hash)
+    return {
+        "success": True,
+        "layer_id": layer_id,
+        "image_status": new_status,
+    }
+
+
 def delete_mask_layer_and_update_status(
     project_id: str, image_hash: str, layer_id: str
 ) -> Dict[str, Any]:

@@ -384,6 +384,8 @@ def prepare_export_data(
                     layer_tags = [layer_tags]
             rle_obj = layer["mask_data_rle"]
             bbox, area = _convert_rle_to_bbox_and_area(rle_obj)
+            if area <= 0:
+                continue
             for tag in layer_tags or [None]:
                 category_id = category_map.get(tag, default_cat)
                 if category_id is None:

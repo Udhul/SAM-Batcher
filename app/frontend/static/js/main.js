@@ -700,21 +700,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (addEmptyLayerBtn) {
-    addEmptyLayerBtn.addEventListener("click", () => {
+    addEmptyLayerBtn.addEventListener("click", async () => {
       if (!activeImageState) return;
-      const newLayer = {
-        layerId: crypto.randomUUID(),
-        name: `Mask ${activeImageState.layers.length + 1}`,
-        classLabels: [],
-        status: "edited",
-        visible: true,
-        displayColor: utils.getRandomHexColor(),
-        maskData: null,
-      };
-      activeImageState.layers.unshift(newLayer);
-      onImageDataChange("layer-added", { layerIds: [newLayer.layerId] });
-      canvasManager.clearAllCanvasInputs(false);
-      canvasManager.setMode("edit");
+      const projectId = stateManager.getActiveProjectId();
+      if (!projectId) return;
+      const displayColor = utils.getRandomHexColor();
+      const name = `Mask ${activeImageState.layers.length + 1}`;
+      try {
+        const res = await apiClient.createEmptyLayer(projectId, activeImageState.imageHash, {
+          name,
+          class_labels: [],
+          display_color: displayColor,
+        });
+        if (res.success) {
+          const newLayer = {
+            layerId: res.layer_id,
+            name,
+            classLabels: [],
+            status: "edited",
+            visible: true,
+            displayColor,
+            maskData: null,
+          };
+          activeImageState.layers.unshift(newLayer);
+          onImageDataChange("layer-added", { layerIds: [newLayer.layerId] });
+          canvasManager.clearAllCanvasInputs(false);
+          canvasManager.setMode("edit");
+        }
+      } catch (err) {
+        console.error("Failed to create empty layer", err);
+      }
     });
   }
 
