@@ -11,6 +11,28 @@ class LayerViewController {
         this.layers = [];
         this.selectedLayerIds = [];
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+        this.labelWhitelist = [];
+        this._setupLabelListeners();
+    }
+
+    _setupLabelListeners() {
+        document.addEventListener('project-loaded', () => this._fetchLabelWhitelist());
+        document.addEventListener('state-changed-activeProjectId', () => this._fetchLabelWhitelist());
+        this._fetchLabelWhitelist();
+    }
+
+    async _fetchLabelWhitelist() {
+        const pid = this.stateManager && this.stateManager.getActiveProjectId ? this.stateManager.getActiveProjectId() : null;
+        if (!pid || !window.apiClient || typeof window.apiClient.getProjectLabels !== 'function') return;
+        try {
+            const res = await window.apiClient.getProjectLabels(pid);
+            this.labelWhitelist = Array.isArray(res.labels) ? res.labels : [];
+        } catch (err) {
+            console.error('Failed to fetch project labels', err);
+            this.labelWhitelist = [];
+        }
+        // re-render to apply updated whitelist to Tagify inputs
+        this.render();
     }
 
     setLayers(layers) {
@@ -142,22 +164,28 @@ class LayerViewController {
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
             classInput.placeholder = 'label';
-            classInput.value = layer.classLabel || '';
             classInput.title = 'Class label';
+
+            const tagifyOptions = {
+                whitelist: this.labelWhitelist,
+                dropdown: {
+                    maxItems: 20,
+                    classname: 'tags-look layer-tag-dropdown',
+                    enabled: 0,
+                    closeOnSelect: false,
+                    fuzzySearch: true,
+                },
+                pattern: /[^,]+/, // disallow comma in tags
+                originalInputValueFormat: (valuesArr) => JSON.stringify(valuesArr.map(v => v.value))
+            };
+
+            li.appendChild(visBtn);
+            li.appendChild(colorSwatch);
+            li.appendChild(colorInput);
+            li.appendChild(nameInput);
+            li.appendChild(classInput);
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
-            classInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    classInput.blur();
-                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            });
-            classInput.addEventListener('change', (e) => {
-                e.stopPropagation();
-                layer.classLabel = classInput.value.trim();
-                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
-            });
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -175,18 +203,31 @@ class LayerViewController {
             });
 
             li.addEventListener('click', (e) => {
+                if (e.target.closest('.tagify')) return;
                 const additive = e.shiftKey;
                 this.selectLayer(layer.layerId, additive);
             });
 
-            li.appendChild(visBtn);
-            li.appendChild(colorSwatch);
-            li.appendChild(colorInput);
-            li.appendChild(nameInput);
-            li.appendChild(classInput);
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
             listEl.appendChild(li);
+
+            const tagify = new Tagify(classInput, tagifyOptions);
+            if (Array.isArray(layer.classLabel)) {
+                tagify.addTags(layer.classLabel);
+            }
+            if (tagify.DOM && tagify.DOM.scope) {
+                ['mousedown', 'click', 'touchstart', 'pointerdown'].forEach((evt) => {
+                    tagify.DOM.scope.addEventListener(evt, (e) => e.stopPropagation());
+                });
+            }
+            const updateClassLabel = () => {
+                layer.classLabel = tagify.value.map((v) => v.value);
+                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+            };
+            tagify.on('add', updateClassLabel);
+            tagify.on('remove', updateClassLabel);
+            tagify.on('blur', updateClassLabel);
         });
 
         this.containerEl.appendChild(listEl);

@@ -142,6 +142,42 @@ const Utils = {
     },
 
     /**
+     * Parses various label formats into an array of strings.
+     * Accepts JSON arrays, comma separated strings, or arrays.
+     * @param {string|string[]|null} val - Raw label data.
+     * @returns {string[]} Array of cleaned label strings.
+     */
+    parseLabels: (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) {
+            return val.map((v) => String(v).trim()).filter(Boolean);
+        }
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (!trimmed) return [];
+            if (trimmed.startsWith('[')) {
+                try {
+                    const arr = JSON.parse(trimmed);
+                    if (Array.isArray(arr)) {
+                        return arr.map((v) => String(v).trim()).filter(Boolean);
+                    }
+                } catch (e) {
+                    try {
+                        const arr = JSON.parse(trimmed.replace(/'/g, '"'));
+                        if (Array.isArray(arr)) {
+                            return arr.map((v) => String(v).trim()).filter(Boolean);
+                        }
+                    } catch (_) {
+                        // ignore
+                    }
+                }
+            }
+            return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+        return [];
+    },
+
+    /**
      * Dispatches a custom event.
      * @param {string} eventName - The name of the event.
      * @param {object} detail - The event detail/payload.
@@ -249,5 +285,9 @@ const Utils = {
 // Make Utils globally available if not using modules.
 if (typeof window !== 'undefined') {
     window.Utils = Utils;
+    // maintain legacy reference if some modules expect `window.utils`
+    if (!window.utils) {
+        window.utils = Utils;
+    }
 }
 // export default Utils; // For ES module system

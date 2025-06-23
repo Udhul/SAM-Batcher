@@ -176,7 +176,7 @@ const ActiveImageState = {
         {
             layerId: "uuid-1a2b-3c4d",         // PK from DB
             name: "Top Connector",             // User-editable name
-            classLabel: "connector",           // User-defined class/category
+            classLabel: ["connector"],        // One or more user-defined labels
             status: "prediction",              // 'prediction', 'edited', 'approved', 'rejected'
             visible: true,                     // UI toggle state
             displayColor: "hsla(120, 80%, 50%, 0.7)", // Color swatch in UI and for mask display in canvas when this layer is selected
