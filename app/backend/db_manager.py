@@ -14,7 +14,7 @@ import sqlite3
 import os
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 
 # Assuming config.py is in the project_root, one level above app/backend/
 # Adjust path if your structure is different or use absolute imports if app is a package
@@ -774,7 +774,18 @@ def get_all_class_labels(project_id: str) -> List[str]:
     )
     rows = cursor.fetchall()
     conn.close()
-    return [row["class_label"] for row in rows]
+
+    labels: Set[str] = set()
+    for row in rows:
+        raw = row["class_label"]
+        if not raw:
+            continue
+        for label in str(raw).split(","):
+            label = label.strip()
+            if label:
+                labels.add(label)
+
+    return sorted(labels)
 
 
 def delete_mask_layer(project_id: str, layer_id: str) -> None:

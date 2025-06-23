@@ -191,8 +191,8 @@ class LayerViewController {
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
             if (tagify && tagify.DOM && tagify.DOM.scope) {
-                ['mousedown', 'click', 'touchstart'].forEach(evt => {
-                    tagify.DOM.scope.addEventListener(evt, e => e.stopPropagation());
+                ['mousedown', 'click', 'touchstart', 'pointerdown'].forEach((evt) => {
+                    tagify.DOM.scope.addEventListener(evt, (e) => e.stopPropagation());
                 });
             }
             const updateClassLabel = () => {
@@ -219,6 +219,7 @@ class LayerViewController {
             });
 
             li.addEventListener('click', (e) => {
+                if (e.target.closest('.tagify')) return;
                 const additive = e.shiftKey;
                 this.selectLayer(layer.layerId, additive);
             });
