@@ -13,6 +13,7 @@ Input/Output:
 import sqlite3
 import os
 import json
+import ast
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple, Set
 
@@ -28,12 +29,16 @@ def _parse_label_field(value: Any) -> List[str]:
         if not v:
             return []
         try:
-            if v.startswith("["):
-                arr = json.loads(v)
+            arr = json.loads(v)
+            if isinstance(arr, list):
+                return [str(x).strip() for x in arr if str(x).strip()]
+        except json.JSONDecodeError:
+            try:
+                arr = ast.literal_eval(v)
                 if isinstance(arr, list):
                     return [str(x).strip() for x in arr if str(x).strip()]
-        except json.JSONDecodeError:
-            pass
+            except Exception:
+                pass
         return [s.strip() for s in v.split(",") if s.strip()]
     return []
 
@@ -42,6 +47,7 @@ def _serialize_label_field(labels: Optional[List[str]]) -> Optional[str]:
     if labels is None:
         return None
     return json.dumps([str(v).strip() for v in labels if str(v).strip()])
+
 
 # Assuming config.py is in the project_root, one level above app/backend/
 # Adjust path if your structure is different or use absolute imports if app is a package

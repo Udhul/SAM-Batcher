@@ -155,15 +155,22 @@ const Utils = {
         if (typeof val === 'string') {
             const trimmed = val.trim();
             if (!trimmed) return [];
-            try {
-                if (trimmed.startsWith('[')) {
+            if (trimmed.startsWith('[')) {
+                try {
                     const arr = JSON.parse(trimmed);
                     if (Array.isArray(arr)) {
                         return arr.map((v) => String(v).trim()).filter(Boolean);
                     }
+                } catch (e) {
+                    try {
+                        const arr = JSON.parse(trimmed.replace(/'/g, '"'));
+                        if (Array.isArray(arr)) {
+                            return arr.map((v) => String(v).trim()).filter(Boolean);
+                        }
+                    } catch (_) {
+                        // ignore
+                    }
                 }
-            } catch (e) {
-                // fall back to comma separated
             }
             return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
         }

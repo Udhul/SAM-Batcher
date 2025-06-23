@@ -41,6 +41,7 @@ except ImportError:
     )  # Add project_root to path
     import config
     import app.backend.db_manager as db_manager
+    from app.backend.db_manager import _parse_label_field
     from app.backend.sam_backend import SAMInference
     import app.backend.mask_utils as mask_utils
 
@@ -855,7 +856,9 @@ def get_image_state(project_id: str, image_hash: str) -> Dict[str, Any]:
             {
                 "layerId": m["layer_id"],
                 "name": m.get("name"),
-                "classLabel": _parse_label_field(m.get("class_label") or meta.get("class_label")),
+                "classLabel": _parse_label_field(
+                    m.get("class_label") or meta.get("class_label")
+                ),
                 "status": m.get("status") or m.get("layer_type"),
                 "visible": bool(m.get("visible", True)),
                 "displayColor": m.get("display_color") or meta.get("display_color"),

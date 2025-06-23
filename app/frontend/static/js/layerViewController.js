@@ -184,24 +184,8 @@ class LayerViewController {
             li.appendChild(colorInput);
             li.appendChild(nameInput);
             li.appendChild(classInput);
-            const tagify = new Tagify(classInput, tagifyOptions);
-            if (Array.isArray(layer.classLabel)) {
-                tagify.addTags(layer.classLabel);
-            }
             classInput.addEventListener('mousedown', (e) => e.stopPropagation());
             classInput.addEventListener('click', (e) => e.stopPropagation());
-            if (tagify && tagify.DOM && tagify.DOM.scope) {
-                ['mousedown', 'click', 'touchstart', 'pointerdown'].forEach((evt) => {
-                    tagify.DOM.scope.addEventListener(evt, (e) => e.stopPropagation());
-                });
-            }
-            const updateClassLabel = () => {
-                layer.classLabel = tagify.value.map(v => v.value);
-                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
-            };
-            tagify.on('add', updateClassLabel);
-            tagify.on('remove', updateClassLabel);
-            tagify.on('blur', updateClassLabel);
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -227,6 +211,23 @@ class LayerViewController {
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
             listEl.appendChild(li);
+
+            const tagify = new Tagify(classInput, tagifyOptions);
+            if (Array.isArray(layer.classLabel)) {
+                tagify.addTags(layer.classLabel);
+            }
+            if (tagify.DOM && tagify.DOM.scope) {
+                ['mousedown', 'click', 'touchstart', 'pointerdown'].forEach((evt) => {
+                    tagify.DOM.scope.addEventListener(evt, (e) => e.stopPropagation());
+                });
+            }
+            const updateClassLabel = () => {
+                layer.classLabel = tagify.value.map((v) => v.value);
+                this.Utils.dispatchCustomEvent('layer-class-changed', { layerId: layer.layerId, classLabel: layer.classLabel });
+            };
+            tagify.on('add', updateClassLabel);
+            tagify.on('remove', updateClassLabel);
+            tagify.on('blur', updateClassLabel);
         });
 
         this.containerEl.appendChild(listEl);
