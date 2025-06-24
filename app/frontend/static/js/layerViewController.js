@@ -16,6 +16,9 @@ class LayerViewController {
 
     setProjectTags(tags) {
         this.allProjectTags = Array.isArray(tags) ? [...tags] : [];
+        if (this.layers.length > 0) {
+            this.render();
+        }
     }
 
     setLayers(layers) {
@@ -150,6 +153,7 @@ class LayerViewController {
             classInput.title = 'Layer tags';
             const initialTags = Array.isArray(layer.classLabels) ? layer.classLabels : [];
             const available = this.allProjectTags.filter(t => !initialTags.includes(t));
+            classInput.value = initialTags.join(',');
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -181,13 +185,14 @@ class LayerViewController {
 
             const tagify = new Tagify(classInput, {
                 whitelist: available,
-                delimiters: '\n',
+                delimiters: ',',
+                pattern: /[^,]+/,
             });
-            tagify.addTags(initialTags);
             tagify.DOM.scope.addEventListener('mousedown', e => e.stopPropagation());
             tagify.DOM.scope.addEventListener('click', e => e.stopPropagation());
             tagify.on('change', () => {
                 const tags = tagify.value.map(it => it.value);
+                if (JSON.stringify(tags) === JSON.stringify(layer.classLabels || [])) return;
                 layer.classLabels = tags;
                 tagify.settings.whitelist = this.allProjectTags.filter(t => !tags.includes(t));
                 tagify.dropdown.refilter();
