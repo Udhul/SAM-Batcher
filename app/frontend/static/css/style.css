@@ -1108,16 +1108,16 @@ input[type="file"]#image-upload {
   flex: 1 1 25px;
   min-width: 25px;
   padding: 2px 4px;
-  font-size: 13px;
+  font-size: 11px;
 }
 .layer-class-input {
-  flex: 2 1 25px;
+  flex: 4 1 25px;
   min-width: 30px;
   padding: 0px 0px;
   font-size: 11px;
 }
 .layer-item .tagify {
-  flex: 2 1 25px;
+  flex: 4 1 25px;
   min-width: 30px;
   display: inline-flex;
   align-items: center;
