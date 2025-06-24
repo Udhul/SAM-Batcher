@@ -100,5 +100,6 @@ It will be updated as new sprints add functionality.
 - Improve error handling and autosave of `ActiveImageState` to prevent data
     loss.
 - **Tagify Layer Tags**: Layer tags are edited using the Tagify widget with
-  auto-suggestions from existing project tags.
+  auto-suggestions from existing project tags. Suggestions update when tags
+  change and appear when focusing the tag field.
 

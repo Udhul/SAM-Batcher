@@ -1119,6 +1119,12 @@ input[type="file"]#image-upload {
 .layer-item .tagify {
   flex: 2 1 25px;
   min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+}
+.layer-item .tagify__input {
+  flex: 1 0 80px;
+  min-width: 80px;
 }
 .layer-status-tag {
   font-size: 11px;
@@ -1386,7 +1392,7 @@ input[type="file"]#image-upload {
     background: #F3F3F3;
     /* --tag-bg: #F3F3F3; */
     margin: .2em;
-    font-size: .85em;
+    font-size: .75em;
     color: black;
     transition: 0s;
 }

@@ -351,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function loadProjectLabels() {
+  async function loadProjectLabels(rerender = true) {
     const pid = stateManager.getActiveProjectId();
     if (!pid) return;
     try {
@@ -359,7 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (Array.isArray(data.labels)) {
         projectTagList = data.labels;
         stateManager.setProjectLabels(projectTagList);
-        if (layerViewController) layerViewController.setProjectTags(projectTagList);
+        if (layerViewController) layerViewController.setProjectTags(projectTagList, rerender);
       }
     } catch (err) {
       console.error('Failed to fetch project labels', err);
@@ -1255,8 +1255,29 @@ document.addEventListener("DOMContentLoaded", () => {
           class_labels: layer.classLabels,
         });
       }
+      const added = layer.classLabels.filter((t) => !projectTagList.includes(t));
+      if (added.length > 0) {
+        projectTagList = [...projectTagList, ...added];
+        stateManager.setProjectLabels(projectTagList);
+        if (layerViewController) layerViewController.setProjectTags(projectTagList, false);
+      } else {
+        const stillUsed = new Set();
+        activeImageState.layers.forEach((l) => {
+          (l.classLabels || []).forEach((t) => stillUsed.add(t));
+        });
+        const removed = projectTagList.filter((t) => !stillUsed.has(t));
+        if (removed.length > 0) {
+          projectTagList = projectTagList.filter((t) => stillUsed.has(t));
+          stateManager.setProjectLabels(projectTagList);
+          if (layerViewController) layerViewController.setProjectTags(projectTagList, false);
+        }
+      }
       onImageDataChange("layer-modified", { layerId: layer.layerId });
     }
+  });
+
+  document.addEventListener("tag-input-focused", async () => {
+    await loadProjectLabels(false);
   });
 
   document.addEventListener("layer-visibility-changed", (event) => {
