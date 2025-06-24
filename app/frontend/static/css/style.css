@@ -1116,6 +1116,10 @@ input[type="file"]#image-upload {
   padding: 2px 4px;
   font-size: 11px;
 }
+.layer-item .tagify {
+  flex: 2 1 25px;
+  min-width: 30px;
+}
 .layer-status-tag {
   font-size: 11px;
   padding: 2px 4px;
