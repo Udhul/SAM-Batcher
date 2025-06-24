@@ -96,7 +96,10 @@ It will be updated as new sprints add functionality.
    - ~~Update export and filtering logic to handle the full status lifecycle.~~
 5. **Incremental Enhancements**
    - ~~Persist `display_color` and label information when adding layers.~~
-   - ~~Add update-status dropdown in the annotation view.~~ Implemented as Ready/Skip toggle switches.
-   - Improve error handling and autosave of `ActiveImageState` to prevent data
-     loss.
+- ~~Add update-status dropdown in the annotation view.~~ Implemented as Ready/Skip toggle switches.
+- Improve error handling and autosave of `ActiveImageState` to prevent data
+    loss.
+- **Tagify Layer Tags**: Layer tags are edited using the Tagify widget with
+  auto-suggestions from existing project tags. Suggestions update when tags
+  change and appear when focusing the tag field.
 

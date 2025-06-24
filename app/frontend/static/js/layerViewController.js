@@ -10,7 +10,26 @@ class LayerViewController {
         this.stateManager = stateManager;
         this.layers = [];
         this.selectedLayerIds = [];
+        this.allProjectTags = [];
+        this.tagifyInstances = {};
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
+    }
+
+    setProjectTags(tags, rerender = true) {
+        this.allProjectTags = Array.isArray(tags) ? [...tags] : [];
+        if (rerender && this.layers.length > 0) {
+            this.render();
+        } else if (!rerender) {
+            this.updateAllTagifyWhitelists();
+        }
+    }
+
+    updateAllTagifyWhitelists() {
+        for (const [id, instance] of Object.entries(this.tagifyInstances)) {
+            const current = instance.value.map(it => it.value);
+            instance.settings.whitelist = this.allProjectTags.filter(t => !current.includes(t));
+            instance.dropdown.refilter();
+        }
     }
 
     setLayers(layers) {
@@ -79,6 +98,7 @@ class LayerViewController {
     render() {
         if (!this.containerEl) return;
         this.containerEl.innerHTML = '';
+        this.tagifyInstances = {};
         const listEl = document.createElement('ul');
         listEl.className = 'layer-list';
 
@@ -141,26 +161,11 @@ class LayerViewController {
             const classInput = document.createElement('input');
             classInput.className = 'layer-class-input';
             classInput.type = 'text';
-            classInput.placeholder = 'tags';
-            classInput.value = Array.isArray(layer.classLabels) ? layer.classLabels.join(', ') : '';
-            classInput.title = 'Layer tags, comma separated';
-            classInput.addEventListener('mousedown', (e) => e.stopPropagation());
-            classInput.addEventListener('click', (e) => e.stopPropagation());
-            classInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    classInput.blur();
-                    classInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            });
-            classInput.addEventListener('change', (e) => {
-                e.stopPropagation();
-                layer.classLabels = classInput.value
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter((t) => t);
-                this.Utils.dispatchCustomEvent('layer-tags-changed', { layerId: layer.layerId, classLabels: layer.classLabels });
-            });
+            classInput.placeholder = 'Add tags...';
+            classInput.title = 'Layer tags';
+            const initialTags = Array.isArray(layer.classLabels) ? layer.classLabels : [];
+            const available = this.allProjectTags.filter(t => !initialTags.includes(t));
+            classInput.value = initialTags.join(',');
 
             const statusTag = document.createElement('span');
             statusTag.className = `layer-status-tag ${layer.status || ''}`;
@@ -189,6 +194,28 @@ class LayerViewController {
             li.appendChild(classInput);
             li.appendChild(statusTag);
             li.appendChild(deleteBtn);
+
+            const tagify = new Tagify(classInput, {
+                whitelist: available,
+                delimiters: ',',
+                pattern: /[^,]+/,
+                dropdown: { enabled: 0, classname: 'tags-look' },
+            });
+            this.tagifyInstances[layer.layerId] = tagify;
+            tagify.DOM.scope.addEventListener('mousedown', e => e.stopPropagation());
+            tagify.DOM.scope.addEventListener('click', e => e.stopPropagation());
+            tagify.on('focus', () => {
+                this.Utils.dispatchCustomEvent('tag-input-focused', { layerId: layer.layerId });
+                tagify.dropdown.show.call(tagify);
+            });
+            tagify.on('change', () => {
+                const tags = tagify.value.map(it => it.value);
+                if (JSON.stringify(tags) === JSON.stringify(layer.classLabels || [])) return;
+                layer.classLabels = tags;
+                tagify.settings.whitelist = this.allProjectTags.filter(t => !tags.includes(t));
+                tagify.dropdown.refilter();
+                this.Utils.dispatchCustomEvent('layer-tags-changed', { layerId: layer.layerId, classLabels: tags });
+            });
             listEl.appendChild(li);
         });
 
