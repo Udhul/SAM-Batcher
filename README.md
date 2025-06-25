@@ -8,7 +8,7 @@ cd sam-batcher
 conda env create -f environment-cpu.yml # or environment-gpu.yml
 conda activate sam-batcher
 git clone https://github.com/facebookresearch/sam2.git Modules/sam2
-pip install -e Modules/sam2 # Takes a while to build depenndencies
+pip install -e Modules/sam2 # Takes a while to build dependencies
 python main.py # Main entry point
 ```
 
