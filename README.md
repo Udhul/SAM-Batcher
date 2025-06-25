@@ -1,6 +1,17 @@
 # SAM Batcher
 ### UI for batch processing images, creating segmentation masks using SAM2
 
+## Manual Installation in WSL with Conda, no Docker
+```bash
+git clone https://github.com/udhul/sam-batcher.
+cd sam-batcher
+conda env create -f environment-cpu.yml # or environment-gpu.yml
+conda activate sam-batcher
+git clone https://github.com/facebookresearch/sam2.git Modules/sam2
+pip install -e Modules/sam2 # Takes a while to build depenndencies
+python main.py # Main entry point
+```
+
 ## Environment Variables
 
 The backend can be customized using a few optional environment variables:
