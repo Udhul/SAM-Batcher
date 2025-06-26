@@ -211,6 +211,12 @@ class CanvasManager {
             this.imageCanvas.style.transformOrigin = 'top left';
             this.imageCanvas.style.transform = t;
         }
+        if (this.predictionMaskCanvas) {
+            this.predictionMaskCanvas.style.transform = 'none';
+        }
+        if (this.userInputCanvas) {
+            this.userInputCanvas.style.transform = 'none';
+        }
         this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
@@ -747,8 +753,8 @@ class CanvasManager {
         if (newScale > maxScale) newScale = maxScale;
 
         const scaleRatio = newScale / prevScale;
-        this.transform.panX += offsetX * (1 - scaleRatio);
-        this.transform.panY += offsetY * (1 - scaleRatio);
+        this.transform.panX -= (offsetX - this.transform.panX) * (scaleRatio - 1);
+        this.transform.panY -= (offsetY - this.transform.panY) * (scaleRatio - 1);
         this.transform.scale = newScale;
 
         this._clampPan();
@@ -1064,37 +1070,24 @@ class CanvasManager {
 
     exportState() {
         return {
-            points: JSON.parse(JSON.stringify(this.userPoints)),
-            boxes: JSON.parse(JSON.stringify(this.userBoxes)),
-            drawnMasks: JSON.parse(JSON.stringify(this.userDrawnMasks)),
-            maskInput: this.combinedUserMaskInput256 ? JSON.parse(JSON.stringify(this.combinedUserMaskInput256)) : null,
-            manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
-            automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions)),
-            selectedManualMaskIndex: this.selectedManualMaskIndex,
-            currentPredictionMultiBox: this.currentPredictionMultiBox,
             layers: JSON.parse(JSON.stringify(this.layers)),
             selectedLayerIds: JSON.parse(JSON.stringify(this.selectedLayerIds)),
-            mode: this.mode
+            mode: this.mode,
+            transform: { ...this.transform }
         };
     }
 
     importState(state) {
         if (!state) return;
-        this.userPoints = state.points || [];
-        this.userBoxes = state.boxes || [];
-        this.currentBox = null;
-        this.userDrawnMasks = state.drawnMasks || [];
-        this.combinedUserMaskInput256 = state.maskInput || null;
-        this.manualPredictions = state.manualPredictions || [];
-        this.automaskPredictions = state.automaskPredictions || [];
-        this.selectedManualMaskIndex = state.selectedManualMaskIndex || 0;
-        this.currentPredictionMultiBox = state.currentPredictionMultiBox || false;
         this.layers = state.layers || [];
         this.selectedLayerIds = state.selectedLayerIds || [];
         this.mode = state.mode || 'edit';
-        if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
-        this.drawUserInputLayer();
-        this.drawPredictionMaskLayer();
+        if (state.transform) {
+            this.transform = { ...this.transform, ...state.transform };
+            this.applyCanvasTransform();
+        } else {
+            this.drawPredictionMaskLayer();
+        }
     }
 
     startMaskEdit(layerId, maskData, color) {

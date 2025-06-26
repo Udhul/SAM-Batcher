@@ -39,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const uiManager = new UIManager();
   const canvasManager = new CanvasManager();
 
-  const canvasStateCache = {};
   let imageLayerCache = {};
   let projectTagList = [];
   let layerTagDebouncers = {};
@@ -367,13 +366,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function saveCanvasState(hash) {
-    if (!hash) return;
-    canvasStateCache[hash] = canvasManager.exportState();
+    // State caching of prediction inputs was removed
   }
 
   function restoreCanvasState(hash) {
-    const state = canvasStateCache[hash];
-    if (state) canvasManager.importState(state);
+    // Previously saved canvas state is ignored
   }
 
   function syncLayerCache(hash) {
@@ -611,7 +608,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const imageElement = new Image();
     imageElement.onload = () => {
       canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
-      const hadState = !!canvasStateCache[imageHash];
       restoreCanvasState(imageHash);
       canvasManager.setManualPredictions(null);
       canvasManager.setAutomaskPredictions(null);
