@@ -207,13 +207,13 @@ class CanvasManager {
 
     applyCanvasTransform() {
         const t = `translate(${this.transform.panX}px, ${this.transform.panY}px) scale(${this.transform.scale})`;
-        [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas].forEach(c => {
-            if (c) {
-                c.style.transformOrigin = 'top left';
-                c.style.transform = t;
-            }
-        });
+        if (this.imageCanvas) {
+            this.imageCanvas.style.transformOrigin = 'top left';
+            this.imageCanvas.style.transform = t;
+        }
         this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
     }
 
     // --- Coordinate Transformation ---
@@ -222,23 +222,23 @@ class CanvasManager {
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
 
         const rect = this.userInputCanvas.getBoundingClientRect();
-        // Normalize click coordinates to be relative to the canvas element
         const canvasX = (clientX - rect.left) * (this.userInputCanvas.width / rect.width);
         const canvasY = (clientY - rect.top) * (this.userInputCanvas.height / rect.height);
 
-        // Scale canvas coordinates to original image coordinates
+        const scale = this.displayScale * this.transform.scale;
         return {
-            x: canvasX / this.displayScale,
-            y: canvasY / this.displayScale
+            x: (canvasX - this.transform.panX) / scale,
+            y: (canvasY - this.transform.panY) / scale
         };
     }
 
     _originalToDisplayCoords(originalX, originalY) {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
+        const scale = this.displayScale * this.transform.scale;
         return {
-            x: originalX * this.displayScale,
-            y: originalY * this.displayScale
+            x: originalX * scale + this.transform.panX,
+            y: originalY * scale + this.transform.panY
         };
     }
 
@@ -515,13 +515,10 @@ class CanvasManager {
                 if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
-                const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
-                    ? this.editingMask
-                    : l.maskData;
-                const color = (this.editingLayerId && l.layerId === this.editingLayerId)
-                    ? this.editingColor
-                    : l.color;
-                if (mask) this._drawBinaryMask(mask, color, op);
+                const isEditing = this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask;
+                const mask = isEditing ? this.editingMask : l.maskData;
+                const color = isEditing ? this.editingColor : l.color;
+                if (mask) this._drawBinaryMask(mask, color, op, isEditing);
             });
         }
 
@@ -893,7 +890,7 @@ class CanvasManager {
         }
     }
 
-    _drawBinaryMask(maskData, colorStr, opacity = 1.0) {
+    _drawBinaryMask(maskData, colorStr, opacity = 1.0, solid = false) {
         if (!maskData || !maskData.length || !maskData[0].length) return;
         const maskHeight = maskData.length;
         const maskWidth = maskData[0].length;
@@ -909,7 +906,7 @@ class CanvasManager {
         const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
         const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
 
-        const spacing = 6; // pixel spacing between hatch lines
+        const spacing = solid ? 1 : 4; // pixel spacing between hatch lines
         const lineWidth = 2; // hatch line thickness
 
         const isBorder = (mx, my) => {
@@ -926,7 +923,7 @@ class CanvasManager {
                 if (!maskData[y][x]) continue;
                 const idx = (y * maskWidth + x) * 4;
                 const border = isBorder(x, y);
-                const drawPixel = border || ((x + y) % spacing < lineWidth);
+                const drawPixel = border || solid || ((x + y) % spacing < lineWidth);
                 if (drawPixel) {
                     pixelData[idx] = r;
                     pixelData[idx + 1] = g;

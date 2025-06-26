@@ -613,6 +613,8 @@ document.addEventListener("DOMContentLoaded", () => {
       canvasManager.loadImageOntoCanvas(imageElement, width, height, filename);
       const hadState = !!canvasStateCache[imageHash];
       restoreCanvasState(imageHash);
+      canvasManager.setManualPredictions(null);
+      canvasManager.setAutomaskPredictions(null);
       layerViewController && layerViewController.setSelectedLayers([]);
       if (editModeController) editModeController.endEdit();
       canvasManager.setMode("creation");
@@ -1125,7 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasManager.clearAllCanvasInputs(false);
     canvasManager.setManualPredictions(null);
     canvasManager.setAutomaskPredictions(null);
-    canvasManager.setMode("edit");
+    canvasManager.setMode("creation");
   }
 
   if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
