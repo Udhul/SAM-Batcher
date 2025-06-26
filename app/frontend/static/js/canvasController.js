@@ -220,7 +220,7 @@ class CanvasManager {
     }
 
     applyCanvasTransform() {
-        const t = `scale(${this.transform.scale}) translate(${this.transform.panX}px, ${this.transform.panY}px)`;
+        const t = `translate(${this.transform.panX}px, ${this.transform.panY}px) scale(${this.transform.scale})`;
         if (this.imageCanvas) {
             this.imageCanvas.style.transformOrigin = 'top left';
             this.imageCanvas.style.transform = t;
