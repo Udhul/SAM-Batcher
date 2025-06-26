@@ -205,6 +205,20 @@ class CanvasManager {
         // It will be resized in drawPredictionMaskLayer if needed.
     }
 
+    resizeOffscreenForTransform() {
+        if (!this.imageCanvas) return;
+        const scaledW = Math.ceil(this.imageCanvas.width * this.transform.scale);
+        const scaledH = Math.ceil(this.imageCanvas.height * this.transform.scale);
+        if (this.offscreenPredictionCanvas.width !== scaledW || this.offscreenPredictionCanvas.height !== scaledH) {
+            this.offscreenPredictionCanvas.width = scaledW;
+            this.offscreenPredictionCanvas.height = scaledH;
+        }
+        if (this.offscreenUserCanvas.width !== scaledW || this.offscreenUserCanvas.height !== scaledH) {
+            this.offscreenUserCanvas.width = scaledW;
+            this.offscreenUserCanvas.height = scaledH;
+        }
+    }
+
     applyCanvasTransform() {
         const t = `translate(${this.transform.panX}px, ${this.transform.panY}px) scale(${this.transform.scale})`;
         if (this.imageCanvas) {
@@ -217,6 +231,7 @@ class CanvasManager {
         if (this.userInputCanvas) {
             this.userInputCanvas.style.transform = 'none';
         }
+        this.resizeOffscreenForTransform();
         this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
@@ -238,14 +253,18 @@ class CanvasManager {
         };
     }
 
-    _originalToDisplayCoords(originalX, originalY) {
+    _originalToViewportCoords(originalX, originalY) {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
         const scale = this.displayScale * this.transform.scale;
-        return {
-            x: originalX * scale + this.transform.panX,
-            y: originalY * scale + this.transform.panY
-        };
+        return { x: originalX * scale, y: originalY * scale };
+    }
+
+    _originalToDisplayCoords(originalX, originalY) {
+        if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
+            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
+        const pv = this._originalToViewportCoords(originalX, originalY);
+        return { x: pv.x + this.transform.panX, y: pv.y + this.transform.panY };
     }
 
     getZoomedDisplayScale() {
@@ -437,17 +456,17 @@ class CanvasManager {
 
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
 
-        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Scale point radius slightly
-        const lineDisplayWidth = Math.max(1, 2 * this.displayScale); // Scale line width
+        const pointDisplayRadius = Math.max(2, 5 * this.displayScale * this.transform.scale);
+        const lineDisplayWidth = Math.max(1, 2 * this.displayScale * this.transform.scale);
 
         // Draw drawn polygons (lassos)
         this.userDrawnMasks.forEach(mask => {
             if (mask.points.length < 3) return;
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this._originalToDisplayCoords(mask.points[0].x, mask.points[0].y);
+            const firstP_disp = this._originalToViewportCoords(mask.points[0].x, mask.points[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < mask.points.length; i++) {
-                const p_disp = this._originalToDisplayCoords(mask.points[i].x, mask.points[i].y);
+                const p_disp = this._originalToViewportCoords(mask.points[i].x, mask.points[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.closePath();
@@ -461,10 +480,10 @@ class CanvasManager {
         // Draw current lasso drawing in progress
         if (this.isDrawingLasso && this.currentLassoPoints.length > 0) {
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this._originalToDisplayCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
+            const firstP_disp = this._originalToViewportCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < this.currentLassoPoints.length; i++) {
-                const p_disp = this._originalToDisplayCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
+                const p_disp = this._originalToViewportCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.95)';
@@ -474,7 +493,7 @@ class CanvasManager {
 
         // Draw points
         this.userPoints.forEach(p_orig => {
-            const dp = this._originalToDisplayCoords(p_orig.x, p_orig.y);
+            const dp = this._originalToViewportCoords(p_orig.x, p_orig.y);
             this.offscreenUserCtx.beginPath();
             this.offscreenUserCtx.arc(dp.x, dp.y, pointDisplayRadius, 0, 2 * Math.PI);
             this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(50, 205, 50, 0.8)' : 'rgba(255, 69, 0, 0.8)'; // LimeGreen/OrangeRed
@@ -487,8 +506,8 @@ class CanvasManager {
         // Draw boxes
         [...this.userBoxes, this.currentBox].forEach(box => {
             if (!box) return;
-            const db1 = this._originalToDisplayCoords(box.x1, box.y1);
-            const db2 = this._originalToDisplayCoords(box.x2, box.y2);
+            const db1 = this._originalToViewportCoords(box.x1, box.y1);
+            const db2 = this._originalToViewportCoords(box.x2, box.y2);
             this.offscreenUserCtx.strokeStyle = 'rgba(30, 144, 255, 0.85)'; // DodgerBlue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
@@ -501,7 +520,18 @@ class CanvasManager {
         // Composite to visible canvas
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
         this.userCtx.globalAlpha = this.userInputOpacitySlider ? parseFloat(this.userInputOpacitySlider.value) : 0.8;
-        this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
+        this.userCtx.imageSmoothingEnabled = false;
+        this.userCtx.drawImage(
+            this.offscreenUserCanvas,
+            -this.transform.panX,
+            -this.transform.panY,
+            this.userInputCanvas.width,
+            this.userInputCanvas.height,
+            0,
+            0,
+            this.userInputCanvas.width,
+            this.userInputCanvas.height
+        );
         this.userCtx.globalAlpha = 1.0;
     }
 
@@ -578,10 +608,11 @@ class CanvasManager {
                 if (pixelCount > 0) {
                     this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
                     const scale = this.displayScale * this.transform.scale;
+                    const scaledW = maskWidth * scale;
+                    const scaledH = maskHeight * scale;
                     this.offscreenPredictionCtx.save();
                     this.offscreenPredictionCtx.imageSmoothingEnabled = false;
-                    this.offscreenPredictionCtx.setTransform(scale, 0, 0, scale, this.transform.panX, this.transform.panY);
-                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0);
+                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, scaledW, scaledH);
                     this.offscreenPredictionCtx.restore();
                 }
             });
@@ -591,7 +622,18 @@ class CanvasManager {
         this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
         const opacity = this.predictionOpacitySlider ? parseFloat(this.predictionOpacitySlider.value) : 0.7;
         this.predictionCtx.globalAlpha = opacity;
-        this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
+        this.predictionCtx.imageSmoothingEnabled = false;
+        this.predictionCtx.drawImage(
+            this.offscreenPredictionCanvas,
+            -this.transform.panX,
+            -this.transform.panY,
+            this.predictionMaskCanvas.width,
+            this.predictionMaskCanvas.height,
+            0,
+            0,
+            this.predictionMaskCanvas.width,
+            this.predictionMaskCanvas.height
+        );
         this.predictionCtx.globalAlpha = 1.0;
     }
 
@@ -943,11 +985,12 @@ class CanvasManager {
         this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
 
         const scale = this.displayScale * this.transform.scale;
+        const scaledW = maskWidth * scale;
+        const scaledH = maskHeight * scale;
         this.offscreenPredictionCtx.save();
         this.offscreenPredictionCtx.imageSmoothingEnabled = false;
-        this.offscreenPredictionCtx.globalAlpha = 1.0; // opacity already baked into alpha
-        this.offscreenPredictionCtx.setTransform(scale, 0, 0, scale, this.transform.panX, this.transform.panY);
-        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0);
+        this.offscreenPredictionCtx.globalAlpha = 1.0; // opacity baked in alpha
+        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, scaledW, scaledH);
         this.offscreenPredictionCtx.restore();
     }
 
@@ -1165,10 +1208,10 @@ class CanvasManager {
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
         if (points && points.length > 0) {
             this.offscreenUserCtx.beginPath();
-            const first = this._originalToDisplayCoords(points[0].x, points[0].y);
+            const first = this._originalToViewportCoords(points[0].x, points[0].y);
             this.offscreenUserCtx.moveTo(first.x, first.y);
             for (let i = 1; i < points.length; i++) {
-                const p = this._originalToDisplayCoords(points[i].x, points[i].y);
+                const p = this._originalToViewportCoords(points[i].x, points[i].y);
                 this.offscreenUserCtx.lineTo(p.x, p.y);
             }
             this.offscreenUserCtx.strokeStyle = 'rgba(255,223,0,0.95)';
