@@ -577,11 +577,12 @@ class CanvasManager {
 
                 if (pixelCount > 0) {
                     this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-                    // Draw the processed mask (at original resolution) onto the offscreen canvas,
-                    // scaling it down to the display size.
-                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
-                                                          this.offscreenPredictionCanvas.width,
-                                                          this.offscreenPredictionCanvas.height);
+                    const scale = this.displayScale * this.transform.scale;
+                    this.offscreenPredictionCtx.save();
+                    this.offscreenPredictionCtx.imageSmoothingEnabled = false;
+                    this.offscreenPredictionCtx.setTransform(scale, 0, 0, scale, this.transform.panX, this.transform.panY);
+                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0);
+                    this.offscreenPredictionCtx.restore();
                 }
             });
         }
@@ -940,8 +941,14 @@ class CanvasManager {
         }
 
         this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
-            this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+
+        const scale = this.displayScale * this.transform.scale;
+        this.offscreenPredictionCtx.save();
+        this.offscreenPredictionCtx.imageSmoothingEnabled = false;
+        this.offscreenPredictionCtx.globalAlpha = 1.0; // opacity already baked into alpha
+        this.offscreenPredictionCtx.setTransform(scale, 0, 0, scale, this.transform.panX, this.transform.panY);
+        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0);
+        this.offscreenPredictionCtx.restore();
     }
 
     _dispatchEvent(eventType, data) {
