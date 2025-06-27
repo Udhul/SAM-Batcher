@@ -888,6 +888,15 @@ document.addEventListener("DOMContentLoaded", () => {
       layerViewController.setSelectedLayers([activeLayerId]);
       canvasManager.setLayers(activeImageState.layers);
       canvasManager.setMode("edit", [activeLayerId]);
+      if (editModeController) {
+        const layer = activeImageState.layers.find(
+          (l) => l.layerId === activeLayerId,
+        );
+        if (layer) editModeController.beginEdit(layer);
+      }
+      utils.dispatchCustomEvent("layers-selected", {
+        layerIds: [activeLayerId],
+      });
       updateLayerUtilityButtons();
     });
   }
