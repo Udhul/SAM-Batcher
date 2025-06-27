@@ -205,15 +205,25 @@ class CanvasManager {
         // It will be resized in drawPredictionMaskLayer if needed.
     }
 
+    // Offscreen canvases match the base display size of the image. They are not
+    // resized on zoom to avoid cropping issues when panning. They will be sized
+    // in `drawImageLayer` whenever the image or display area changes.
+
     applyCanvasTransform() {
-        const t = `translate(${this.transform.panX}px, ${this.transform.panY}px) scale(${this.transform.scale})`;
-        [this.imageCanvas, this.predictionMaskCanvas, this.userInputCanvas].forEach(c => {
-            if (c) {
-                c.style.transformOrigin = 'top left';
-                c.style.transform = t;
-            }
-        });
+        const t = `scale(${this.transform.scale}) translate(${this.transform.panX}px, ${this.transform.panY}px)`;
+        if (this.imageCanvas) {
+            this.imageCanvas.style.transformOrigin = 'top left';
+            this.imageCanvas.style.transform = t;
+        }
+        if (this.predictionMaskCanvas) {
+            this.predictionMaskCanvas.style.transform = 'none';
+        }
+        if (this.userInputCanvas) {
+            this.userInputCanvas.style.transform = 'none';
+        }
         this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
+        this.drawUserInputLayer();
+        this.drawPredictionMaskLayer();
     }
 
     // --- Coordinate Transformation ---
@@ -222,24 +232,28 @@ class CanvasManager {
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
 
         const rect = this.userInputCanvas.getBoundingClientRect();
-        // Normalize click coordinates to be relative to the canvas element
         const canvasX = (clientX - rect.left) * (this.userInputCanvas.width / rect.width);
         const canvasY = (clientY - rect.top) * (this.userInputCanvas.height / rect.height);
 
-        // Scale canvas coordinates to original image coordinates
+        const scale = this.displayScale * this.transform.scale;
         return {
-            x: canvasX / this.displayScale,
-            y: canvasY / this.displayScale
+            x: (canvasX - this.transform.panX) / scale,
+            y: (canvasY - this.transform.panY) / scale
         };
+    }
+
+    _originalToViewportCoords(originalX, originalY) {
+        if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
+            this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
+        const scale = this.displayScale;
+        return { x: originalX * scale, y: originalY * scale };
     }
 
     _originalToDisplayCoords(originalX, originalY) {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
-        return {
-            x: originalX * this.displayScale,
-            y: originalY * this.displayScale
-        };
+        const pv = this._originalToViewportCoords(originalX, originalY);
+        return { x: pv.x + this.transform.panX, y: pv.y + this.transform.panY };
     }
 
     getZoomedDisplayScale() {
@@ -431,17 +445,17 @@ class CanvasManager {
 
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
 
-        const pointDisplayRadius = Math.max(2, 5 * this.displayScale); // Scale point radius slightly
-        const lineDisplayWidth = Math.max(1, 2 * this.displayScale); // Scale line width
+        const pointDisplayRadius = Math.max(2, 5 * this.displayScale);
+        const lineDisplayWidth = Math.max(1, 2 * this.displayScale);
 
         // Draw drawn polygons (lassos)
         this.userDrawnMasks.forEach(mask => {
             if (mask.points.length < 3) return;
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this._originalToDisplayCoords(mask.points[0].x, mask.points[0].y);
+            const firstP_disp = this._originalToViewportCoords(mask.points[0].x, mask.points[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < mask.points.length; i++) {
-                const p_disp = this._originalToDisplayCoords(mask.points[i].x, mask.points[i].y);
+                const p_disp = this._originalToViewportCoords(mask.points[i].x, mask.points[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.closePath();
@@ -455,10 +469,10 @@ class CanvasManager {
         // Draw current lasso drawing in progress
         if (this.isDrawingLasso && this.currentLassoPoints.length > 0) {
             this.offscreenUserCtx.beginPath();
-            const firstP_disp = this._originalToDisplayCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
+            const firstP_disp = this._originalToViewportCoords(this.currentLassoPoints[0].x, this.currentLassoPoints[0].y);
             this.offscreenUserCtx.moveTo(firstP_disp.x, firstP_disp.y);
             for (let i = 1; i < this.currentLassoPoints.length; i++) {
-                const p_disp = this._originalToDisplayCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
+                const p_disp = this._originalToViewportCoords(this.currentLassoPoints[i].x, this.currentLassoPoints[i].y);
                 this.offscreenUserCtx.lineTo(p_disp.x, p_disp.y);
             }
             this.offscreenUserCtx.strokeStyle = 'rgba(255, 223, 0, 0.95)';
@@ -468,7 +482,7 @@ class CanvasManager {
 
         // Draw points
         this.userPoints.forEach(p_orig => {
-            const dp = this._originalToDisplayCoords(p_orig.x, p_orig.y);
+            const dp = this._originalToViewportCoords(p_orig.x, p_orig.y);
             this.offscreenUserCtx.beginPath();
             this.offscreenUserCtx.arc(dp.x, dp.y, pointDisplayRadius, 0, 2 * Math.PI);
             this.offscreenUserCtx.fillStyle = p_orig.label === 1 ? 'rgba(50, 205, 50, 0.8)' : 'rgba(255, 69, 0, 0.8)'; // LimeGreen/OrangeRed
@@ -481,8 +495,8 @@ class CanvasManager {
         // Draw boxes
         [...this.userBoxes, this.currentBox].forEach(box => {
             if (!box) return;
-            const db1 = this._originalToDisplayCoords(box.x1, box.y1);
-            const db2 = this._originalToDisplayCoords(box.x2, box.y2);
+            const db1 = this._originalToViewportCoords(box.x1, box.y1);
+            const db2 = this._originalToViewportCoords(box.x2, box.y2);
             this.offscreenUserCtx.strokeStyle = 'rgba(30, 144, 255, 0.85)'; // DodgerBlue
             this.offscreenUserCtx.lineWidth = lineDisplayWidth;
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
@@ -492,11 +506,15 @@ class CanvasManager {
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
         });
 
-        // Composite to visible canvas
+        // Composite to visible canvas using the current zoom/pan transform
+        this.userCtx.setTransform(1, 0, 0, 1, 0, 0);
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
+        this.userCtx.save();
+        this.userCtx.setTransform(this.transform.scale, 0, 0, this.transform.scale, this.transform.panX, this.transform.panY);
         this.userCtx.globalAlpha = this.userInputOpacitySlider ? parseFloat(this.userInputOpacitySlider.value) : 0.8;
+        this.userCtx.imageSmoothingEnabled = false;
         this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
-        this.userCtx.globalAlpha = 1.0;
+        this.userCtx.restore();
     }
 
     drawPredictionMaskLayer() {
@@ -515,13 +533,10 @@ class CanvasManager {
                 if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
-                const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
-                    ? this.editingMask
-                    : l.maskData;
-                const color = (this.editingLayerId && l.layerId === this.editingLayerId)
-                    ? this.editingColor
-                    : l.color;
-                if (mask) this._drawBinaryMask(mask, color, op);
+                const isEditing = this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask;
+                const mask = isEditing ? this.editingMask : l.maskData;
+                const color = isEditing ? this.editingColor : l.color;
+                if (mask) this._drawBinaryMask(mask, color, op, isEditing);
             });
         }
 
@@ -574,21 +589,26 @@ class CanvasManager {
 
                 if (pixelCount > 0) {
                     this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-                    // Draw the processed mask (at original resolution) onto the offscreen canvas,
-                    // scaling it down to the display size.
-                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
-                                                          this.offscreenPredictionCanvas.width,
-                                                          this.offscreenPredictionCanvas.height);
+                    const scaledW = maskWidth * this.displayScale;
+                    const scaledH = maskHeight * this.displayScale;
+                    this.offscreenPredictionCtx.save();
+                    this.offscreenPredictionCtx.imageSmoothingEnabled = false;
+                    this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, scaledW, scaledH);
+                    this.offscreenPredictionCtx.restore();
                 }
             });
         }
 
-        // Composite to visible prediction canvas
+        // Composite to visible prediction canvas using the current transform
+        this.predictionCtx.setTransform(1, 0, 0, 1, 0, 0);
         this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
+        this.predictionCtx.save();
+        this.predictionCtx.setTransform(this.transform.scale, 0, 0, this.transform.scale, this.transform.panX, this.transform.panY);
         const opacity = this.predictionOpacitySlider ? parseFloat(this.predictionOpacitySlider.value) : 0.7;
         this.predictionCtx.globalAlpha = opacity;
+        this.predictionCtx.imageSmoothingEnabled = false;
         this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
-        this.predictionCtx.globalAlpha = 1.0;
+        this.predictionCtx.restore();
     }
 
     // --- User Interaction Handlers ---
@@ -750,8 +770,8 @@ class CanvasManager {
         if (newScale > maxScale) newScale = maxScale;
 
         const scaleRatio = newScale / prevScale;
-        this.transform.panX += offsetX * (1 - scaleRatio);
-        this.transform.panY += offsetY * (1 - scaleRatio);
+        this.transform.panX -= (offsetX - this.transform.panX) * (scaleRatio - 1);
+        this.transform.panY -= (offsetY - this.transform.panY) * (scaleRatio - 1);
         this.transform.scale = newScale;
 
         this._clampPan();
@@ -893,7 +913,7 @@ class CanvasManager {
         }
     }
 
-    _drawBinaryMask(maskData, colorStr, opacity = 1.0) {
+    _drawBinaryMask(maskData, colorStr, opacity = 1.0, solid = false) {
         if (!maskData || !maskData.length || !maskData[0].length) return;
         const maskHeight = maskData.length;
         const maskWidth = maskData[0].length;
@@ -909,7 +929,7 @@ class CanvasManager {
         const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
         const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
 
-        const spacing = 6; // pixel spacing between hatch lines
+        const spacing = solid ? 1 : 4; // pixel spacing between hatch lines
         const lineWidth = 2; // hatch line thickness
 
         const isBorder = (mx, my) => {
@@ -926,7 +946,7 @@ class CanvasManager {
                 if (!maskData[y][x]) continue;
                 const idx = (y * maskWidth + x) * 4;
                 const border = isBorder(x, y);
-                const drawPixel = border || ((x + y) % spacing < lineWidth);
+                const drawPixel = border || solid || ((x + y) % spacing < lineWidth);
                 if (drawPixel) {
                     pixelData[idx] = r;
                     pixelData[idx + 1] = g;
@@ -937,8 +957,14 @@ class CanvasManager {
         }
 
         this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0,
-            this.offscreenPredictionCanvas.width, this.offscreenPredictionCanvas.height);
+
+        const scaledW = maskWidth * this.displayScale;
+        const scaledH = maskHeight * this.displayScale;
+        this.offscreenPredictionCtx.save();
+        this.offscreenPredictionCtx.imageSmoothingEnabled = false;
+        this.offscreenPredictionCtx.globalAlpha = 1.0; // opacity baked in alpha
+        this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, scaledW, scaledH);
+        this.offscreenPredictionCtx.restore();
     }
 
     _dispatchEvent(eventType, data) {
@@ -1067,37 +1093,24 @@ class CanvasManager {
 
     exportState() {
         return {
-            points: JSON.parse(JSON.stringify(this.userPoints)),
-            boxes: JSON.parse(JSON.stringify(this.userBoxes)),
-            drawnMasks: JSON.parse(JSON.stringify(this.userDrawnMasks)),
-            maskInput: this.combinedUserMaskInput256 ? JSON.parse(JSON.stringify(this.combinedUserMaskInput256)) : null,
-            manualPredictions: JSON.parse(JSON.stringify(this.manualPredictions)),
-            automaskPredictions: JSON.parse(JSON.stringify(this.automaskPredictions)),
-            selectedManualMaskIndex: this.selectedManualMaskIndex,
-            currentPredictionMultiBox: this.currentPredictionMultiBox,
             layers: JSON.parse(JSON.stringify(this.layers)),
             selectedLayerIds: JSON.parse(JSON.stringify(this.selectedLayerIds)),
-            mode: this.mode
+            mode: this.mode,
+            transform: { ...this.transform }
         };
     }
 
     importState(state) {
         if (!state) return;
-        this.userPoints = state.points || [];
-        this.userBoxes = state.boxes || [];
-        this.currentBox = null;
-        this.userDrawnMasks = state.drawnMasks || [];
-        this.combinedUserMaskInput256 = state.maskInput || null;
-        this.manualPredictions = state.manualPredictions || [];
-        this.automaskPredictions = state.automaskPredictions || [];
-        this.selectedManualMaskIndex = state.selectedManualMaskIndex || 0;
-        this.currentPredictionMultiBox = state.currentPredictionMultiBox || false;
         this.layers = state.layers || [];
         this.selectedLayerIds = state.selectedLayerIds || [];
         this.mode = state.mode || 'edit';
-        if (this.userDrawnMasks.length > 0) this._prepareCombinedUserMaskInput();
-        this.drawUserInputLayer();
-        this.drawPredictionMaskLayer();
+        if (state.transform) {
+            this.transform = { ...this.transform, ...state.transform };
+            this.applyCanvasTransform();
+        } else {
+            this.drawPredictionMaskLayer();
+        }
     }
 
     startMaskEdit(layerId, maskData, color) {
@@ -1168,10 +1181,10 @@ class CanvasManager {
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
         if (points && points.length > 0) {
             this.offscreenUserCtx.beginPath();
-            const first = this._originalToDisplayCoords(points[0].x, points[0].y);
+            const first = this._originalToViewportCoords(points[0].x, points[0].y);
             this.offscreenUserCtx.moveTo(first.x, first.y);
             for (let i = 1; i < points.length; i++) {
-                const p = this._originalToDisplayCoords(points[i].x, points[i].y);
+                const p = this._originalToViewportCoords(points[i].x, points[i].y);
                 this.offscreenUserCtx.lineTo(p.x, p.y);
             }
             this.offscreenUserCtx.strokeStyle = 'rgba(255,223,0,0.95)';
