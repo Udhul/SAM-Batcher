@@ -855,14 +855,12 @@ document.addEventListener("DOMContentLoaded", () => {
         .filter(Boolean);
       if (others.length === 0) return;
       others.forEach((o) => {
-        if (o.maskData && activeLayer.maskData) {
-          for (let y = 0; y < activeLayer.maskData.length; y++) {
-            for (let x = 0; x < activeLayer.maskData[0].length; x++) {
-              activeLayer.maskData[y][x] = activeLayer.maskData[y][x] || o.maskData[y][x];
-            }
+        if (o.maskData) {
+          if (activeLayer.maskData) {
+            utils.unionBinaryMasks(activeLayer.maskData, o.maskData);
+          } else {
+            activeLayer.maskData = JSON.parse(JSON.stringify(o.maskData));
           }
-        } else if (o.maskData && !activeLayer.maskData) {
-          activeLayer.maskData = JSON.parse(JSON.stringify(o.maskData));
         }
         (o.classLabels || []).forEach((t) => {
           if (!activeLayer.classLabels.includes(t)) activeLayer.classLabels.push(t);

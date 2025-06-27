@@ -94,7 +94,7 @@ This panel sits to the right of the canvas and always reflects the layers for th
         *   **Select for Edit:** Clicking anywhere on the layer item (except controls) selects it, putting the canvas into **Edit Mode** for this layer. The selected layer should be highlighted.
         *   **Delete Button (Trash Icon):** Permanently removes the layer. Requires confirmation.
         *   **Duplicate Button:** Creates a copy of the active layer.
-        *   **Merge Button:** Merges all selected layers into the active one, combining masks and labels.
+        *   **Merge Button:** Merges all selected layers into the active one, combining masks and labels. Overlapping mask regions are unioned so the resulting layer has a single mask per pixel.
 
 At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON. Duplicate and Merge utilities appear in this bar next to the image status toggles.
 

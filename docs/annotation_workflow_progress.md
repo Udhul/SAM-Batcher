@@ -107,4 +107,5 @@ It will be updated as new sprints add functionality.
     `Discard` button to revert changes.
   - **Layer Utilities**: Duplicate and Merge buttons appear next to the Skip/Ready toggles and refresh the canvas immediately after merging.
   - **Merge Redraw Fix**: The canvas now refreshes after merging layers so merged masks appear immediately.
+  - **Merge Union**: Overlapping regions from merged layers are combined so no pixel is covered by multiple masks in the resulting layer.
 
