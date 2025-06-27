@@ -60,6 +60,9 @@ class EditModeController {
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         this.canvasManager.addEventListener('zoom-pan-changed', () => this.updatePreviewSize());
+        document.addEventListener('canvas-brushSizeScroll', (e) => {
+            this.adjustBrushSize(e.detail.delta);
+        });
     }
 
     updatePreviewSize() {
@@ -67,6 +70,15 @@ class EditModeController {
         const r = this.brushSize * this.canvasManager.getZoomedDisplayScale() * 2;
         this.previewEl.style.width = `${r}px`;
         this.previewEl.style.height = `${r}px`;
+    }
+
+    adjustBrushSize(delta) {
+        this.brushSize += delta;
+        if (this.brushSize < 1) this.brushSize = 1;
+        const max = this.brushSizeInput ? parseInt(this.brushSizeInput.max, 10) : 50;
+        if (this.brushSize > max) this.brushSize = max;
+        if (this.brushSizeInput) this.brushSizeInput.value = this.brushSize;
+        this.updatePreviewSize();
     }
 
     beginEdit(layer) {

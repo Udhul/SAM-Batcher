@@ -738,6 +738,14 @@ class CanvasManager {
 
     _handleWheel(e) {
         if (!this.currentImage) return;
+
+        if (this.editingMask && e.ctrlKey) {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 1 : -1;
+            this._dispatchEvent('brushSizeScroll', { delta });
+            return;
+        }
+
         e.preventDefault();
 
         const rect = this.userInputCanvas.getBoundingClientRect();
