@@ -521,7 +521,8 @@ class CanvasManager {
                 const color = (this.editingLayerId && l.layerId === this.editingLayerId)
                     ? this.editingColor
                     : l.color;
-                if (mask) this._drawBinaryMask(mask, color, op);
+                const hatch = !(this.editingLayerId && l.layerId === this.editingLayerId);
+                if (mask) this._drawBinaryMask(mask, color, op, hatch);
             });
         }
 
@@ -737,6 +738,14 @@ class CanvasManager {
 
     _handleWheel(e) {
         if (!this.currentImage) return;
+
+        if (this.editingMask && e.ctrlKey) {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 1 : -1;
+            this._dispatchEvent('brushSizeScroll', { delta });
+            return;
+        }
+
         e.preventDefault();
 
         const rect = this.userInputCanvas.getBoundingClientRect();
@@ -893,7 +902,7 @@ class CanvasManager {
         }
     }
 
-    _drawBinaryMask(maskData, colorStr, opacity = 1.0) {
+    _drawBinaryMask(maskData, colorStr, opacity = 1.0, hatch = true) {
         if (!maskData || !maskData.length || !maskData[0].length) return;
         const maskHeight = maskData.length;
         const maskWidth = maskData[0].length;
@@ -909,7 +918,7 @@ class CanvasManager {
         const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
         const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
 
-        const spacing = 6; // pixel spacing between hatch lines
+        const spacing = 4; // pixel spacing between hatch lines (tighter pattern)
         const lineWidth = 2; // hatch line thickness
 
         const isBorder = (mx, my) => {
@@ -926,7 +935,7 @@ class CanvasManager {
                 if (!maskData[y][x]) continue;
                 const idx = (y * maskWidth + x) * 4;
                 const border = isBorder(x, y);
-                const drawPixel = border || ((x + y) % spacing < lineWidth);
+                const drawPixel = border || !hatch || ((x + y) % spacing < lineWidth);
                 if (drawPixel) {
                     pixelData[idx] = r;
                     pixelData[idx + 1] = g;
@@ -1128,10 +1137,10 @@ class CanvasManager {
         const cy = Math.round(y);
         for (let j = -radius; j <= radius; j++) {
             for (let i = -radius; i <= radius; i++) {
-                if (i*i + j*j <= radius*radius) {
+                if (i * i + j * j <= radius * radius) {
                     const nx = cx + i;
                     const ny = cy + j;
-                    if (nx >=0 && ny >=0 && nx < w && ny < h) {
+                    if (nx >= 0 && ny >= 0 && nx < w && ny < h) {
                         this.editingMask[ny][nx] = add ? 1 : 0;
                     }
                 }
@@ -1310,6 +1319,8 @@ class CanvasManager {
     finishMaskEdit() {
         this.editingLayerId = null;
         this.editingMask = null;
+        this.editHistory = [];
+        this.editHistoryIndex = -1;
         this.drawPredictionMaskLayer();
     }
 

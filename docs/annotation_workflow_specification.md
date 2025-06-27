@@ -93,8 +93,10 @@ This panel sits to the right of the canvas and always reflects the layers for th
     *   **Controls:**
         *   **Select for Edit:** Clicking anywhere on the layer item (except controls) selects it, putting the canvas into **Edit Mode** for this layer. The selected layer should be highlighted.
         *   **Delete Button (Trash Icon):** Permanently removes the layer. Requires confirmation.
+        *   **Duplicate Button:** Creates a copy of the active layer.
+        *   **Merge Button:** Merges all selected layers into the active one, combining masks and labels. Overlapping mask regions are unioned so the resulting layer has a single mask per pixel.
 
-At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON.
+At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON. Duplicate and Merge utilities appear in this bar next to the image status toggles.
 
 #### 3.1.3. Canvas & Toolbar
 
@@ -124,10 +126,9 @@ The canvas interaction will be modal, determined by whether a layer is selected 
         *   **Invert:** Inverts the mask.
         *   **Undo:** Undo last action (Step backward in edit memory).
         *   **Redo:** Redo (Step forward in edit memory).
-        *   **Save:** Save the edits and exit edit mode.
-        *   **Cancel:** Discard edits and exit edit mode.
+        *   **Discard:** Revert changes and exit edit mode.
     
-    A `Save Edit` and `Cancel`: `Save Edit` finalizes the changes to the mask data and sets the layer status to `Edited`. Cancel discards the edits. Both returns the user to Creation Mode (no layer/ empty new layer selected).
+    Edits are automatically saved when leaving edit mode or changing the selected layers. The `Discard` button reverts the masks to their original state without saving.
 
 #### 3.1.4. Image Status & Pool
 

@@ -33,8 +33,7 @@ class EditModeController {
         this.invertBtn = document.getElementById('edit-invert-btn');
         this.undoBtn = document.getElementById('edit-undo-btn');
         this.redoBtn = document.getElementById('edit-redo-btn');
-        this.saveBtn = document.getElementById('edit-save-btn');
-        this.cancelBtn = document.getElementById('edit-cancel-btn');
+        this.discardBtn = document.getElementById('edit-discard-btn');
         this.previewEl = document.getElementById('brush-preview');
     }
 
@@ -51,8 +50,7 @@ class EditModeController {
         if (this.invertBtn) this.invertBtn.addEventListener('click', () => this.actionInvert());
         if (this.undoBtn) this.undoBtn.addEventListener('click', () => this.actionUndo());
         if (this.redoBtn) this.redoBtn.addEventListener('click', () => this.actionRedo());
-        if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.save());
-        if (this.cancelBtn) this.cancelBtn.addEventListener('click', () => this.cancel());
+        if (this.discardBtn) this.discardBtn.addEventListener('click', () => this.discard());
         const canvas = this.canvasManager.userInputCanvas;
         if (canvas) {
             canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
@@ -62,6 +60,9 @@ class EditModeController {
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         this.canvasManager.addEventListener('zoom-pan-changed', () => this.updatePreviewSize());
+        document.addEventListener('canvas-brushSizeScroll', (e) => {
+            this.adjustBrushSize(e.detail.delta);
+        });
     }
 
     updatePreviewSize() {
@@ -69,6 +70,15 @@ class EditModeController {
         const r = this.brushSize * this.canvasManager.getZoomedDisplayScale() * 2;
         this.previewEl.style.width = `${r}px`;
         this.previewEl.style.height = `${r}px`;
+    }
+
+    adjustBrushSize(delta) {
+        this.brushSize += delta;
+        if (this.brushSize < 1) this.brushSize = 1;
+        const max = this.brushSizeInput ? parseInt(this.brushSizeInput.max, 10) : 50;
+        if (this.brushSize > max) this.brushSize = max;
+        if (this.brushSizeInput) this.brushSizeInput.value = this.brushSize;
+        this.updatePreviewSize();
     }
 
     beginEdit(layer) {
@@ -188,15 +198,8 @@ class EditModeController {
         this.canvasManager.redoEdit();
     }
 
-    save() {
-        if (!this.activeLayer) return;
-        const edited = this.canvasManager.getEditedMask();
-        this.utils.dispatchCustomEvent('edit-save', { layerId: this.activeLayer.layerId, maskData: edited });
-        this.endEdit();
-    }
-
-    cancel() {
-        this.utils.dispatchCustomEvent('edit-cancel', {});
+    discard() {
+        this.utils.dispatchCustomEvent('edit-discard', {});
         this.endEdit();
     }
 }

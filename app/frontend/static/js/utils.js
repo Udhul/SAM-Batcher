@@ -243,6 +243,24 @@ const Utils = {
         }
         counts.push(count);
         return { counts, size: [height, width] };
+    },
+
+    /**
+     * Combine two binary masks by union. Modifies and returns `base`.
+     * @param {Array<Array<number>>} base - 2D binary mask array to merge into.
+     * @param {Array<Array<number>>} other - 2D binary mask array to merge from.
+     * @returns {Array<Array<number>>} base mask after union.
+     */
+    unionBinaryMasks: (base, other) => {
+        if (!base || !other) return base;
+        const h = Math.min(base.length, other.length);
+        const w = Math.min(base[0].length, other[0].length);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                base[y][x] = base[y][x] || other[y][x] ? 1 : 0;
+            }
+        }
+        return base;
     }
 };
 

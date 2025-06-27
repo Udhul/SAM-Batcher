@@ -118,6 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const commitMasksBtn = document.getElementById("commit-masks-btn");
   const openExportBtn = document.getElementById("open-export-btn");
   const addEmptyLayerBtn = document.getElementById("add-empty-layer-btn");
+  const duplicateLayerBtn = document.getElementById("duplicate-layer-btn");
+  const mergeLayersBtn = document.getElementById("merge-layers-btn");
   const creationActions = document.getElementById("creation-actions");
   const editActions = document.getElementById("edit-actions");
   const helpTooltipContent = document.querySelector("#help-icon .tooltip-content");
@@ -164,6 +166,45 @@ document.addEventListener("DOMContentLoaded", () => {
   let reviewHistoryIndex = -1;
   let navigatingHistory = false;
   let suppressStatusChangeEvents = false;
+  let selectedLayerIds = [];
+  let activeLayerId = null;
+
+  function updateLayerUtilityButtons() {
+    if (duplicateLayerBtn) {
+      duplicateLayerBtn.disabled = !activeLayerId;
+    }
+    if (mergeLayersBtn) {
+      mergeLayersBtn.disabled = !(
+        activeLayerId && Array.isArray(selectedLayerIds) && selectedLayerIds.length > 1
+      );
+    }
+  }
+  async function autoSaveCurrentEdits() {
+    if (!activeImageState || !editModeController || !editModeController.activeLayer) return;
+    const mask = canvasManager.getEditedMask();
+    const layerId = editModeController.activeLayer.layerId;
+    const layer = activeImageState.layers.find((l) => l.layerId === layerId);
+    if (!layer || !mask) return;
+    layer.maskData = mask;
+    layer.status = "edited";
+    const projectId = stateManager.getActiveProjectId();
+    const ih = activeImageState.imageHash;
+    if (projectId && ih) {
+      const rle = utils.binaryMaskToRLE(mask);
+      try {
+        await apiClient.updateMaskLayer(projectId, ih, layerId, {
+          mask_data_rle: rle,
+          status: "edited",
+        });
+      } catch (err) {
+        uiManager.showGlobalStatus(
+          `Save edit failed: ${utils.escapeHTML(err.message)}`,
+          "error",
+        );
+      }
+    }
+    onImageDataChange("layer-modified", { layerId });
+  }
 
   function deriveStatusFromLayers() {
     if (!activeImageState) return "unprocessed";
@@ -190,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateStatusToggleUI("unprocessed", false);
+  updateLayerUtilityButtons();
   updateHelpTooltipForMode("creation");
 
   function enterReviewMode() {
@@ -482,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // == ImagePoolHandler Events ==
   document.addEventListener("active-image-set", async (event) => {
-    const {
+  const {
       imageHash,
       filename,
       width,
@@ -491,6 +533,9 @@ document.addEventListener("DOMContentLoaded", () => {
       existingMasks,
       status,
     } = event.detail;
+    canvasManager.clearAllCanvasInputs(true);
+    canvasManager.setManualPredictions(null);
+    canvasManager.setAutomaskPredictions(null);
     uiManager.showGlobalStatus(
       `Loading image '${utils.escapeHTML(filename)}' for annotation...`,
       "loading",
@@ -746,10 +791,113 @@ document.addEventListener("DOMContentLoaded", () => {
           onImageDataChange("layer-added", { layerIds: [newLayer.layerId] });
           canvasManager.clearAllCanvasInputs(false);
           canvasManager.setMode("edit");
+          updateLayerUtilityButtons();
         }
       } catch (err) {
         console.error("Failed to create empty layer", err);
       }
+    });
+  }
+
+  if (duplicateLayerBtn) {
+    duplicateLayerBtn.addEventListener("click", async () => {
+      if (!activeImageState || !activeLayerId) return;
+      const original = activeImageState.layers.find((l) => l.layerId === activeLayerId);
+      if (!original) return;
+      const projectId = stateManager.getActiveProjectId();
+      if (!projectId) return;
+      const name = `${original.name} (copy)`;
+      const color = utils.getRandomHexColor();
+      try {
+        const res = await apiClient.createEmptyLayer(projectId, activeImageState.imageHash, {
+          name,
+          class_labels: original.classLabels || [],
+          display_color: color,
+        });
+        if (res.success) {
+          const newLayer = {
+            layerId: res.layer_id,
+            name,
+            classLabels: [...(original.classLabels || [])],
+            status: "edited",
+            visible: true,
+            displayColor: color,
+            maskData: original.maskData ? JSON.parse(JSON.stringify(original.maskData)) : null,
+          };
+          if (newLayer.maskData) {
+            const rle = utils.binaryMaskToRLE(newLayer.maskData);
+            await apiClient.updateMaskLayer(projectId, activeImageState.imageHash, newLayer.layerId, {
+              mask_data_rle: rle,
+              status: "edited",
+            });
+          }
+          activeImageState.layers.unshift(newLayer);
+          onImageDataChange("layer-added", { layerIds: [newLayer.layerId] });
+          layerViewController.setLayers(activeImageState.layers);
+        }
+      } catch (err) {
+        uiManager.showGlobalStatus(`Duplicate failed: ${utils.escapeHTML(err.message)}`, "error");
+      }
+      updateLayerUtilityButtons();
+    });
+  }
+
+  if (mergeLayersBtn) {
+    mergeLayersBtn.addEventListener("click", async () => {
+      if (!activeImageState || !activeLayerId || selectedLayerIds.length <= 1) return;
+      const projectId = stateManager.getActiveProjectId();
+      if (!projectId) return;
+      const ih = activeImageState.imageHash;
+      const activeLayer = activeImageState.layers.find((l) => l.layerId === activeLayerId);
+      if (!activeLayer) return;
+      const others = selectedLayerIds.filter((id) => id !== activeLayerId)
+        .map((id) => activeImageState.layers.find((l) => l.layerId === id))
+        .filter(Boolean);
+      if (others.length === 0) return;
+      others.forEach((o) => {
+        if (o.maskData) {
+          if (activeLayer.maskData) {
+            utils.unionBinaryMasks(activeLayer.maskData, o.maskData);
+          } else {
+            activeLayer.maskData = JSON.parse(JSON.stringify(o.maskData));
+          }
+        }
+        (o.classLabels || []).forEach((t) => {
+          if (!activeLayer.classLabels.includes(t)) activeLayer.classLabels.push(t);
+        });
+      });
+      if (activeLayer.maskData) {
+        const rle = utils.binaryMaskToRLE(activeLayer.maskData);
+        await apiClient.updateMaskLayer(projectId, ih, activeLayer.layerId, {
+          mask_data_rle: rle,
+          class_labels: activeLayer.classLabels,
+          status: "edited",
+        });
+      }
+      onImageDataChange("layer-modified", { layerId: activeLayer.layerId });
+      for (const o of others) {
+        activeImageState.layers = activeImageState.layers.filter((l) => l.layerId !== o.layerId);
+        try {
+          await apiClient.deleteMaskLayer(projectId, ih, o.layerId);
+        } catch (e) {}
+        onImageDataChange("layer-deleted", { layerId: o.layerId });
+      }
+      layerViewController.setLayers(activeImageState.layers);
+      layerViewController.setSelectedLayers([activeLayerId]);
+      canvasManager.setLayers(activeImageState.layers);
+      canvasManager.setMode("edit", [activeLayerId]);
+      if (editModeController) {
+        const layer = activeImageState.layers.find(
+          (l) => l.layerId === activeLayerId,
+        );
+        if (layer) editModeController.beginEdit(layer);
+      }
+      utils.dispatchCustomEvent("layers-selected", {
+        layerIds: [activeLayerId],
+      });
+      updateLayerUtilityButtons();
+      canvasManager.setLayers(activeImageState.layers);
+      canvasManager.drawPredictionMaskLayer();
     });
   }
 
@@ -1125,7 +1273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasManager.clearAllCanvasInputs(false);
     canvasManager.setManualPredictions(null);
     canvasManager.setAutomaskPredictions(null);
-    canvasManager.setMode("edit");
+    canvasManager.setMode("creation");
   }
 
   if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
@@ -1140,11 +1288,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Export button now handled by ExportDialog
 
-  document.addEventListener("layers-selected", (event) => {
+  document.addEventListener("layers-selected", async (event) => {
     if (!activeImageState) return;
-    const ids = Array.isArray(event.detail.layerIds)
-      ? event.detail.layerIds
-      : [];
+    const ids = Array.isArray(event.detail.layerIds) ? event.detail.layerIds : [];
+    const prevActive = activeLayerId;
+    selectedLayerIds = ids;
+    activeLayerId = layerViewController ? layerViewController.lastSelectedLayerId : null;
+    if (prevActive && prevActive !== activeLayerId && editModeController && editModeController.activeLayer) {
+      await autoSaveCurrentEdits();
+      editModeController.endEdit();
+    }
     canvasManager.clearAllCanvasInputs(false);
     if (ids.length === 0) {
       canvasManager.setMode("creation");
@@ -1153,12 +1306,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     canvasManager.setLayers(activeImageState.layers);
     if (editModeController) {
-      if (ids.length === 1) {
-        const layer = activeImageState.layers.find((l) => l.layerId === ids[0]);
-        editModeController.beginEdit(layer);
-        utils.hideElement(creationActions);
-        utils.showElement(editActions, "flex");
-        updateHelpTooltipForMode("edit");
+      if (activeLayerId) {
+        const layer = activeImageState.layers.find((l) => l.layerId === activeLayerId);
+        if (layer) {
+          editModeController.beginEdit(layer);
+          utils.hideElement(creationActions);
+          utils.showElement(editActions, "flex");
+          updateHelpTooltipForMode("edit");
+        }
       } else {
         editModeController.endEdit();
         utils.showElement(creationActions, "flex");
@@ -1166,6 +1321,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!reviewMode) updateHelpTooltipForMode("creation");
       }
     }
+    updateLayerUtilityButtons();
   });
 
   document.addEventListener("layer-deleted", async (event) => {
@@ -1328,40 +1484,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("edit-save", (event) => {
-    if (!activeImageState) return;
-    const layer = activeImageState.layers.find(
-      (l) => l.layerId === event.detail.layerId,
-    );
-    if (layer && event.detail.maskData) {
-      layer.maskData = event.detail.maskData;
-      layer.status = "edited";
-      const pid = stateManager.getActiveProjectId();
-      const ih = activeImageState.imageHash;
-      if (pid && ih) {
-        const rle = utils.binaryMaskToRLE(layer.maskData);
-        apiClient
-          .updateMaskLayer(pid, ih, layer.layerId, {
-            mask_data_rle: rle,
-            status: "edited",
-          })
-          .catch((err) => {
-            uiManager.showGlobalStatus(
-              `Save edit failed: ${utils.escapeHTML(err.message)}`,
-              "error",
-            );
-          });
-      }
-      onImageDataChange("layer-modified", { layerId: layer.layerId });
-    }
-    if (layerViewController) layerViewController.setSelectedLayers([]);
-    canvasManager.setMode("creation");
-    utils.showElement(creationActions, "flex");
-    utils.hideElement(editActions);
-    if (!reviewMode) updateHelpTooltipForMode("creation");
-  });
 
-  document.addEventListener("edit-cancel", () => {
+  document.addEventListener("edit-discard", () => {
     if (activeImageState) {
       canvasManager.setLayers(activeImageState.layers);
     }
@@ -1378,7 +1502,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("active-image-set", (event) => {
+  document.addEventListener("active-image-set", async (event) => {
     if (
       activeImageState &&
       activeImageState.imageHash === event.detail.imageHash
@@ -1386,15 +1510,23 @@ document.addEventListener("DOMContentLoaded", () => {
       activeImageState.status = event.detail.status || "unprocessed";
     }
     onImageDataChange("image-loaded", { imageHash: event.detail.imageHash });
-    if (editModeController) editModeController.endEdit();
+    if (editModeController && editModeController.activeLayer) {
+      await autoSaveCurrentEdits();
+      editModeController.endEdit();
+    }
     canvasManager.setMode("creation");
+    updateLayerUtilityButtons();
   });
 
-  document.addEventListener("active-image-cleared", () => {
+  document.addEventListener("active-image-cleared", async () => {
+    if (editModeController && editModeController.activeLayer) {
+      await autoSaveCurrentEdits();
+      editModeController.endEdit();
+    }
     activeImageState = null;
-    if (editModeController) editModeController.endEdit();
     canvasManager.setMode("creation");
     updateStatusToggleUI("unprocessed", false);
+    updateLayerUtilityButtons();
   });
 
   document.addEventListener("image-status-updated", (event) => {
