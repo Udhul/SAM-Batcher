@@ -99,7 +99,10 @@ It will be updated as new sprints add functionality.
 - ~~Add update-status dropdown in the annotation view.~~ Implemented as Ready/Skip toggle switches.
 - Improve error handling and autosave of `ActiveImageState` to prevent data
     loss.
-- **Tagify Layer Tags**: Layer tags are edited using the Tagify widget with
-  auto-suggestions from existing project tags. Suggestions update when tags
-  change and appear when focusing the tag field.
+  - **Tagify Layer Tags**: Layer tags are edited using the Tagify widget with
+    auto-suggestions from existing project tags. Suggestions update when tags
+    change and appear when focusing the tag field.
+  - **Auto-Saving Edits**: Mask edits are saved automatically when changing
+    layer selection or images. The edit toolbar now features a single
+    `Discard` button to revert changes.
 

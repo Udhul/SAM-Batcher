@@ -266,12 +266,12 @@
 #save-canvas-png-btn:hover:not(:disabled) {
   background-color: #0056b3;
 }
-#commit-masks-btn, #edit-save-btn{
+#commit-masks-btn{
   background-color: #28a745;
   padding: 8px 16px;
   font-size: 15px;
 } /* Green for commit */
-#commit-masks-btn:hover:not(:disabled), #edit-save-btn:hover:not(:disabled) {
+#commit-masks-btn:hover:not(:disabled) {
   background-color: #218838;
 }
 #edit-undo-btn, #edit-redo-btn {
@@ -282,7 +282,7 @@
 }
 
 /* Clear Inputs Button */
-#clear-inputs-btn, #edit-cancel-btn {
+#clear-inputs-btn, #edit-discard-btn {
   background: linear-gradient(135deg, #ff7300, #ffa500);
   border: none;
   padding: 8px 16px;
@@ -293,12 +293,12 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(255, 140, 0, 0.2);
 }
-#clear-inputs-btn:hover:not(:disabled), #edit-cancel-btn:hover:not(:disabled) {
+#clear-inputs-btn:hover:not(:disabled), #edit-discard-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #e67e00, #cb7600);
   box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
   transform: translateY(-1px);
 }
-#clear-inputs-btn:disabled, #edit-cancel-btn:disabled {
+#clear-inputs-btn:disabled, #edit-discard-btn:disabled {
   background: #ccc;
   color: #888;
   box-shadow: none;
@@ -306,7 +306,7 @@
   cursor: not-allowed;
 }
 
-#clear-inputs-btn #edit-cancel-btn{
+#clear-inputs-btn #edit-discard-btn{
   width: 100%;
   margin-top: 10px;
 }

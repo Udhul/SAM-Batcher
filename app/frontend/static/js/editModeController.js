@@ -11,7 +11,7 @@ class EditModeController {
         this.stateManager = stateManager;
         this.apiClient = apiClient;
         this.utils = utils;
-        this.activeLayer = null;
+        this.activeLayers = [];
         this.brushSize = 10;
         this.isDrawing = false;
         this.currentTool = 'brush'; // 'brush' or 'lasso'
@@ -33,8 +33,7 @@ class EditModeController {
         this.invertBtn = document.getElementById('edit-invert-btn');
         this.undoBtn = document.getElementById('edit-undo-btn');
         this.redoBtn = document.getElementById('edit-redo-btn');
-        this.saveBtn = document.getElementById('edit-save-btn');
-        this.cancelBtn = document.getElementById('edit-cancel-btn');
+        this.discardBtn = document.getElementById('edit-discard-btn');
         this.previewEl = document.getElementById('brush-preview');
     }
 
@@ -51,8 +50,7 @@ class EditModeController {
         if (this.invertBtn) this.invertBtn.addEventListener('click', () => this.actionInvert());
         if (this.undoBtn) this.undoBtn.addEventListener('click', () => this.actionUndo());
         if (this.redoBtn) this.redoBtn.addEventListener('click', () => this.actionRedo());
-        if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.save());
-        if (this.cancelBtn) this.cancelBtn.addEventListener('click', () => this.cancel());
+        if (this.discardBtn) this.discardBtn.addEventListener('click', () => this.discard());
         const canvas = this.canvasManager.userInputCanvas;
         if (canvas) {
             canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
@@ -71,17 +69,17 @@ class EditModeController {
         this.previewEl.style.height = `${r}px`;
     }
 
-    beginEdit(layer) {
-        if (!layer) return;
-        this.activeLayer = layer;
-        this.canvasManager.startMaskEdit(layer.layerId, layer.maskData, layer.displayColor);
+    beginEdit(layers) {
+        if (!Array.isArray(layers) || layers.length === 0) return;
+        this.activeLayers = layers;
+        this.canvasManager.startMaskEdit(layers);
         this.showControls(true);
         this.selectTool('brush');
         this.updatePreviewSize();
     }
 
     endEdit() {
-        this.activeLayer = null;
+        this.activeLayers = [];
         this.showControls(false);
         this.canvasManager.finishMaskEdit();
         if (this.previewEl) this.previewEl.style.display = 'none';
@@ -95,7 +93,7 @@ class EditModeController {
     }
 
     onMouseDown(e) {
-        if (!this.activeLayer) return;
+        if (!this.activeLayers || this.activeLayers.length === 0) return;
         this.isDrawing = true;
         if (this.currentTool === 'brush' && this.previewEl) {
             this.previewEl.style.position = 'fixed';
@@ -116,7 +114,7 @@ class EditModeController {
 
 
     onMouseMove(e) {
-        if (!this.activeLayer) return;
+        if (!this.activeLayers || this.activeLayers.length === 0) return;
         if (this.currentTool === 'brush' && this.previewEl) {
             this.previewEl.style.position = 'fixed';
             this.previewEl.style.left = `${e.clientX}px`;
@@ -156,7 +154,7 @@ class EditModeController {
         this.currentTool = tool;
         if (this.brushBtn) this.brushBtn.classList.toggle('active', tool === 'brush');
         if (this.lassoBtn) this.lassoBtn.classList.toggle('active', tool === 'lasso');
-        if (this.previewEl) this.previewEl.style.display = tool === 'brush' && this.activeLayer ? 'block' : 'none';
+        if (this.previewEl) this.previewEl.style.display = tool === 'brush' && this.activeLayers && this.activeLayers.length > 0 ? 'block' : 'none';
         this.canvasManager.clearLassoPreview();
     }
 
@@ -188,15 +186,8 @@ class EditModeController {
         this.canvasManager.redoEdit();
     }
 
-    save() {
-        if (!this.activeLayer) return;
-        const edited = this.canvasManager.getEditedMask();
-        this.utils.dispatchCustomEvent('edit-save', { layerId: this.activeLayer.layerId, maskData: edited });
-        this.endEdit();
-    }
-
-    cancel() {
-        this.utils.dispatchCustomEvent('edit-cancel', {});
+    discard() {
+        this.utils.dispatchCustomEvent('edit-discard', {});
         this.endEdit();
     }
 }
