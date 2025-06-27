@@ -106,5 +106,5 @@ It will be updated as new sprints add functionality.
     layer selection or images. The edit toolbar now features a single
     `Discard` button to revert changes.
   - **Layer Utilities**: Duplicate and Merge buttons appear next to the Skip/Ready toggles and refresh the canvas immediately after merging.
-  - **Merge Redraw Fix**: Merged layers now redraw correctly so masks remain visible without refreshing the page.
+  - **Merge Redraw Fix**: The canvas now refreshes after merging layers so merged masks appear immediately.
 

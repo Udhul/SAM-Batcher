@@ -898,6 +898,8 @@ document.addEventListener("DOMContentLoaded", () => {
         layerIds: [activeLayerId],
       });
       updateLayerUtilityButtons();
+      canvasManager.setLayers(activeImageState.layers);
+      canvasManager.drawPredictionMaskLayer();
     });
   }
 
