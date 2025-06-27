@@ -521,7 +521,8 @@ class CanvasManager {
                 const color = (this.editingLayerId && l.layerId === this.editingLayerId)
                     ? this.editingColor
                     : l.color;
-                if (mask) this._drawBinaryMask(mask, color, op);
+                const hatch = !(this.editingLayerId && l.layerId === this.editingLayerId);
+                if (mask) this._drawBinaryMask(mask, color, op, hatch);
             });
         }
 
@@ -893,7 +894,7 @@ class CanvasManager {
         }
     }
 
-    _drawBinaryMask(maskData, colorStr, opacity = 1.0) {
+    _drawBinaryMask(maskData, colorStr, opacity = 1.0, hatch = true) {
         if (!maskData || !maskData.length || !maskData[0].length) return;
         const maskHeight = maskData.length;
         const maskWidth = maskData[0].length;
@@ -909,7 +910,7 @@ class CanvasManager {
         const [r, g, b, a_int] = this._parseRgbaFromString(colorStr);
         const finalAlpha = Math.round(Math.min(1, Math.max(0, opacity)) * a_int);
 
-        const spacing = 6; // pixel spacing between hatch lines
+        const spacing = 4; // pixel spacing between hatch lines (tighter pattern)
         const lineWidth = 2; // hatch line thickness
 
         const isBorder = (mx, my) => {
@@ -926,7 +927,7 @@ class CanvasManager {
                 if (!maskData[y][x]) continue;
                 const idx = (y * maskWidth + x) * 4;
                 const border = isBorder(x, y);
-                const drawPixel = border || ((x + y) % spacing < lineWidth);
+                const drawPixel = border || !hatch || ((x + y) % spacing < lineWidth);
                 if (drawPixel) {
                     pixelData[idx] = r;
                     pixelData[idx + 1] = g;

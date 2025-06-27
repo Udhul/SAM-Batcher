@@ -482,7 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // == ImagePoolHandler Events ==
   document.addEventListener("active-image-set", async (event) => {
-    const {
+  const {
       imageHash,
       filename,
       width,
@@ -491,6 +491,9 @@ document.addEventListener("DOMContentLoaded", () => {
       existingMasks,
       status,
     } = event.detail;
+    canvasManager.clearAllCanvasInputs(true);
+    canvasManager.setManualPredictions(null);
+    canvasManager.setAutomaskPredictions(null);
     uiManager.showGlobalStatus(
       `Loading image '${utils.escapeHTML(filename)}' for annotation...`,
       "loading",
@@ -1125,7 +1128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasManager.clearAllCanvasInputs(false);
     canvasManager.setManualPredictions(null);
     canvasManager.setAutomaskPredictions(null);
-    canvasManager.setMode("edit");
+    canvasManager.setMode("creation");
   }
 
   if (commitMasksBtn && !commitMasksBtn.dataset.listenerAttached) {
