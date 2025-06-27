@@ -168,6 +168,17 @@ document.addEventListener("DOMContentLoaded", () => {
   let suppressStatusChangeEvents = false;
   let selectedLayerIds = [];
   let activeLayerId = null;
+
+  function updateLayerUtilityButtons() {
+    if (duplicateLayerBtn) {
+      duplicateLayerBtn.disabled = !activeLayerId;
+    }
+    if (mergeLayersBtn) {
+      mergeLayersBtn.disabled = !(
+        activeLayerId && Array.isArray(selectedLayerIds) && selectedLayerIds.length > 1
+      );
+    }
+  }
   async function autoSaveCurrentEdits() {
     if (!activeImageState || !editModeController || !editModeController.activeLayer) return;
     const mask = canvasManager.getEditedMask();
@@ -220,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateStatusToggleUI("unprocessed", false);
+  updateLayerUtilityButtons();
   updateHelpTooltipForMode("creation");
 
   function enterReviewMode() {
@@ -779,6 +791,7 @@ document.addEventListener("DOMContentLoaded", () => {
           onImageDataChange("layer-added", { layerIds: [newLayer.layerId] });
           canvasManager.clearAllCanvasInputs(false);
           canvasManager.setMode("edit");
+          updateLayerUtilityButtons();
         }
       } catch (err) {
         console.error("Failed to create empty layer", err);
@@ -825,6 +838,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         uiManager.showGlobalStatus(`Duplicate failed: ${utils.escapeHTML(err.message)}`, "error");
       }
+      updateLayerUtilityButtons();
     });
   }
 
@@ -862,6 +876,7 @@ document.addEventListener("DOMContentLoaded", () => {
           status: "edited",
         });
       }
+      onImageDataChange("layer-modified", { layerId: activeLayer.layerId });
       for (const o of others) {
         activeImageState.layers = activeImageState.layers.filter((l) => l.layerId !== o.layerId);
         try {
@@ -873,6 +888,7 @@ document.addEventListener("DOMContentLoaded", () => {
       layerViewController.setSelectedLayers([activeLayerId]);
       canvasManager.setLayers(activeImageState.layers);
       canvasManager.setMode("edit", [activeLayerId]);
+      updateLayerUtilityButtons();
     });
   }
 
@@ -1296,6 +1312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!reviewMode) updateHelpTooltipForMode("creation");
       }
     }
+    updateLayerUtilityButtons();
   });
 
   document.addEventListener("layer-deleted", async (event) => {
@@ -1489,6 +1506,7 @@ document.addEventListener("DOMContentLoaded", () => {
       editModeController.endEdit();
     }
     canvasManager.setMode("creation");
+    updateLayerUtilityButtons();
   });
 
   document.addEventListener("active-image-cleared", async () => {
@@ -1499,6 +1517,7 @@ document.addEventListener("DOMContentLoaded", () => {
     activeImageState = null;
     canvasManager.setMode("creation");
     updateStatusToggleUI("unprocessed", false);
+    updateLayerUtilityButtons();
   });
 
   document.addEventListener("image-status-updated", (event) => {

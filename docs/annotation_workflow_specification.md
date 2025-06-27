@@ -96,7 +96,7 @@ This panel sits to the right of the canvas and always reflects the layers for th
         *   **Duplicate Button:** Creates a copy of the active layer.
         *   **Merge Button:** Merges all selected layers into the active one, combining masks and labels.
 
-At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON.
+At the bottom of the Layer View, compact buttons allow the user to save an overlay preview of the current image and export the project's annotations to COCO JSON. Duplicate and Merge utilities appear in this bar next to the image status toggles.
 
 #### 3.1.3. Canvas & Toolbar
 

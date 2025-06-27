@@ -105,5 +105,5 @@ It will be updated as new sprints add functionality.
   - **Auto-Saving Edits**: Mask edits are saved automatically when changing
     layer selection or images. The edit toolbar now features a single
     `Discard` button to revert changes.
-  - **Layer Utilities**: Added Duplicate and Merge controls in the Layer View.
+  - **Layer Utilities**: Duplicate and Merge buttons appear next to the Skip/Ready toggles and refresh the canvas immediately after merging.
 
