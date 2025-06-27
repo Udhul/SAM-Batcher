@@ -205,19 +205,9 @@ class CanvasManager {
         // It will be resized in drawPredictionMaskLayer if needed.
     }
 
-    resizeOffscreenForTransform() {
-        if (!this.imageCanvas) return;
-        const scaledW = Math.ceil(this.imageCanvas.width * this.transform.scale);
-        const scaledH = Math.ceil(this.imageCanvas.height * this.transform.scale);
-        if (this.offscreenPredictionCanvas.width !== scaledW || this.offscreenPredictionCanvas.height !== scaledH) {
-            this.offscreenPredictionCanvas.width = scaledW;
-            this.offscreenPredictionCanvas.height = scaledH;
-        }
-        if (this.offscreenUserCanvas.width !== scaledW || this.offscreenUserCanvas.height !== scaledH) {
-            this.offscreenUserCanvas.width = scaledW;
-            this.offscreenUserCanvas.height = scaledH;
-        }
-    }
+    // Offscreen canvases match the base display size of the image. They are not
+    // resized on zoom to avoid cropping issues when panning. They will be sized
+    // in `drawImageLayer` whenever the image or display area changes.
 
     applyCanvasTransform() {
         const t = `scale(${this.transform.scale}) translate(${this.transform.panX}px, ${this.transform.panY}px)`;
@@ -231,7 +221,6 @@ class CanvasManager {
         if (this.userInputCanvas) {
             this.userInputCanvas.style.transform = 'none';
         }
-        this.resizeOffscreenForTransform();
         this._dispatchEvent('zoom-pan-changed', { scale: this.transform.scale, panX: this.transform.panX, panY: this.transform.panY });
         this.drawUserInputLayer();
         this.drawPredictionMaskLayer();
@@ -256,7 +245,7 @@ class CanvasManager {
     _originalToViewportCoords(originalX, originalY) {
         if (!this.originalImageWidth || !this.originalImageHeight || !this.userInputCanvas ||
             this.userInputCanvas.width === 0 || this.userInputCanvas.height === 0) return { x: 0, y: 0 };
-        const scale = this.displayScale * this.transform.scale;
+        const scale = this.displayScale;
         return { x: originalX * scale, y: originalY * scale };
     }
 
@@ -456,8 +445,8 @@ class CanvasManager {
 
         this.offscreenUserCtx.clearRect(0, 0, this.offscreenUserCanvas.width, this.offscreenUserCanvas.height);
 
-        const pointDisplayRadius = Math.max(2, 5 * this.displayScale * this.transform.scale);
-        const lineDisplayWidth = Math.max(1, 2 * this.displayScale * this.transform.scale);
+        const pointDisplayRadius = Math.max(2, 5 * this.displayScale);
+        const lineDisplayWidth = Math.max(1, 2 * this.displayScale);
 
         // Draw drawn polygons (lassos)
         this.userDrawnMasks.forEach(mask => {
@@ -517,22 +506,15 @@ class CanvasManager {
             this.offscreenUserCtx.strokeRect(db1.x, db1.y, db2.x - db1.x, db2.y - db1.y);
         });
 
-        // Composite to visible canvas
+        // Composite to visible canvas using the current zoom/pan transform
+        this.userCtx.setTransform(1, 0, 0, 1, 0, 0);
         this.userCtx.clearRect(0, 0, this.userInputCanvas.width, this.userInputCanvas.height);
+        this.userCtx.save();
+        this.userCtx.setTransform(this.transform.scale, 0, 0, this.transform.scale, this.transform.panX, this.transform.panY);
         this.userCtx.globalAlpha = this.userInputOpacitySlider ? parseFloat(this.userInputOpacitySlider.value) : 0.8;
         this.userCtx.imageSmoothingEnabled = false;
-        this.userCtx.drawImage(
-            this.offscreenUserCanvas,
-            -this.transform.panX,
-            -this.transform.panY,
-            this.userInputCanvas.width,
-            this.userInputCanvas.height,
-            0,
-            0,
-            this.userInputCanvas.width,
-            this.userInputCanvas.height
-        );
-        this.userCtx.globalAlpha = 1.0;
+        this.userCtx.drawImage(this.offscreenUserCanvas, 0, 0);
+        this.userCtx.restore();
     }
 
     drawPredictionMaskLayer() {
@@ -607,9 +589,8 @@ class CanvasManager {
 
                 if (pixelCount > 0) {
                     this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
-                    const scale = this.displayScale * this.transform.scale;
-                    const scaledW = maskWidth * scale;
-                    const scaledH = maskHeight * scale;
+                    const scaledW = maskWidth * this.displayScale;
+                    const scaledH = maskHeight * this.displayScale;
                     this.offscreenPredictionCtx.save();
                     this.offscreenPredictionCtx.imageSmoothingEnabled = false;
                     this.offscreenPredictionCtx.drawImage(this.tempMaskPixelCanvas, 0, 0, scaledW, scaledH);
@@ -618,23 +599,16 @@ class CanvasManager {
             });
         }
 
-        // Composite to visible prediction canvas
+        // Composite to visible prediction canvas using the current transform
+        this.predictionCtx.setTransform(1, 0, 0, 1, 0, 0);
         this.predictionCtx.clearRect(0, 0, this.predictionMaskCanvas.width, this.predictionMaskCanvas.height);
+        this.predictionCtx.save();
+        this.predictionCtx.setTransform(this.transform.scale, 0, 0, this.transform.scale, this.transform.panX, this.transform.panY);
         const opacity = this.predictionOpacitySlider ? parseFloat(this.predictionOpacitySlider.value) : 0.7;
         this.predictionCtx.globalAlpha = opacity;
         this.predictionCtx.imageSmoothingEnabled = false;
-        this.predictionCtx.drawImage(
-            this.offscreenPredictionCanvas,
-            -this.transform.panX,
-            -this.transform.panY,
-            this.predictionMaskCanvas.width,
-            this.predictionMaskCanvas.height,
-            0,
-            0,
-            this.predictionMaskCanvas.width,
-            this.predictionMaskCanvas.height
-        );
-        this.predictionCtx.globalAlpha = 1.0;
+        this.predictionCtx.drawImage(this.offscreenPredictionCanvas, 0, 0);
+        this.predictionCtx.restore();
     }
 
     // --- User Interaction Handlers ---
@@ -984,9 +958,8 @@ class CanvasManager {
 
         this.tempMaskPixelCtx.putImageData(imageData, 0, 0);
 
-        const scale = this.displayScale * this.transform.scale;
-        const scaledW = maskWidth * scale;
-        const scaledH = maskHeight * scale;
+        const scaledW = maskWidth * this.displayScale;
+        const scaledH = maskHeight * this.displayScale;
         this.offscreenPredictionCtx.save();
         this.offscreenPredictionCtx.imageSmoothingEnabled = false;
         this.offscreenPredictionCtx.globalAlpha = 1.0; // opacity baked in alpha
