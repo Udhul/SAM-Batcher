@@ -116,7 +116,9 @@ class CanvasManager {
         this.selectedLayerIds = [];
         this.mode = 'edit'; // 'creation', 'edit', 'review'
 
-        this.editingLayers = {}; // { layerId: { mask, color } }
+        this.editingLayerId = null;
+        this.editingMask = null;
+        this.editingColor = '#ff0000';
         this.editHistory = [];
         this.editHistoryIndex = -1;
 
@@ -513,10 +515,13 @@ class CanvasManager {
                 if (this.mode === 'edit' && this.selectedLayerIds.length > 0) {
                     op = this.selectedLayerIds.includes(l.layerId) ? 1.0 : FADED_MASK_OPACITY;
                 }
-                const isEditing = this.editingLayers.hasOwnProperty(l.layerId);
-                const mask = isEditing ? this.editingLayers[l.layerId].mask : l.maskData;
-                const color = isEditing ? this.editingLayers[l.layerId].color : l.color;
-                const hatch = !isEditing;
+                const mask = (this.editingLayerId && l.layerId === this.editingLayerId && this.editingMask)
+                    ? this.editingMask
+                    : l.maskData;
+                const color = (this.editingLayerId && l.layerId === this.editingLayerId)
+                    ? this.editingColor
+                    : l.color;
+                const hatch = !(this.editingLayerId && l.layerId === this.editingLayerId);
                 if (mask) this._drawBinaryMask(mask, color, op, hatch);
             });
         }
@@ -1096,62 +1101,51 @@ class CanvasManager {
         this.drawPredictionMaskLayer();
     }
 
-    startMaskEdit(layers) {
-        this.editingLayers = {};
-        if (!Array.isArray(layers)) layers = [];
-        layers.forEach(layer => {
-            let mask;
-            if (Array.isArray(layer.maskData) && Array.isArray(layer.maskData[0])) {
-                mask = layer.maskData.map(r => Array.from(r));
-            } else if (layer.maskData && layer.maskData.counts && layer.maskData.size) {
-                mask = this.Utils.rleToBinaryMask(
-                    layer.maskData,
-                    this.originalImageHeight,
-                    this.originalImageWidth
-                );
-                mask = mask || this._createEmptyMask();
-            } else {
-                mask = this._createEmptyMask();
-            }
-            this.editingLayers[layer.layerId] = { mask, color: layer.displayColor || layer.color || '#ff0000' };
-        });
-        this.editHistory = [this.getEditedMasks()];
+    startMaskEdit(layerId, maskData, color) {
+        this.editingLayerId = layerId;
+        this.editingColor = color || '#ff0000';
+        if (Array.isArray(maskData) && Array.isArray(maskData[0])) {
+            this.editingMask = maskData.map(r => Array.from(r));
+        } else if (maskData && maskData.counts && maskData.size) {
+            const converted = this.Utils.rleToBinaryMask(
+                maskData,
+                this.originalImageHeight,
+                this.originalImageWidth
+            );
+            this.editingMask = converted || this._createEmptyMask();
+        } else {
+            this.editingMask = this._createEmptyMask();
+        }
+        this.editHistory = [this.getEditedMask()];
         this.editHistoryIndex = 0;
         this.drawPredictionMaskLayer();
     }
 
     applyBrush(x, y, radius, add = true) {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
+        if (!this.editingMask) return;
+        const h = this.editingMask.length;
+        const w = this.editingMask[0].length;
         const cx = Math.round(x);
         const cy = Math.round(y);
-        layerIds.forEach(id => {
-            const mask = this.editingLayers[id].mask;
-            const h = mask.length;
-            const w = mask[0].length;
-            for (let j = -radius; j <= radius; j++) {
-                for (let i = -radius; i <= radius; i++) {
-                    if (i * i + j * j <= radius * radius) {
-                        const nx = cx + i;
-                        const ny = cy + j;
-                        if (nx >= 0 && ny >= 0 && nx < w && ny < h) {
-                            mask[ny][nx] = add ? 1 : 0;
-                        }
+        for (let j = -radius; j <= radius; j++) {
+            for (let i = -radius; i <= radius; i++) {
+                if (i * i + j * j <= radius * radius) {
+                    const nx = cx + i;
+                    const ny = cy + j;
+                    if (nx >= 0 && ny >= 0 && nx < w && ny < h) {
+                        this.editingMask[ny][nx] = add ? 1 : 0;
                     }
                 }
             }
-        });
+        }
         this.drawPredictionMaskLayer();
     }
 
     applyLasso(points, add = true) {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0 || !points || points.length < 3) return;
-        let minX, minY, maxX, maxY;
-        const anyMask = this.editingLayers[layerIds[0]].mask;
-        const h = anyMask.length;
-        const w = anyMask[0].length;
-        minX = w; minY = h; maxX = 0; maxY = 0;
+        if (!this.editingMask || !points || points.length < 3) return;
+        const h = this.editingMask.length;
+        const w = this.editingMask[0].length;
+        let minX = w, minY = h, maxX = 0, maxY = 0;
         points.forEach(p => {
             if (p.x < minX) minX = Math.floor(p.x);
             if (p.x > maxX) maxX = Math.ceil(p.x);
@@ -1160,16 +1154,13 @@ class CanvasManager {
         });
         minX = Math.max(0, minX); minY = Math.max(0, minY);
         maxX = Math.min(w - 1, maxX); maxY = Math.min(h - 1, maxY);
-        layerIds.forEach(id => {
-            const mask = this.editingLayers[id].mask;
-            for (let y = minY; y <= maxY; y++) {
-                for (let x = minX; x <= maxX; x++) {
-                    if (this._isPointInPolygon({x, y}, points)) {
-                        mask[y][x] = add ? 1 : 0;
-                    }
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                if (this._isPointInPolygon({x, y}, points)) {
+                    this.editingMask[y][x] = add ? 1 : 0;
                 }
             }
-        });
+        }
         this.drawPredictionMaskLayer();
     }
 
@@ -1198,25 +1189,19 @@ class CanvasManager {
     }
 
     commitHistoryStep() {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
+        if (!this.editingMask) return;
         if (this.editHistoryIndex < this.editHistory.length - 1) {
             this.editHistory = this.editHistory.slice(0, this.editHistoryIndex + 1);
         }
-        this.editHistory.push(this.getEditedMasks());
+        this.editHistory.push(this.getEditedMask());
         this.editHistoryIndex = this.editHistory.length - 1;
     }
 
     undoEdit() {
         if (this.editHistoryIndex > 0) {
             this.editHistoryIndex -= 1;
-            const snapshot = this.editHistory[this.editHistoryIndex];
-            for (const id of Object.keys(snapshot)) {
-                if (this.editingLayers[id]) {
-                    const mask = snapshot[id];
-                    this.editingLayers[id].mask = mask.map(r => [...r]);
-                }
-            }
+            const mask = this.editHistory[this.editHistoryIndex];
+            this.editingMask = mask.map(r => [...r]);
             this.drawPredictionMaskLayer();
         }
     }
@@ -1224,60 +1209,41 @@ class CanvasManager {
     redoEdit() {
         if (this.editHistoryIndex < this.editHistory.length - 1) {
             this.editHistoryIndex += 1;
-            const snapshot = this.editHistory[this.editHistoryIndex];
-            for (const id of Object.keys(snapshot)) {
-                if (this.editingLayers[id]) {
-                    const mask = snapshot[id];
-                    this.editingLayers[id].mask = mask.map(r => [...r]);
-                }
-            }
+            const mask = this.editHistory[this.editHistoryIndex];
+            this.editingMask = mask.map(r => [...r]);
             this.drawPredictionMaskLayer();
         }
     }
 
     growEditingMask() {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
-        layerIds.forEach(id => {
-            this.editingLayers[id].mask = this._dilateMask(this.editingLayers[id].mask);
-        });
+        if (!this.editingMask) return;
+        this.editingMask = this._dilateMask(this.editingMask);
         this.drawPredictionMaskLayer();
     }
 
     shrinkEditingMask() {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
-        layerIds.forEach(id => {
-            this.editingLayers[id].mask = this._erodeMask(this.editingLayers[id].mask);
-        });
+        if (!this.editingMask) return;
+        this.editingMask = this._erodeMask(this.editingMask);
         this.drawPredictionMaskLayer();
     }
 
     smoothEditingMask() {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
-        layerIds.forEach(id => {
-            let mask = this.editingLayers[id].mask;
-            mask = this._dilateMask(this._erodeMask(mask));
-            mask = this._erodeMask(this._dilateMask(mask));
-            mask = this._smoothMask(mask);
-            this.editingLayers[id].mask = mask;
-        });
+        if (!this.editingMask) return;
+        let mask = this._dilateMask(this._erodeMask(this.editingMask));
+        mask = this._erodeMask(this._dilateMask(mask));
+        mask = this._smoothMask(mask);
+        this.editingMask = mask;
         this.drawPredictionMaskLayer();
     }
 
     invertEditingMask() {
-        const layerIds = Object.keys(this.editingLayers);
-        if (layerIds.length === 0) return;
-        layerIds.forEach(id => {
-            const mask = this.editingLayers[id].mask;
-            const h = mask.length; const w = mask[0].length;
-            for (let y = 0; y < h; y++) {
-                for (let x = 0; x < w; x++) {
-                    mask[y][x] = mask[y][x] ? 0 : 1;
-                }
+        if (!this.editingMask) return;
+        const h = this.editingMask.length; const w = this.editingMask[0].length;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                this.editingMask[y][x] = this.editingMask[y][x] ? 0 : 1;
             }
-        });
+        }
         this.drawPredictionMaskLayer();
     }
 
@@ -1338,16 +1304,13 @@ class CanvasManager {
         return out;
     }
 
-    getEditedMasks() {
-        const out = {};
-        for (const [id, obj] of Object.entries(this.editingLayers)) {
-            out[id] = obj.mask.map(r => [...r]);
-        }
-        return out;
+    getEditedMask() {
+        return this.editingMask ? this.editingMask.map(r => [...r]) : null;
     }
 
     finishMaskEdit() {
-        this.editingLayers = {};
+        this.editingLayerId = null;
+        this.editingMask = null;
         this.editHistory = [];
         this.editHistoryIndex = -1;
         this.drawPredictionMaskLayer();

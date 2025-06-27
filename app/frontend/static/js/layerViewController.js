@@ -10,6 +10,7 @@ class LayerViewController {
         this.stateManager = stateManager;
         this.layers = [];
         this.selectedLayerIds = [];
+        this.lastSelectedLayerId = null;
         this.allProjectTags = [];
         this.tagifyInstances = {};
         this.Utils = window.Utils || { dispatchCustomEvent: (n,d)=>document.dispatchEvent(new CustomEvent(n,{detail:d})) };
@@ -51,12 +52,14 @@ class LayerViewController {
 
     setSelectedLayers(layerIds) {
         this.selectedLayerIds = Array.isArray(layerIds) ? [...layerIds] : [];
+        this.lastSelectedLayerId = this.selectedLayerIds.length > 0 ? this.selectedLayerIds[this.selectedLayerIds.length - 1] : null;
         this.render();
     }
 
     clearSelection() {
         if (this.selectedLayerIds.length > 0) {
             this.selectedLayerIds = [];
+            this.lastSelectedLayerId = null;
             this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [] });
             this.render();
         }
@@ -67,14 +70,20 @@ class LayerViewController {
             const idx = this.selectedLayerIds.indexOf(layerId);
             if (idx !== -1) {
                 this.selectedLayerIds.splice(idx, 1);
+                if (layerId === this.lastSelectedLayerId) {
+                    this.lastSelectedLayerId = this.selectedLayerIds[this.selectedLayerIds.length - 1] || null;
+                }
             } else {
                 this.selectedLayerIds.push(layerId);
+                this.lastSelectedLayerId = layerId;
             }
         } else {
             if (this.selectedLayerIds.length === 1 && this.selectedLayerIds[0] === layerId) {
                 this.selectedLayerIds = [];
+                this.lastSelectedLayerId = null;
             } else {
                 this.selectedLayerIds = [layerId];
+                this.lastSelectedLayerId = layerId;
             }
         }
         this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [...this.selectedLayerIds] });
@@ -88,6 +97,9 @@ class LayerViewController {
             const selIdx = this.selectedLayerIds.indexOf(layerId);
             if (selIdx !== -1) {
                 this.selectedLayerIds.splice(selIdx, 1);
+                if (layerId === this.lastSelectedLayerId) {
+                    this.lastSelectedLayerId = this.selectedLayerIds[this.selectedLayerIds.length - 1] || null;
+                }
                 this.Utils.dispatchCustomEvent('layers-selected', { layerIds: [...this.selectedLayerIds] });
             }
             this.Utils.dispatchCustomEvent('layer-deleted', { layerId });

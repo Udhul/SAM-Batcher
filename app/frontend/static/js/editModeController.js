@@ -11,7 +11,7 @@ class EditModeController {
         this.stateManager = stateManager;
         this.apiClient = apiClient;
         this.utils = utils;
-        this.activeLayers = [];
+        this.activeLayer = null;
         this.brushSize = 10;
         this.isDrawing = false;
         this.currentTool = 'brush'; // 'brush' or 'lasso'
@@ -69,17 +69,17 @@ class EditModeController {
         this.previewEl.style.height = `${r}px`;
     }
 
-    beginEdit(layers) {
-        if (!Array.isArray(layers) || layers.length === 0) return;
-        this.activeLayers = layers;
-        this.canvasManager.startMaskEdit(layers);
+    beginEdit(layer) {
+        if (!layer) return;
+        this.activeLayer = layer;
+        this.canvasManager.startMaskEdit(layer.layerId, layer.maskData, layer.displayColor);
         this.showControls(true);
         this.selectTool('brush');
         this.updatePreviewSize();
     }
 
     endEdit() {
-        this.activeLayers = [];
+        this.activeLayer = null;
         this.showControls(false);
         this.canvasManager.finishMaskEdit();
         if (this.previewEl) this.previewEl.style.display = 'none';
@@ -93,7 +93,7 @@ class EditModeController {
     }
 
     onMouseDown(e) {
-        if (!this.activeLayers || this.activeLayers.length === 0) return;
+        if (!this.activeLayer) return;
         this.isDrawing = true;
         if (this.currentTool === 'brush' && this.previewEl) {
             this.previewEl.style.position = 'fixed';
@@ -114,7 +114,7 @@ class EditModeController {
 
 
     onMouseMove(e) {
-        if (!this.activeLayers || this.activeLayers.length === 0) return;
+        if (!this.activeLayer) return;
         if (this.currentTool === 'brush' && this.previewEl) {
             this.previewEl.style.position = 'fixed';
             this.previewEl.style.left = `${e.clientX}px`;
@@ -154,7 +154,7 @@ class EditModeController {
         this.currentTool = tool;
         if (this.brushBtn) this.brushBtn.classList.toggle('active', tool === 'brush');
         if (this.lassoBtn) this.lassoBtn.classList.toggle('active', tool === 'lasso');
-        if (this.previewEl) this.previewEl.style.display = tool === 'brush' && this.activeLayers && this.activeLayers.length > 0 ? 'block' : 'none';
+        if (this.previewEl) this.previewEl.style.display = tool === 'brush' && this.activeLayer ? 'block' : 'none';
         this.canvasManager.clearLassoPreview();
     }
 
